@@ -40,3 +40,10 @@ build/
 # Database
 *.sql
 *.sqlite
+
+# Binaries
+node.exe
+*.exe
+*.dll
+*.so
+*.dylib
