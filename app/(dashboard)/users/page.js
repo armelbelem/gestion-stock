@@ -1,0 +1,122 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { storage } from '../../lib/storage';
+import { UserPlus, Trash2, Shield, User, Key, CheckCircle, X } from 'lucide-react';
+import { useAuth } from '../../providers';
+import AlertModal from '../../components/AlertModal';
+
+export default function UsersPage() {
+  const { user: currentUser } = useAuth();
+  const [users, setUsers] = useState([]);
+  const [stores, setStores] = useState([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    username: '', password: '', role: 'vendeur', storeId: ''
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [alertModal, setAlertModal] = useState({ open: false, type: 'info', title: '', message: '', onConfirm: null });
+  const closeAlert = () => setAlertModal(prev => ({ ...prev, open: false, onConfirm: null }));
+  const showAlert = (type, title, message) => setAlertModal({ open: true, type, title, message, onConfirm: null });
+  const showConfirm = (title, message, onConfirm) => setAlertModal({ open: true, type: 'confirm', title, message, onConfirm });
+
+  useEffect(() => {
+    loadUsers();
+    loadStores();
+  }, []);
+
+  const loadUsers = async () => {
+    try {
+      const data = await storage.get('users');
+      setUsers(data);
+    } catch (err) { console.error(err); }
+  };
+
+  const loadStores = async () => {
+    try {
+      const data = await storage.get('stores');
+      setStores(data);
+      if (data.length > 0) setFormData(prev => ({ ...prev, storeId: data[0].id }));
+    } catch (err) { console.error(err); }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!formData.username || !formData.password || !formData.storeId) return showAlert('error', 'Erreur', "Champs requis manquants");
+    setIsSubmitting(true);
+    try {
+      await storage.create('users', formData);
+      showAlert('success', 'Succès', "Utilisateur créé !");
+      setIsModalOpen(false);
+      loadUsers();
+    } catch (err) { showAlert('error', 'Erreur', err.message); }
+    finally { setIsSubmitting(false); }
+  };
+
+  const handleDelete = (id) => {
+    if (id === currentUser?.id) return showAlert('error', 'Erreur', "Suppression de soi-même interdite.");
+    showConfirm("Confirmation", "Supprimer cet utilisateur ?", async () => {
+      closeAlert();
+      try {
+        await storage.remove('users', id);
+        showAlert('success', 'Succès', "Utilisateur supprimé");
+        loadUsers();
+      } catch (err) { showAlert('error', 'Erreur', err.message); }
+    });
+  };
+
+  return (
+    <div className="page">
+      <div className="page-header">
+        <div><h1>Utilisateurs</h1><p>Gestion des accès et rôles</p></div>
+        <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}><UserPlus size={18} /> Nouveau</button>
+      </div>
+
+      <div className="content-card">
+        <div className="table-wrapper">
+          <table>
+            <thead><tr><th>Utilisateur</th><th>Rôle</th><th>Magasin</th><th>Actions</th></tr></thead>
+            <tbody>
+              {users.map(u => (
+                <tr key={u.id}>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div className="avatar" style={{ width: '32px', height: '32px', backgroundColor: u.role === 'admin' ? 'var(--primary)' : 'var(--success)' }}>{u.username[0].toUpperCase()}</div>
+                      <strong>{u.username}</strong> {u.id === currentUser?.id && <span className="badge badge-secondary">Moi</span>}
+                    </div>
+                  </td>
+                  <td><span className={`badge ${u.role === 'admin' ? 'badge-primary' : 'badge-success'}`}>{u.role}</span></td>
+                  <td className="text-muted">{u.storeName || '-'}</td>
+                  <td><button onClick={() => handleDelete(u.id)} disabled={u.id === currentUser?.id} className="text-danger" style={{ background: 'none', border: 'none' }}><Trash2 size={18} /></button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {isModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '400px' }}>
+            <div className="modal-header"><h3>Nouvel Utilisateur</h3><button className="modal-close" onClick={() => setIsModalOpen(false)}><X size={20} /></button></div>
+            <form onSubmit={handleSubmit}>
+              <div className="modal-body">
+                <div className="form-group"><label className="form-label">Identifiant</label><input type="text" className="form-control" required value={formData.username} onChange={e => setFormData({...formData, username: e.target.value})} /></div>
+                <div className="form-group"><label className="form-label">Mot de passe</label><input type="password" className="form-control" required value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} /></div>
+                <div className="form-group"><label className="form-label">Rôle</label><select className="form-control" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})}>
+                  <option value="vendeur">Vendeur</option><option value="gestionnaire">Gestionnaire</option><option value="admin">Admin</option>
+                </select></div>
+                <div className="form-group"><label className="form-label">Magasin</label><select className="form-control" required value={formData.storeId} onChange={e => setFormData({...formData, storeId: e.target.value})}>
+                  {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select></div>
+              </div>
+              <div className="modal-footer"><button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(false)}>Annuler</button><button type="submit" className="btn btn-primary" disabled={isSubmitting}>Créer</button></div>
+            </form>
+          </div>
+        </div>
+      )}
+      <AlertModal isOpen={alertModal.open} type={alertModal.type} title={alertModal.title} message={alertModal.message} onClose={closeAlert} onConfirm={alertModal.onConfirm} />
+    </div>
+  );
+}
