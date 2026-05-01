@@ -7,7 +7,7 @@ const pool = mysql.createPool({
   database: process.env.MYSQLDATABASE || process.env.DB_NAME || 'gestion_stock_db',
   port: process.env.MYSQLPORT || process.env.DB_PORT || 3306,
   waitForConnections: true,
-  connectionLimit: 10,
+  connectionLimit: 30,
   queueLimit: 0,
   dateStrings: true,
   charset: 'utf8mb4'

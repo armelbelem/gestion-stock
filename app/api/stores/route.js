@@ -18,9 +18,9 @@ export async function POST(request) {
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
   if (auth.user.role !== 'admin') return NextResponse.json({ error: 'Interdit' }, { status: 403 });
   const { name, address } = await request.json();
-  const id = uuidv4();
   try {
-    await db.query('INSERT INTO stores (id, name, address) VALUES (?, ?, ?)', [id, name, address || null]);
+    const [result] = await db.query('INSERT INTO stores (name, address) VALUES (?, ?)', [name, address || null]);
+    const id = result.insertId;
     await logAction(auth.user.id, null, 'Création magasin', { name });
     return NextResponse.json({ id, name, address }, { status: 201 });
   } catch (err) { return NextResponse.json({ error: err.message }, { status: 500 }); }

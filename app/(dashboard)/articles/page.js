@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { storage } from '../../lib/storage';
 import { Plus, Edit2, Trash2, X, AlertTriangle, Search, Download, ChevronLeft, ChevronRight, Info } from 'lucide-react';
-import { exportToCSV } from '../../utils/csvExport';
+import { exportToExcel } from '../../utils/excelExport';
 import { calculateStockOutPrediction } from '../../utils/stockPrediction';
 import AlertModal from '../../components/AlertModal';
 import { useAuth } from '../../providers';
@@ -65,8 +65,8 @@ export default function ArticlesPage() {
       { key: 'minStock', label: 'Seuil d\'Alerte' }
     ];
     
-    exportToCSV(filteredArticles, headers, 'articles_stock');
-    showAlert('success', 'Succès !', "Exportation CSV réussie !");
+    exportToExcel(filteredArticles, headers, 'articles_stock');
+    showAlert('success', 'Succès !', "Exportation Excel réussie !");
   };
 
   const handleOpenModal = async (article = null) => {
@@ -141,11 +141,13 @@ export default function ArticlesPage() {
     );
   };
 
-  const filteredArticles = articles.filter(article => {
-    return article.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-           (article.code && article.code.toLowerCase().includes(searchTerm.toLowerCase())) ||
-           (article.barcode && article.barcode.toLowerCase().includes(searchTerm.toLowerCase()));
-  });
+  const filteredArticles = articles
+    .filter(article => {
+      return article.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+             (article.code && article.code.toLowerCase().includes(searchTerm.toLowerCase())) ||
+             (article.barcode && article.barcode.toLowerCase().includes(searchTerm.toLowerCase()));
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   const totalPages = Math.ceil(filteredArticles.length / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -159,17 +161,68 @@ export default function ArticlesPage() {
           <h1>Articles</h1>
           <p>Gestion des articles en stock</p>
         </div>
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <button className="btn btn-secondary" onClick={handleExport}>
-            <Download size={18} /> Exporter
-          </button>
-          <button 
-            className="btn btn-primary" 
-            onClick={() => handleOpenModal()}
-          >
-            <Plus size={16} /> Nouvel Article
-          </button>
-        </div>
+        {user?.role === 'admin' && (
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <button className="btn btn-secondary" onClick={() => document.getElementById('excel-import').click()}>
+              <Plus size={18} /> Importer
+            </button>
+            <input 
+              type="file" 
+              id="excel-import" 
+              hidden 
+              accept=".xlsx, .xls" 
+              onChange={async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = async (evt) => {
+                  try {
+                    const { read, utils } = await import('xlsx');
+                    const wb = read(evt.target.result, { type: 'binary' });
+                    const wsname = wb.SheetNames[0];
+                    const ws = wb.Sheets[wsname];
+                    const data = utils.sheet_to_json(ws);
+                    
+                    const mappedData = data.map(row => {
+                      // Normaliser les clés pour ignorer la casse
+                      const keys = {};
+                      Object.keys(row).forEach(k => keys[k.toLowerCase()] = row[k]);
+
+                      return {
+                        id: keys.id,
+                        code: keys.code || keys.référence || keys.reference || keys.ref,
+                        name: keys.name || keys.nom || keys.article,
+                        price: keys.price || keys.prix || keys.tarif,
+                        currentStock: keys.currentstock || keys.stock || keys.quantité || keys['stock actuel'],
+                        minStock: keys.minstock || keys['seuil alerte'] || keys.seuil,
+                        barcode: keys.barcode || keys['code-barres'] || keys.codebarre
+                      };
+                    }).filter(row => row.name); // IGNORER les lignes qui n'ont pas de nom (lignes vides)
+
+                    if (mappedData.length === 0) {
+                      throw new Error("Aucune donnée valide trouvée dans le fichier.");
+                    }
+
+                    const res = await storage.create('articles/import', { data: mappedData });
+                    showAlert('success', 'Import réussi !', `${res.updated} articles mis à jour, ${res.created} nouveaux créés.`);
+                    loadData();
+                  } catch (err) {
+                    showAlert('error', 'Erreur d\'import', err.message);
+                  }
+                };
+                reader.readAsBinaryString(file);
+                e.target.value = null;
+              }}
+            />
+            <button className="btn btn-secondary" onClick={handleExport}>
+              <Download size={18} /> Exporter
+            </button>
+            <button className="btn btn-primary" onClick={() => handleOpenModal()} >
+              <Plus size={16} /> Nouvel Article
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="toolbar">
@@ -193,11 +246,11 @@ export default function ArticlesPage() {
                 <th>Code</th>
                 <th>Nom</th>
                 <th>Code-barres</th>
-                <th>Prix</th>
+                {user?.role === 'admin' && <th>Prix</th>}
                 <th>Stock Actuel</th>
                 <th>Seuil d'Alerte</th>
                 <th>Prédiction</th>
-                <th style={{ width: '150px' }}>Actions</th>
+                {user?.role === 'admin' && <th style={{ width: '150px' }}>Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -219,7 +272,7 @@ export default function ArticlesPage() {
                         <td style={{ fontWeight: 500 }}>{article.code || '-'}</td>
                         <td style={{ fontWeight: 600 }}>{article.name}</td>
                         <td style={{ fontSize: '0.8rem', fontFamily: 'monospace' }}>{article.barcode || '-'}</td>
-                        <td>{article.price.toLocaleString()} FCFA</td>
+                        {user?.role === 'admin' && <td>{article.price.toLocaleString()} FCFA</td>}
                         <td>
                           <span style={{ color: isLowStock ? 'var(--danger)' : 'var(--success)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
                             {article.currentStock}
@@ -234,12 +287,14 @@ export default function ArticlesPage() {
                             </span>
                           ) : '-'}
                         </td>
-                        <td>
-                          <div style={{ display: 'flex', gap: '0.5rem' }}>
-                            <button className="btn btn-secondary" onClick={() => handleOpenModal(article)}><Edit2 size={16} /></button>
-                            <button className="btn btn-danger-outline" onClick={() => handleDelete(article.id)}><Trash2 size={16} /></button>
-                          </div>
-                        </td>
+                        {user?.role === 'admin' && (
+                          <td>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              <button className="btn btn-secondary" onClick={() => handleOpenModal(article)}><Edit2 size={16} /></button>
+                              <button className="btn btn-danger-outline" onClick={() => handleDelete(article.id)}><Trash2 size={16} /></button>
+                            </div>
+                          </td>
+                        )}
                       </tr>
                     );
                 })

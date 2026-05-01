@@ -4,8 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { storage } from '../lib/storage';
 import { 
   AlertTriangle, Package, Tags, ArrowRightLeft, Coins, 
-  ChevronLeft, ChevronRight, BarChart2, PieChart as PieChartIcon, TrendingUp 
+  ChevronLeft, ChevronRight, BarChart2, PieChart as PieChartIcon, TrendingUp, Download 
 } from 'lucide-react';
+import { exportToExcel } from '../utils/excelExport';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
@@ -25,10 +26,16 @@ export default function DashboardPage() {
     salesHistory: [],
     topArticles: []
   });
+  const [currentPageLowStock, setCurrentPageLowStock] = useState(1);
+  const itemsPerPageLowStock = 5;
   const [currentPageUnpaid, setCurrentPageUnpaid] = useState(1);
   const itemsPerPageUnpaid = 5;
 
   useEffect(() => {
+    if (storage.getUser()?.role === 'vendeur') {
+      window.location.href = '/sales';
+      return;
+    }
     loadStats();
   }, []);
 
@@ -42,7 +49,9 @@ export default function DashboardPage() {
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-      const lowStock = articles.filter(a => Number(a.currentStock) <= Number(a.minStock));
+      const lowStock = articles
+        .filter(a => Number(a.currentStock) <= Number(a.minStock))
+        .sort((a, b) => a.name.localeCompare(b.name));
       const unpaid = sales.filter(s => s.status !== 'payé' && s.status !== 'annulée');
 
       const articleStats = {};
@@ -94,6 +103,19 @@ export default function DashboardPage() {
     } catch (err) { console.error(err); }
   };
 
+  const handleExportLowStock = () => {
+    const headers = [
+      { key: 'code', label: 'Code' },
+      { key: 'name', label: 'Article' },
+      { key: 'currentStock', label: 'Stock Actuel' },
+      { key: 'minStock', label: 'Seuil d\'Alerte' }
+    ];
+    exportToExcel(stats.lowStockArticles, headers, 'articles_a_reapprovisionner');
+  };
+
+  const totalPagesLowStock = Math.ceil(stats.lowStockArticles.length / itemsPerPageLowStock);
+  const currentLowStock = stats.lowStockArticles.slice((currentPageLowStock - 1) * itemsPerPageLowStock, currentPageLowStock * itemsPerPageLowStock);
+
   return (
     <div className={`page ${stats.lowStockArticles.length > 0 ? 'page-critical-alert' : ''}`}>
       {stats.lowStockArticles.length > 0 && (
@@ -101,6 +123,9 @@ export default function DashboardPage() {
           <div style={{ backgroundColor: 'var(--danger)', padding: '1rem', color: 'white', borderTopLeftRadius: '6px', borderTopRightRadius: '6px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <AlertTriangle size={24} />
             <h2 style={{ margin: 0, fontSize: '1.2rem', color: 'white' }}>ARTICLES À RÉAPPROVISIONNER ({stats.lowStockArticles.length})</h2>
+            <button className="btn btn-secondary btn-sm" onClick={handleExportLowStock} style={{ marginLeft: 'auto', backgroundColor: 'rgba(255,255,255,0.2)', border: 'none', color: 'white' }}>
+              <Download size={14} /> Exporter
+            </button>
           </div>
           <div className="table-wrapper" style={{ padding: '1rem' }}>
             <table>
@@ -113,7 +138,7 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {stats.lowStockArticles.map(a => (
+                {currentLowStock.map(a => (
                   <tr key={a.id}>
                     <td>{a.code || '-'}</td>
                     <td style={{ fontWeight: 600 }}>{a.name}</td>
@@ -124,12 +149,19 @@ export default function DashboardPage() {
               </tbody>
             </table>
           </div>
+          {totalPagesLowStock > 1 && (
+            <div className="pagination" style={{ padding: '1rem', borderTop: '1px solid var(--border)' }}>
+              <button className="btn btn-secondary" onClick={() => setCurrentPageLowStock(p => Math.max(p - 1, 1))} disabled={currentPageLowStock === 1}><ChevronLeft size={16} /></button>
+              <span>Page {currentPageLowStock} / {totalPagesLowStock}</span>
+              <button className="btn btn-secondary" onClick={() => setCurrentPageLowStock(p => Math.min(p + 1, totalPagesLowStock))} disabled={currentPageLowStock === totalPagesLowStock}><ChevronRight size={16} /></button>
+            </div>
+          )}
         </div>
       )}
 
       <div className="page-header"><div><h1>Tableau de Bord</h1><p>Mining AutoLog - État du système</p></div></div>
 
-      <div className="dashboard-grid">
+      <div className="dashboard-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
         <div className="stat-card">
           <div className="stat-icon" style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary)' }}><Package size={24} /></div>
           <div className="stat-info"><div className="stat-value">{stats.totalArticles}</div><div className="stat-label">Articles</div></div>
@@ -137,6 +169,10 @@ export default function DashboardPage() {
         <div className="stat-card">
           <div className="stat-icon" style={{ backgroundColor: 'var(--success-light)', color: 'var(--success)' }}><TrendingUp size={24} /></div>
           <div className="stat-info"><div className="stat-value">{stats.totalSales.toLocaleString()} <span style={{ fontSize: '0.8rem' }}>FCFA</span></div><div className="stat-label">CA Global</div></div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon" style={{ backgroundColor: '#E0F2FE', color: '#0369A1' }}><Coins size={24} /></div>
+          <div className="stat-info"><div className="stat-value" style={{ color: '#0369A1' }}>{stats.totalStockValue.toLocaleString()} <span style={{ fontSize: '0.8rem' }}>FCFA</span></div><div className="stat-label">Valeur du Stock</div></div>
         </div>
         <div className="stat-card">
           <div className="stat-icon" style={{ backgroundColor: 'var(--danger-light)', color: 'var(--danger)' }}><AlertTriangle size={24} /></div>
@@ -230,7 +266,26 @@ export default function DashboardPage() {
 
       {stats.unpaidSales && stats.unpaidSales.length > 0 && (
         <div className="content-card" style={{ marginTop: '2rem' }}>
-          <h2 style={{ fontSize: '1.2rem', marginBottom: '1rem', color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '8px' }}><Coins /> Dettes à recouvrer</h2>
+          <h2 style={{ fontSize: '1.2rem', marginBottom: '1rem', color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Coins size={18} /> Dettes à recouvrer ({stats.unpaidSales.length})
+            <button className="btn btn-secondary btn-sm" onClick={() => {
+              const headers = [
+                { key: 'ref', label: 'Référence' },
+                { key: 'clientName', label: 'Client' },
+                { key: 'debt', label: 'Dette' },
+                { key: 'date', label: 'Date' }
+              ];
+              const data = stats.unpaidSales.map(s => ({
+                ...s,
+                ref: `#${s.id.substring(0,8).toUpperCase()}`,
+                debt: s.totalAmount - s.amountPaid,
+                date: new Date(s.date).toLocaleDateString()
+              }));
+              exportToExcel(data, headers, 'dettes_clients');
+            }} style={{ marginLeft: 'auto' }}>
+              <Download size={14} /> Exporter
+            </button>
+          </h2>
           <div className="table-wrapper">
             <table>
               <thead><tr><th>Référence</th><th>Client</th><th>Reste à payer</th><th>Date</th></tr></thead>
@@ -246,6 +301,13 @@ export default function DashboardPage() {
               </tbody>
             </table>
           </div>
+          {Math.ceil(stats.unpaidSales.length / itemsPerPageUnpaid) > 1 && (
+            <div className="pagination" style={{ padding: '1rem', borderTop: '1px solid var(--border)' }}>
+              <button className="btn btn-secondary" onClick={() => setCurrentPageUnpaid(p => Math.max(p - 1, 1))} disabled={currentPageUnpaid === 1}><ChevronLeft size={16} /></button>
+              <span>Page {currentPageUnpaid} / {Math.ceil(stats.unpaidSales.length / itemsPerPageUnpaid)}</span>
+              <button className="btn btn-secondary" onClick={() => setCurrentPageUnpaid(p => Math.min(p + 1, Math.ceil(stats.unpaidSales.length / itemsPerPageUnpaid)))} disabled={currentPageUnpaid === Math.ceil(stats.unpaidSales.length / itemsPerPageUnpaid)}><ChevronRight size={16} /></button>
+            </div>
+          )}
         </div>
       )}
     </div>

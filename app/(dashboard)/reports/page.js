@@ -2,11 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import { storage } from '../../lib/storage';
-import { BarChart3, Download, TrendingUp, TrendingDown } from 'lucide-react';
+import { BarChart3, Download, TrendingUp, TrendingDown, Package, Coins, User, Printer, Clock } from 'lucide-react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 export default function ReportsPage() {
   const [reportData, setReportData] = useState({ months: [], totalDebt: 0, totalRevenue: 0 });
   const [loading, setLoading] = useState(true);
+  const [isPrinting, setIsPrinting] = useState(false);
+  const [printData, setPrintData] = useState(null);
+  const pathname = usePathname();
 
   useEffect(() => { loadReport(); }, []);
 
@@ -21,18 +26,23 @@ export default function ReportsPage() {
   };
 
   const handleDownloadPDF = async (month) => {
+    setLoading(true);
     try {
       const storeId = localStorage.getItem('selectedStore');
-      const token = sessionStorage.getItem('token');
-      const url = `/api/reports/pdf?month=${month}${storeId !== 'all' && storeId ? `&storeId=${storeId}` : ''}`;
-      const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
-      if (!res.ok) throw new Error("Erreur PDF");
-      const blob = await res.blob();
-      const link = document.createElement('a');
-      link.href = window.URL.createObjectURL(blob);
-      link.download = `Bilan_${month}.pdf`;
-      link.click();
-    } catch (err) { alert(err.message); }
+      const data = await storage.get(`reports/monthly/details?month=${month}${storeId !== 'all' && storeId ? `&storeId=${storeId}` : ''}`);
+      setPrintData({ ...data, month });
+      setIsPrinting(true);
+      setTimeout(() => {
+        window.print();
+        setIsPrinting(false);
+        setPrintData(null);
+        setLoading(false);
+      }, 500);
+    } catch (err) { 
+      console.error(err);
+      alert("Erreur lors de la préparation du document");
+      setLoading(false);
+    }
   };
 
   const getMonthName = (m) => {
@@ -43,61 +53,160 @@ export default function ReportsPage() {
 
   const maxVal = Math.max(...reportData.months.map(d => Math.max(d.revenue, d.cash)), 1);
 
+  if (isPrinting && printData) {
+    return (
+      <div className="receipt-print-only" style={{ display: 'block', padding: '40px', backgroundColor: 'white', minHeight: '100vh', color: 'black' }}>
+        <div style={{ textAlign: 'center', marginBottom: '30px', borderBottom: '2px solid #000', paddingBottom: '15px' }}>
+          <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 'bold' }}>MINING AUTOLOG</h1>
+          <h2 style={{ margin: '5px 0', fontSize: '18px', textTransform: 'uppercase' }}>BILAN FINANCIER MENSUEL</h2>
+          <p style={{ margin: 0 }}>Mois de : {getMonthName(printData.month).toUpperCase()}</p>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '30px', padding: '15px', backgroundColor: '#f0f0f0', border: '1px solid #ccc' }}>
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ margin: 0, fontSize: '12px' }}>CHIFFRE D'AFFAIRES</p>
+            <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>{Number(printData.revenue || 0).toLocaleString()} FCFA</p>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ margin: 0, fontSize: '12px' }}>TOTAL ENCAISSÉ</p>
+            <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#2ecc71' }}>{Number(printData.cash || 0).toLocaleString()} FCFA</p>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ margin: 0, fontSize: '12px' }}>BALANCE</p>
+            <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: (printData.revenue - printData.cash) > 0 ? '#e74c3c' : '#000' }}>
+              {(printData.revenue - printData.cash).toLocaleString()} FCFA
+            </p>
+          </div>
+        </div>
+
+        <h3 style={{ borderBottom: '1px solid #000', paddingBottom: '5px', fontSize: '14px' }}>DÉTAIL DES VENTES</h3>
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '30px', fontSize: '11px' }}>
+          <thead>
+            <tr style={{ backgroundColor: '#eee', borderBottom: '1px solid #000' }}>
+              <th style={{ textAlign: 'left', padding: '5px', border: '1px solid #ccc' }}>Date</th>
+              <th style={{ textAlign: 'left', padding: '5px', border: '1px solid #ccc' }}>Client</th>
+              <th style={{ textAlign: 'right', padding: '5px', border: '1px solid #ccc' }}>Montant</th>
+              <th style={{ textAlign: 'center', padding: '5px', border: '1px solid #ccc' }}>Statut</th>
+            </tr>
+          </thead>
+          <tbody>
+            {printData.sales?.map((sale, idx) => (
+              <tr key={idx}>
+                <td style={{ padding: '5px', border: '1px solid #ccc' }}>{new Date(sale.date).toLocaleDateString('fr-FR')}</td>
+                <td style={{ padding: '5px', border: '1px solid #ccc' }}>{sale.clientName || 'Client Divers'}</td>
+                <td style={{ textAlign: 'right', padding: '5px', border: '1px solid #ccc' }}>{Number(sale.totalAmount).toLocaleString()}</td>
+                <td style={{ textAlign: 'center', padding: '5px', border: '1px solid #ccc' }}>{sale.status}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <div style={{ marginTop: '50px', display: 'flex', justifyContent: 'space-between' }}>
+          <div style={{ textAlign: 'center', width: '200px' }}>
+            <p style={{ margin: 0, textDecoration: 'underline' }}>Comptabilité</p>
+            <div style={{ height: '60px' }}></div>
+          </div>
+          <div style={{ textAlign: 'center', width: '200px' }}>
+            <p style={{ margin: 0, textDecoration: 'underline' }}>Direction Générale</p>
+            <div style={{ height: '60px' }}></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="page">
-      <div className="page-header"><div><h1>Rapports Financiers</h1><p>Analyse des revenus vs encaissements</p></div></div>
-      {loading ? <p>Chargement...</p> : (
-        <>
-          <div className="dashboard-grid">
-            <div className="stat-card">
-              <div className="stat-value" style={{ color: 'var(--primary)' }}>{reportData.totalRevenue.toLocaleString()} FCFA</div>
-              <div className="stat-label">Chiffre d'Affaires Total</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-value" style={{ color: 'var(--danger)' }}>{reportData.totalDebt.toLocaleString()} FCFA</div>
-              <div className="stat-label">Dette Globale</div>
-            </div>
-          </div>
+      <div className="page-header">
+        <div>
+          <h1>Rapports et Analyses</h1>
+          <p>Suivez les indicateurs clés de votre activité</p>
+        </div>
+      </div>
 
-          <div className="content-card" style={{ marginTop: '2rem' }}>
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2rem' }}><BarChart3 /> Performance Mensuelle</h3>
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '1.5rem', height: '250px', overflowX: 'auto', padding: '1rem' }}>
-              {reportData.months.slice().reverse().map(d => (
-                <div key={d.month} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                  <div style={{ display: 'flex', gap: '4px', height: '100%', alignItems: 'flex-end' }}>
-                    <div style={{ width: '15px', height: `${(d.revenue/maxVal)*100}%`, backgroundColor: 'var(--primary)', borderRadius: '2px' }} title={`CA: ${d.revenue}`} />
-                    <div style={{ width: '15px', height: `${(d.cash/maxVal)*100}%`, backgroundColor: 'var(--success)', borderRadius: '2px' }} title={`Encaissé: ${d.cash}`} />
-                  </div>
-                  <span style={{ fontSize: '0.7rem', whiteSpace: 'nowrap' }}>{getMonthName(d.month).split(' ')[0]}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+      <div className="toolbar" style={{ display: 'flex', gap: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0' }}>
+        <Link href="/reports" className={`nav-item ${pathname === '/reports' ? 'active' : ''}`} style={{ borderRadius: '0', padding: '0.75rem 1.5rem', marginBottom: '-1px' }}>
+          <Coins size={18} /> Financiers
+        </Link>
+        <Link href="/reports/stock" className={`nav-item ${pathname === '/reports/stock' ? 'active' : ''}`} style={{ borderRadius: '0', padding: '0.75rem 1.5rem', marginBottom: '-1px' }}>
+          <Package size={18} /> Mouvements de Stock
+        </Link>
+        <Link href="/reports/client" className={`nav-item ${pathname === '/reports/client' ? 'active' : ''}`} style={{ borderRadius: '0', padding: '0.75rem 1.5rem', marginBottom: '-1px' }}>
+          <User size={18} /> Bilan par Client
+        </Link>
+        <Link href="/reports/top-articles" className={`nav-item ${pathname === '/reports/top-articles' ? 'active' : ''}`} style={{ borderRadius: '0', padding: '0.75rem 1.5rem', marginBottom: '-1px' }}>
+          <TrendingUp size={18} /> Top Articles / Client
+        </Link>
+        <Link href="/reports/dead-stock" className={`nav-item ${pathname === '/reports/dead-stock' ? 'active' : ''}`} style={{ borderRadius: '0', padding: '0.75rem 1.5rem', marginBottom: '-1px' }}>
+          <Clock size={18} /> Articles Dormants
+        </Link>
+      </div>
 
-          <div className="content-card" style={{ marginTop: '2rem' }}>
-            <div className="table-wrapper">
-              <table>
-                <thead><tr><th>Mois</th><th>CA</th><th>Encaissé</th><th>Dette</th><th>Taux</th><th>Action</th></tr></thead>
-                <tbody>
-                  {reportData.months.map(d => {
-                    const rate = d.revenue > 0 ? (d.cash/d.revenue)*100 : 0;
-                    return (
-                      <tr key={d.month}>
-                        <td><strong>{getMonthName(d.month)}</strong></td>
-                        <td>{d.revenue.toLocaleString()}</td>
-                        <td style={{ color: 'var(--success)' }}>{d.cash.toLocaleString()}</td>
-                        <td style={{ color: d.revenue-d.cash > 0 ? 'var(--danger)' : 'inherit' }}>{(d.revenue-d.cash).toLocaleString()}</td>
-                        <td><span className={`badge ${rate >= 80 ? 'badge-success' : 'badge-warning'}`}>{rate.toFixed(1)}%</span></td>
-                        <td><button className="btn btn-secondary btn-sm" onClick={() => handleDownloadPDF(d.month)}><Download size={14} /> PDF</button></td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+      <div style={{ marginTop: '1.5rem' }}>
+        {loading && !isPrinting ? <p>Traitement en cours...</p> : (
+          <>
+            <div className="dashboard-grid">
+              <div className="stat-card">
+                <div className="stat-value" style={{ color: 'var(--primary)' }}>{reportData.totalRevenue.toLocaleString()} FCFA</div>
+                <div className="stat-label">Chiffre d'Affaires Total</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-value" style={{ color: 'var(--danger)' }}>{reportData.totalDebt.toLocaleString()} FCFA</div>
+                <div className="stat-label">Dette Globale</div>
+              </div>
             </div>
-          </div>
-        </>
-      )}
+
+            <div className="content-card" style={{ marginTop: '2rem' }}>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2rem' }}><BarChart3 /> Performance Mensuelle (FCFA)</h3>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '1.5rem', height: '300px', overflowX: 'auto', padding: '1rem', borderBottom: '1px solid var(--border)' }}>
+                {reportData.months.slice().reverse().map(d => {
+                  const revHeight = maxVal > 0 ? (d.revenue / maxVal) * 100 : 0;
+                  const cashHeight = maxVal > 0 ? (d.cash / maxVal) * 100 : 0;
+                  return (
+                    <div key={d.month} style={{ flex: 1, minWidth: '60px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', height: '100%', justifyContent: 'flex-end' }}>
+                      <div style={{ fontSize: '0.65rem', fontWeight: 'bold', color: 'var(--primary)' }}>{d.revenue > 0 ? d.revenue.toLocaleString() : ''}</div>
+                      <div style={{ display: 'flex', gap: '4px', height: '200px', alignItems: 'flex-end', width: '100%', justifyContent: 'center' }}>
+                        <div 
+                          style={{ width: '20px', height: `${revHeight}%`, backgroundColor: 'var(--primary)', borderRadius: '4px 4px 0 0', transition: 'height 0.5s ease' }} 
+                          title={`Revenu ${getMonthName(d.month)}: ${d.revenue}`} 
+                        />
+                        <div 
+                          style={{ width: '20px', height: `${cashHeight}%`, backgroundColor: 'var(--success)', borderRadius: '4px 4px 0 0', transition: 'height 0.5s ease' }} 
+                          title={`Encaissé ${getMonthName(d.month)}: ${d.cash}`} 
+                        />
+                      </div>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 500, whiteSpace: 'nowrap', marginTop: '5px' }}>{getMonthName(d.month).split(' ')[0]}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="content-card" style={{ marginTop: '2rem' }}>
+              <div className="table-wrapper">
+                <table>
+                  <thead><tr><th>Mois</th><th>CA</th><th>Encaissé</th><th>Dette</th><th>Taux</th><th>Action</th></tr></thead>
+                  <tbody>
+                    {reportData.months.map(d => {
+                      const rate = d.revenue > 0 ? (d.cash/d.revenue)*100 : 0;
+                      return (
+                        <tr key={d.month}>
+                          <td><strong>{getMonthName(d.month)}</strong></td>
+                          <td>{d.revenue.toLocaleString()}</td>
+                          <td style={{ color: 'var(--success)' }}>{d.cash.toLocaleString()}</td>
+                          <td style={{ color: d.revenue-d.cash > 0 ? 'var(--danger)' : 'inherit' }}>{(d.revenue-d.cash).toLocaleString()}</td>
+                          <td><span className={`badge ${rate >= 80 ? 'badge-success' : 'badge-warning'}`}>{rate.toFixed(1)}%</span></td>
+                          <td><button className="btn btn-secondary btn-sm" onClick={() => handleDownloadPDF(d.month)}><Download size={14} /> PDF</button></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }

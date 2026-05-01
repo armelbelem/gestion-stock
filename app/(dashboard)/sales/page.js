@@ -5,8 +5,9 @@ import { storage } from '../../lib/storage';
 import { 
   Plus, ShoppingCart, Calendar, User, ChevronDown, ChevronUp, 
   Package, Printer, Eye, ChevronLeft, ChevronRight,
-  DollarSign, Search, XCircle 
+  DollarSign, Search, XCircle, Download, FileText
 } from 'lucide-react';
+import { exportToExcel } from '../../utils/excelExport';
 import Link from 'next/link';
 import { useAuth } from '../../providers';
 import AlertModal from '../../components/AlertModal';
@@ -20,7 +21,10 @@ export default function SalesPage() {
   const [newPayment, setNewPayment] = useState({ amount: '', notes: '' });
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const itemsPerPage = 10;
+  const [isReporting, setIsReporting] = useState(false);
+  const [settings, setSettings] = useState(null);
   const { user: currentUser } = useAuth();
   
   const [alertModal, setAlertModal] = useState({ open: false, type: 'info', title: '', message: '', onConfirm: null });
@@ -30,11 +34,19 @@ export default function SalesPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm]);
+  }, [searchTerm, dateRange]);
 
   useEffect(() => {
     loadSales();
+    loadSettings();
   }, []);
+
+  const loadSettings = async () => {
+    try {
+      const data = await storage.get('settings');
+      setSettings(data);
+    } catch (err) { console.error(err); }
+  };
 
   const loadSales = async () => {
     try {
@@ -98,27 +110,81 @@ export default function SalesPage() {
     }
   };
 
-  const handleCancelSale = (id) => {
-    showConfirm(
-      'Annuler la vente',
-      'Êtes-vous sûr de vouloir annuler cette vente ? Le stock sera restitué et la vente sera marquée comme annulée.',
-      async () => {
-        closeAlert();
-        try {
-          await storage.create(`sales/${id}/cancel`, {});
-          showAlert('success', 'Succès', 'Vente annulée avec succès.');
-          loadSales();
-        } catch (error) {
-          showAlert('error', 'Erreur', error.message);
-        }
+  const setQuickRange = (type) => {
+    const end = new Date();
+    const start = new Date();
+    if (type === 'today') {
+      start.setHours(0, 0, 0, 0);
+    } else if (type === 'yesterday') {
+      start.setDate(start.getDate() - 1);
+      start.setHours(0, 0, 0, 0);
+      end.setDate(end.getDate() - 1);
+      end.setHours(23, 59, 59, 999);
+    } else if (type === 'week') {
+      start.setDate(start.getDate() - 7);
+    } else if (type === 'month') {
+      start.setDate(1);
+    }
+    setDateRange({
+      start: start.toISOString().split('T')[0],
+      end: end.toISOString().split('T')[0]
+    });
+  };
+
+  const filteredSales = sales.filter(sale => {
+    const matchesSearch = sale.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (sale.clientName && sale.clientName.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    if (!matchesSearch) return false;
+
+    const saleDate = new Date(sale.date);
+    const start = dateRange.start ? new Date(dateRange.start) : null;
+    const end = dateRange.end ? new Date(dateRange.end) : null;
+    
+    if (start) start.setHours(0, 0, 0, 0);
+    if (end) end.setHours(23, 59, 59, 999);
+    
+    return (!start || saleDate >= start) && (!end || saleDate <= end);
+  });
+
+  const totalPeriodAmount = filteredSales.reduce((acc, s) => acc + (s.status !== 'annulée' ? s.totalAmount : 0), 0);
+
+  const handleExportExcel = () => {
+    const headers = [
+      { key: 'idShort', label: 'Référence' },
+      { key: 'clientName', label: 'Client' },
+      { key: 'sellerName', label: 'Vendeur' },
+      { key: 'dateFormatted', label: 'Date' },
+      { key: 'totalAmount', label: 'Montant (FCFA)' },
+      { key: 'status', label: 'Statut' }
+    ];
+    
+    const dataToExport = filteredSales.map(s => ({
+      ...s,
+      idShort: `#${s.id.substring(0,8).toUpperCase()}`,
+      dateFormatted: formatDate(s.date)
+    }));
+
+    exportToExcel(
+      dataToExport, 
+      headers, 
+      `rapport_ventes_${dateRange.start || 'toutes'}_${dateRange.end || 'toutes'}`,
+      {
+        title: "RAPPORT DE VENTES",
+        companyName: settings?.companyName || "NS AUTO",
+        period: `${dateRange.start || 'Début'} au ${dateRange.end || 'Fin'}`,
+        summary: ['', 'TOTAUX GÉNÉRAUX', '', '', `${totalPeriodAmount.toLocaleString()} FCFA`, '']
       }
     );
   };
 
-  const filteredSales = sales.filter(sale => 
-    sale.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (sale.clientName && sale.clientName.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const handlePrintReport = () => {
+    setIsReporting(true);
+    setTimeout(() => {
+      window.print();
+      setIsReporting(false);
+    }, 500);
+  };
 
   const totalPages = Math.ceil(filteredSales.length / itemsPerPage);
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -129,9 +195,22 @@ export default function SalesPage() {
     return (
       <div className="receipt-print-only" style={{ display: 'block', padding: '20px' }}>
         <div style={{ textAlign: 'center', marginBottom: '20px', borderBottom: '2px solid black', paddingBottom: '10px' }}>
-          <h1 style={{ margin: '0', fontSize: '22px', fontWeight: '800' }}>MINING AUTOLOG</h1>
-          <p>REÇU DE VENTE #{printData.id.substring(0, 8).toUpperCase()}</p>
-          <p>Date : {formatDate(printData.date)}</p>
+          {settings?.logo ? (
+            <img src={settings.logo} alt="Logo" style={{ maxHeight: '80px', marginBottom: '10px' }} />
+          ) : (
+            <h1 style={{ margin: '0', fontSize: '24px', fontWeight: '800', textTransform: 'uppercase' }}>{settings?.companyName || 'MINING AUTOLOG'}</h1>
+          )}
+          {settings?.address && <p style={{ margin: '2px 0' }}>{settings.address}</p>}
+          {settings?.phone && <p style={{ margin: '2px 0' }}>Tél : {settings.phone}</p>}
+          {(settings?.nif || settings?.rccm) && (
+            <p style={{ fontSize: '0.8rem', margin: '2px 0' }}>
+              {settings?.nif && `NIF: ${settings.nif}`} {settings?.rccm && `| RCCM: ${settings.rccm}`}
+            </p>
+          )}
+          <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #ccc' }}>
+            <h2 style={{ margin: '0', fontSize: '18px' }}>REÇU DE VENTE #{printData.id.substring(0, 8).toUpperCase()}</h2>
+            <p style={{ margin: '5px 0' }}>Date : {formatDate(printData.date)}</p>
+          </div>
         </div>
         <div style={{ marginBottom: '20px' }}>
           <p><strong>Client :</strong> {printData.clientName}</p>
@@ -161,6 +240,71 @@ export default function SalesPage() {
             </tr>
           </tfoot>
         </table>
+        
+        {settings?.footerMessage && (
+          <div style={{ textAlign: 'center', marginTop: '30px', paddingTop: '10px', borderTop: '1px dashed #ccc', fontSize: '0.9rem', fontStyle: 'italic' }}>
+            {settings.footerMessage}
+          </div>
+        )}
+
+        <div style={{ marginTop: '20px', fontSize: '0.7rem', textAlign: 'center', color: '#666' }}>
+          Imprimé le {new Date().toLocaleString()}
+        </div>
+      </div>
+    );
+  }
+
+  if (isReporting) {
+    return (
+      <div className="receipt-print-only" style={{ display: 'block', padding: '20px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '20px', borderBottom: '2px solid black', paddingBottom: '10px' }}>
+          <h1 style={{ margin: '0', fontSize: '24px', fontWeight: '800', textTransform: 'uppercase' }}>{settings?.companyName || 'MINING AUTOLOG'}</h1>
+          {settings?.address && <p style={{ margin: '2px 0' }}>{settings.address}</p>}
+          <h2 style={{ marginTop: '15px' }}>RAPPORT DE VENTES</h2>
+          <p>Période : {dateRange.start ? formatShortDate(dateRange.start) : 'Début'} au {dateRange.end ? formatShortDate(dateRange.end) : 'Fin'}</p>
+        </div>
+        
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid black', backgroundColor: '#f5f5f5' }}>
+              <th style={{ textAlign: 'left', padding: '8px' }}>Réf</th>
+              <th style={{ textAlign: 'left', padding: '8px' }}>Client</th>
+              <th style={{ textAlign: 'left', padding: '8px' }}>Date</th>
+              <th style={{ textAlign: 'right', padding: '8px' }}>Montant</th>
+              <th style={{ textAlign: 'center', padding: '8px' }}>Statut</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredSales.map((sale) => (
+              <React.Fragment key={sale.id}>
+                <tr style={{ backgroundColor: '#f9f9f9', borderBottom: '1px solid #ccc' }}>
+                  <td style={{ padding: '8px', fontWeight: 'bold' }}>#{sale.id.substring(0,8).toUpperCase()}</td>
+                  <td style={{ padding: '8px', fontWeight: 'bold' }}>{sale.clientName}</td>
+                  <td style={{ padding: '8px' }}>{formatDate(sale.date)}</td>
+                  <td style={{ textAlign: 'right', padding: '8px', fontWeight: 'bold' }}>{sale.totalAmount.toLocaleString()} FCFA</td>
+                  <td style={{ textAlign: 'center', padding: '8px' }}>{sale.status}</td>
+                </tr>
+                {sale.items && sale.items.map((item, idx) => (
+                  <tr key={`${sale.id}-${idx}`} style={{ fontSize: '0.85rem', color: '#555' }}>
+                    <td colSpan="2" style={{ padding: '4px 8px 4px 30px' }}>• {item.articleName}</td>
+                    <td style={{ padding: '4px 8px' }}>Qté: {item.quantity}</td>
+                    <td colSpan="2"></td>
+                  </tr>
+                ))}
+              </React.Fragment>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr style={{ fontWeight: 'bold', borderTop: '2px solid black' }}>
+              <td colSpan="3" style={{ textAlign: 'right', padding: '12px' }}>TOTAL GÉNÉRAL</td>
+              <td style={{ textAlign: 'right', padding: '12px' }}>{totalPeriodAmount.toLocaleString()} FCFA</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+        <div style={{ marginTop: '30px', fontSize: '0.8rem', textAlign: 'right' }}>
+          Généré le {new Date().toLocaleString()}
+        </div>
       </div>
     );
   }
@@ -178,17 +322,54 @@ export default function SalesPage() {
       </div>
 
       <div className="content-card" style={{ marginBottom: '1.5rem', padding: '1rem' }}>
-        <div className="form-group" style={{ margin: 0, position: 'relative' }}>
-          <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-          <input 
-            type="text" 
-            className="form-control" 
-            placeholder="Rechercher une vente..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ paddingLeft: '2.5rem' }}
-          />
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center' }}>
+          <div className="form-group" style={{ margin: 0, position: 'relative', flex: '1 1 300px' }}>
+            <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+            <input 
+              type="text" 
+              className="form-control" 
+              placeholder="Rechercher une vente..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ paddingLeft: '2.5rem' }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <input type="date" className="form-control" value={dateRange.start} onChange={e => setDateRange({...dateRange, start: e.target.value})} />
+            <span className="text-muted">au</span>
+            <input type="date" className="form-control" value={dateRange.end} onChange={e => setDateRange({...dateRange, end: e.target.value})} />
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button className="btn btn-secondary btn-sm" onClick={() => setQuickRange('today')}>Aujourd'hui</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => setQuickRange('week')}>7 j</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => setQuickRange('month')}>Mois</button>
+            <button className="btn btn-secondary" title="Réinitialiser" onClick={() => setDateRange({start: '', end: ''})}><XCircle size={16} /></button>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.5rem', marginLeft: 'auto' }}>
+            <button className="btn btn-secondary" onClick={handleExportExcel} title="Exporter Excel">
+              <Download size={18} /> Excel
+            </button>
+            <button className="btn btn-secondary" onClick={handlePrintReport} title="Imprimer / PDF">
+              <FileText size={18} /> PDF
+            </button>
+          </div>
         </div>
+
+        {currentUser?.role !== 'vendeur' && filteredSales.length > 0 && (
+          <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-light)', display: 'flex', gap: '2rem' }}>
+            <div style={{ fontSize: '0.9rem' }}>
+              <span className="text-muted">Nombre de ventes : </span>
+              <strong style={{ color: 'var(--primary)' }}>{filteredSales.length}</strong>
+            </div>
+            <div style={{ fontSize: '0.9rem' }}>
+              <span className="text-muted">Total CA sur période : </span>
+              <strong style={{ color: 'var(--success)' }}>{totalPeriodAmount.toLocaleString()} FCFA</strong>
+            </div>
+          </div>
+        )}
       </div>
       
       <div className="content-card">
@@ -201,7 +382,7 @@ export default function SalesPage() {
                 <th>Client</th>
                 {currentUser?.role === 'admin' && <th>Vendeur</th>}
                 <th>Date</th>
-                <th>Montant</th>
+                {currentUser?.role === 'admin' && <th>Montant</th>}
                 <th>Statut</th>
                 <th>Actions</th>
               </tr>
@@ -218,7 +399,7 @@ export default function SalesPage() {
                       <td>{sale.clientName}</td>
                       {currentUser?.role === 'admin' && <td>{sale.sellerName}</td>}
                       <td>{formatDate(sale.date)}</td>
-                      <td style={{ fontWeight: 600 }}>{sale.totalAmount.toLocaleString()} FCFA</td>
+                      {currentUser?.role === 'admin' && <td style={{ fontWeight: 600 }}>{sale.totalAmount.toLocaleString()} FCFA</td>}
                       <td>{getStatusBadge(sale.status)}</td>
                       <td>
                         <div style={{ display: 'flex', gap: '4px' }}>
@@ -240,20 +421,42 @@ export default function SalesPage() {
                             <h4>Articles vendus</h4>
                             <div className="table-wrapper">
                               <table>
-                                <thead><tr><th>Article</th><th>Qté</th><th>Prix</th><th style={{ textAlign: 'right' }}>Total</th></tr></thead>
+                                <thead>
+                                  <tr>
+                                    <th>Article</th>
+                                    <th>Qté</th>
+                                    {currentUser?.role === 'admin' && (
+                                      <>
+                                        <th>Prix</th>
+                                        <th style={{ textAlign: 'right' }}>Total</th>
+                                      </>
+                                    )}
+                                  </tr>
+                                </thead>
                                 <tbody>
                                   {sale.items.map((item, idx) => (
-                                    <tr key={idx}><td>{item.articleName}</td><td>{item.quantity}</td><td>{item.unitPrice.toLocaleString()} FCFA</td><td style={{ textAlign: 'right' }}>{(item.quantity * item.unitPrice).toLocaleString()} FCFA</td></tr>
+                                    <tr key={idx}>
+                                      <td>{item.articleName}</td>
+                                      <td>{item.quantity}</td>
+                                      {currentUser?.role === 'admin' && (
+                                        <>
+                                          <td>{item.unitPrice.toLocaleString()} FCFA</td>
+                                          <td style={{ textAlign: 'right' }}>{(item.quantity * item.unitPrice).toLocaleString()} FCFA</td>
+                                        </>
+                                      )}
+                                    </tr>
                                   ))}
                                 </tbody>
                               </table>
                             </div>
-                            <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end', gap: '2rem' }}>
-                              <div style={{ textAlign: 'right' }}>
-                                <p className="text-muted">Payé : {sale.amountPaid.toLocaleString()} FCFA</p>
-                                <p style={{ fontWeight: 700, color: 'var(--danger)' }}>Reste : {(sale.totalAmount - sale.amountPaid).toLocaleString()} FCFA</p>
+                            {currentUser?.role === 'admin' && (
+                              <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end', gap: '2rem' }}>
+                                <div style={{ textAlign: 'right' }}>
+                                  <p className="text-muted">Payé : {sale.amountPaid.toLocaleString()} FCFA</p>
+                                  <p style={{ fontWeight: 700, color: 'var(--danger)' }}>Reste : {(sale.totalAmount - sale.amountPaid).toLocaleString()} FCFA</p>
+                                </div>
                               </div>
-                            </div>
+                            )}
                           </div>
                         </td>
                       </tr>

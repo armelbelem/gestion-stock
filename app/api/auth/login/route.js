@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { logAction } from '../../../lib/actions';
 
-const JWT_SECRET = 'votre_secret_tres_securise_123';
+const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_key_change_me_in_production';
 
 export async function POST(request) {
   try {

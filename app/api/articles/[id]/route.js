@@ -13,11 +13,22 @@ export async function PUT(request, { params }) {
   const connection = await db.getConnection();
   try {
     await connection.beginTransaction();
+    const [oldDataRows] = await connection.query('SELECT name, price FROM articles WHERE id = ?', [articleId]);
+    const oldData = oldDataRows[0];
+
     await connection.query(
       'UPDATE articles SET code = ?, name = ?, price = ?, minStock = ?, barcode = ? WHERE id = ?',
       [code || null, name, price || 0, minStock || 0, barcode || null, articleId]
     );
-    await logAction(auth.user.id, null, 'Modification article', { id: articleId, name });
+
+    let logMsg = `Modification article: ${name}`;
+    if (oldData && oldData.price !== parseFloat(price)) {
+      logMsg = `Changement prix article "${name}": ${oldData.price} -> ${price}`;
+    } else if (oldData && oldData.name !== name) {
+      logMsg = `Renommage article: "${oldData.name}" -> "${name}"`;
+    }
+
+    await logAction(auth.user.id, auth.user.storeId, logMsg, { id: articleId, old: oldData, new: { name, price } });
     await connection.commit();
     return NextResponse.json({ success: true });
   } catch (err) {

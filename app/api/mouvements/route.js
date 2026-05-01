@@ -9,14 +9,29 @@ export async function GET(request) {
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   try {
+    // Récupérer l'exercice actif
+    const [fyRows] = await db.query("SELECT id FROM fiscal_years WHERE status = 'active'");
+    const activeYearId = fyRows[0]?.id;
     const storeId = getStoreConstraint(auth.user, request.nextUrl.searchParams.get('storeId'));
+
     let query = 'SELECT m.*, a.name as articleName, s.name as storeName FROM mouvements m JOIN articles a ON m.articleId = a.id LEFT JOIN stores s ON m.storeId = s.id';
     let params = [];
-    if (storeId) { query += ' WHERE m.storeId = ?'; params.push(storeId); }
+    
+    if (activeYearId) {
+      query += ' WHERE m.fiscalYearId = ?';
+      params.push(activeYearId);
+    } else {
+      query += ' WHERE 1=0';
+    }
+
+    if (storeId) { query += ' AND m.storeId = ?'; params.push(storeId); }
     query += ' ORDER BY m.date DESC';
     const [mouv] = await db.query(query, params);
     return NextResponse.json(mouv);
-  } catch (err) { return NextResponse.json({ error: err.message }, { status: 500 }); }
+  } catch (err) { 
+    console.error('[MOUVEMENTS GET ERROR]', err);
+    return NextResponse.json({ error: err.message, details: err.stack }, { status: 500 }); 
+  }
 }
 
 export async function POST(request) {

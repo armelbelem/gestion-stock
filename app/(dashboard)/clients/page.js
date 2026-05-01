@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { storage } from '../../lib/storage';
 import { Plus, Edit2, Trash2, X, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import AlertModal from '../../components/AlertModal';
+import { useAuth } from '../../providers';
 
 export default function ClientsPage() {
   const [clients, setClients] = useState([]);
@@ -11,6 +12,7 @@ export default function ClientsPage() {
   const [formData, setFormData] = useState({ id: '', name: '', email: '', phone: '', address: '' });
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const { user } = useAuth();
   const itemsPerPage = 10;
 
   const [alertModal, setAlertModal] = useState({ open: false, type: 'info', title: '', message: '', onConfirm: null });
@@ -102,9 +104,11 @@ export default function ClientsPage() {
           <h1>Clients</h1>
           <p>Gestion de votre base de clients</p>
         </div>
-        <button className="btn btn-primary" onClick={() => handleOpenModal()}>
-          <Plus size={16} /> Nouveau Client
-        </button>
+        {user?.role !== 'vendeur' && (
+          <button className="btn btn-primary" onClick={() => handleOpenModal()}>
+            <Plus size={16} /> Nouveau Client
+          </button>
+        )}
       </div>
 
       <div className="content-card" style={{ marginBottom: '1.5rem', padding: '1rem' }}>
@@ -130,7 +134,7 @@ export default function ClientsPage() {
                 <th>Email</th>
                 <th>Téléphone</th>
                 <th>Dette Totale</th>
-                <th style={{ width: '150px' }}>Actions</th>
+                {user?.role !== 'vendeur' && <th style={{ width: '150px' }}>Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -160,12 +164,14 @@ export default function ClientsPage() {
                         <span className="text-success" style={{ fontWeight: 600 }}>0 FCFA</span>
                       )}
                     </td>
-                    <td>
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button className="btn btn-secondary" onClick={() => handleOpenModal(client)}><Edit2 size={16} /></button>
-                        <button className="btn btn-danger-outline" onClick={() => handleDelete(client.id)}><Trash2 size={16} /></button>
-                      </div>
-                    </td>
+                    {user?.role !== 'vendeur' && (
+                      <td>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button className="btn btn-secondary" onClick={() => handleOpenModal(client)}><Edit2 size={16} /></button>
+                          <button className="btn btn-danger-outline" onClick={() => handleDelete(client.id)}><Trash2 size={16} /></button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))
               )}

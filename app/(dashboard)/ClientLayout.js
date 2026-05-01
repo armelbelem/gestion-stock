@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { 
   LayoutDashboard, Tags, Package, ArrowRightLeft, LogOut, 
   Users, ShoppingCart, Sun, Moon, UserCog, Coins, BarChart3, 
-  Truck, Menu, X, Wallet, AlertCircle, Calendar, Store, ShieldAlert, PackageOpen
+  Truck, Menu, X, Wallet, AlertCircle, Calendar, Store, ShieldAlert, PackageOpen, Settings
 } from 'lucide-react';
 import { useAuth } from '../providers';
 import { storage } from '../lib/storage';
@@ -138,13 +138,14 @@ export default function ClientLayout({ children }) {
             <NavItem href="/" icon={LayoutDashboard} label="Tableau de Bord" badge={lowStockCount > 0} end />
           )}
 
+          <NavItem href="/articles" icon={Package} label="Articles" badge={lowStockCount} />
+
           {user?.role === 'admin' && (
             <>
-              <NavItem href="/articles" icon={Package} label="Articles" badge={lowStockCount} />
               <NavItem href="/mouvements" icon={ArrowRightLeft} label="Mouvements" />
               <NavItem href="/transfers" icon={ArrowRightLeft} label="Transferts" />
               <NavItem href="/fournisseurs" icon={Truck} label="Fournisseurs" />
-              <NavItem href="/external-orders" icon={PackageOpen} label="Cmds Externes" />
+              <NavItem href="/external-orders" icon={PackageOpen} label="Commandes Spéciales" />
               <NavItem href="/finances" icon={Coins} label="Finances" />
               <NavItem href="/payments" icon={Wallet} label="Règlements" />
               <NavItem href="/reports" icon={BarChart3} label="Rapports" />
@@ -156,8 +157,9 @@ export default function ClientLayout({ children }) {
           {user?.role === 'admin' && (
             <>
               <NavItem href="/stores" icon={Store} label="Magasins" />
+              <NavItem href="/settings" icon={Settings} label="Paramètres" />
               <NavItem href="/users" icon={UserCog} label="Utilisateurs" />
-              <NavItem href="/audit" icon={ShieldAlert} label="Journal d'Audit" />
+              <NavItem href="/logs" icon={ShieldAlert} label="Journal d'Activité" />
             </>
           )}
         </nav>
@@ -212,7 +214,7 @@ export default function ClientLayout({ children }) {
 
         <div className="page-content">
           {lowStockCount > 0 && (
-            <div className="sticky-alert-banner">
+            <div className="sticky-alert-banner no-print">
               <AlertCircle size={20} />
               <span>ALERTE STOCK CRITIQUE : {lowStockCount} article(s) à réapprovisionner</span>
               <Link href="/mouvements" style={{ color: 'white', marginLeft: 'auto', textDecoration: 'underline' }}>

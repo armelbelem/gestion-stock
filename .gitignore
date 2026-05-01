@@ -47,3 +47,6 @@ node.exe
 *.dll
 *.so
 *.dylib
+
+# Temporary
+scratch/

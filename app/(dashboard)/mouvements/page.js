@@ -3,10 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { storage } from '../../lib/storage';
 import { 
-  X, ArrowDownRight, ArrowUpRight, Download, 
-  ChevronLeft, ChevronRight, Search, Filter 
+  ChevronLeft, ChevronRight, Search, Filter, XCircle,
+  Download, ArrowDownRight, ArrowUpRight, X
 } from 'lucide-react';
-import { exportToCSV } from '../../utils/csvExport';
+import { exportToExcel } from '../../utils/excelExport';
 import AlertModal from '../../components/AlertModal';
 import { useAuth } from '../../providers';
 
@@ -73,8 +73,8 @@ export default function MouvementsPage() {
       typeLabel: mov.type === 'IN' ? 'Entrée' : 'Sortie',
       articleName: getArticleName(mov.articleId)
     }));
-    exportToCSV(dataToExport, headers, 'mouvements_stock');
-    showAlert('success', 'Succès', "Exportation CSV réussie !");
+    exportToExcel(dataToExport, headers, 'mouvements_stock');
+    showAlert('success', 'Succès', "Exportation Excel réussie !");
   };
 
   const handleOpenModal = (type) => {
@@ -111,6 +111,20 @@ export default function MouvementsPage() {
     });
   };
 
+  const setQuickRange = (type) => {
+    const end = new Date();
+    const start = new Date();
+    if (type === 'today') {
+      start.setHours(0, 0, 0, 0);
+    } else if (type === 'week') {
+      start.setDate(start.getDate() - 7);
+    } else if (type === 'month') {
+      start.setDate(1);
+    }
+    setStartDate(start.toISOString().split('T')[0]);
+    setEndDate(end.toISOString().split('T')[0]);
+  };
+
   const getArticleName = (id) => articles.find(x => x.id === id)?.name || 'Article Inconnu';
   const formatDate = (iso) => new Date(iso).toLocaleString('fr-FR');
 
@@ -118,10 +132,42 @@ export default function MouvementsPage() {
     const matchesArticle = filterArticleId === '' || mov.articleId === filterArticleId;
     const matchesType = filterType === '' || mov.type === filterType;
     const matchesSearch = searchTerm === '' || mov.notes?.toLowerCase().includes(searchTerm.toLowerCase()) || getArticleName(mov.articleId).toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesArticle && matchesType && matchesSearch;
+    
+    const movDate = new Date(mov.date);
+    const start = startDate ? new Date(startDate) : null;
+    const end = endDate ? new Date(endDate) : null;
+    if (start) start.setHours(0, 0, 0, 0);
+    if (end) end.setHours(23, 59, 59, 999);
+    
+    const matchesDate = (!start || movDate >= start) && (!end || movDate <= end);
+
+    return matchesArticle && matchesType && matchesSearch && matchesDate;
   });
 
   const currentMouvements = filteredMouvements.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+  const [articleSearch, setArticleSearch] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
+
+  const handleArticleSearch = (val) => {
+    setArticleSearch(val);
+    if (val.length > 1) {
+      const filtered = articles.filter(a => 
+        a.name.toLowerCase().includes(val.toLowerCase()) || 
+        (a.code && a.code.toLowerCase().includes(val.toLowerCase())) ||
+        (a.barcode && a.barcode.toLowerCase().includes(val.toLowerCase()))
+      ).slice(0, 10);
+      setSuggestions(filtered);
+    } else {
+      setSuggestions([]);
+    }
+  };
+
+  const selectArticle = (article) => {
+    setFormData({ ...formData, articleId: article.id });
+    setArticleSearch(`${article.name} (${article.code || ''})`);
+    setSuggestions([]);
+  };
 
   return (
     <div className="page">
@@ -129,23 +175,43 @@ export default function MouvementsPage() {
         <div><h1>Mouvements</h1><p>Historique des entrées et sorties</p></div>
         <div style={{ display: 'flex', gap: '0.75rem' }}>
           <button className="btn btn-secondary" onClick={handleExport}><Download size={18} /> Exporter</button>
-          <button className="btn btn-success" onClick={() => handleOpenModal('IN')}><ArrowDownRight size={16} /> Entrée</button>
-          <button className="btn btn-danger" onClick={() => handleOpenModal('OUT')}><ArrowUpRight size={16} /> Sortie</button>
+          <button className="btn btn-success" onClick={() => { handleOpenModal('IN'); setArticleSearch(''); }}><ArrowDownRight size={16} /> Entrée</button>
+          <button className="btn btn-danger" onClick={() => { handleOpenModal('OUT'); setArticleSearch(''); }}><ArrowUpRight size={16} /> Sortie</button>
         </div>
       </div>
 
-      <div className="toolbar" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem' }}>
-        <input type="text" className="form-control" placeholder="Rechercher..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-        <select className="form-control" value={filterArticleId} onChange={(e) => setFilterArticleId(e.target.value)}>
-          <option value="">Tous les articles</option>
-          {articles.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-        </select>
-        <select className="form-control" value={filterType} onChange={(e) => setFilterType(e.target.value)}>
-          <option value="">Tous les types</option>
-          <option value="IN">Entrées</option>
-          <option value="OUT">Sorties</option>
-        </select>
-        <button className="btn btn-secondary" onClick={() => { setSearchTerm(''); setFilterArticleId(''); setFilterType(''); }}>Réinitialiser</button>
+      <div className="content-card" style={{ padding: '1rem', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center' }}>
+          <div className="search-input-wrapper" style={{ margin: 0, flex: '1 1 250px' }}>
+            <Search size={18} className="search-icon" />
+            <input type="text" className="form-control" style={{ paddingLeft: '2.5rem' }} placeholder="Rechercher..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+          </div>
+          
+          <select className="form-control" style={{ flex: '1 1 150px' }} value={filterArticleId} onChange={(e) => setFilterArticleId(e.target.value)}>
+            <option value="">Tous les articles</option>
+            {articles.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+          </select>
+
+          <select className="form-control" style={{ flex: '1 1 120px' }} value={filterType} onChange={(e) => setFilterType(e.target.value)}>
+            <option value="">Tous les types</option>
+            <option value="IN">Entrées</option>
+            <option value="OUT">Sorties</option>
+          </select>
+
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+              <input type="date" className="form-control" value={startDate} onChange={e => setStartDate(e.target.value)} />
+              <span className="text-muted" style={{ fontSize: '0.85rem' }}>au</span>
+              <input type="date" className="form-control" value={endDate} onChange={e => setEndDate(e.target.value)} />
+            </div>
+            <div style={{ display: 'flex', gap: '0.4rem' }}>
+              <button className="btn btn-secondary btn-sm" onClick={() => setQuickRange('today')}>Aujourd'hui</button>
+              <button className="btn btn-secondary btn-sm" onClick={() => setQuickRange('week')}>7 j</button>
+              <button className="btn btn-secondary btn-sm" onClick={() => setQuickRange('month')}>Mois</button>
+              <button className="btn btn-secondary" title="Réinitialiser" onClick={() => { setSearchTerm(''); setFilterArticleId(''); setFilterType(''); setStartDate(''); setEndDate(''); }}><XCircle size={16} /></button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="content-card" style={{ marginTop: '1.5rem' }}>
@@ -181,10 +247,29 @@ export default function MouvementsPage() {
             <div className="modal-header"><h3>{modalType === 'IN' ? 'Entrée de Stock' : 'Sortie de Stock'}</h3><button className="modal-close" onClick={() => setIsModalOpen(false)}><X size={20} /></button></div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body">
-                <div className="form-group"><label className="form-label">Article</label><select className="form-control" required value={formData.articleId} onChange={(e) => setFormData({...formData, articleId: e.target.value})}>
-                  <option value="">Choisir...</option>
-                  {articles.map(a => <option key={a.id} value={a.id}>{a.name} ({a.currentStock})</option>)}
-                </select></div>
+                <div className="form-group" style={{ position: 'relative' }}>
+                  <label className="form-label">Rechercher l'article (Nom, Code ou Scan)</label>
+                  <input 
+                    type="text" 
+                    className="form-control" 
+                    placeholder="Saisissez le nom ou code..." 
+                    value={articleSearch}
+                    required
+                    onChange={(e) => handleArticleSearch(e.target.value)}
+                  />
+                  {suggestions.length > 0 && (
+                    <div className="search-suggestions" style={{ top: '100%', left: 0, right: 0, zIndex: 1000 }}>
+                      {suggestions.map(a => (
+                        <div key={a.id} className="suggestion-item" onClick={() => selectArticle(a)}>
+                          <div style={{ fontWeight: 600 }}>{a.name}</div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                            Code: {a.code || '-'} | Stock: <span style={{ fontWeight: 'bold', color: a.currentStock <= a.minStock ? 'var(--danger)' : 'var(--success)' }}>{a.currentStock}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <div className="form-group"><label className="form-label">Quantité</label><input type="number" className="form-control" required value={formData.quantity} onChange={(e) => setFormData({...formData, quantity: e.target.value})} /></div>
                 {modalType === 'IN' && <div className="form-group"><label className="form-label">Fournisseur</label><select className="form-control" value={formData.supplierId} onChange={(e) => setFormData({...formData, supplierId: e.target.value})}>
                   <option value="">Choisir...</option>

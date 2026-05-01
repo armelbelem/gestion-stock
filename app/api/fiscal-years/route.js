@@ -10,7 +10,9 @@ export async function GET(request) {
   try {
     const [rows] = await db.query('SELECT * FROM fiscal_years ORDER BY createdAt DESC');
     return NextResponse.json(rows);
-  } catch (err) { return NextResponse.json({ error: err.message }, { status: 500 }); }
+  } catch (err) { 
+    return NextResponse.json({ error: err.message, details: err.stack }, { status: 500 }); 
+  }
 }
 
 export async function POST(request) {

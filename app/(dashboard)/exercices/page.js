@@ -12,6 +12,8 @@ export default function ExercicesPage() {
   const [isClosing, setIsClosing] = useState(false);
 
   const [alertModal, setAlertModal] = useState({ open: false, type: 'info', title: '', message: '', onConfirm: null });
+  const [showNewForm, setShowNewForm] = useState(false);
+  const [newEx, setNewEx] = useState({ name: `Exercice ${new Date().getFullYear()}`, startDate: new Date().toISOString().split('T')[0] });
   const closeAlert = () => setAlertModal(prev => ({ ...prev, open: false, onConfirm: null }));
   const showAlert = (type, title, message) => setAlertModal({ open: true, type, title, message, onConfirm: null });
   const showConfirm = (title, message, onConfirm) => setAlertModal({ open: true, type: 'confirm', title, message, onConfirm });
@@ -32,6 +34,18 @@ export default function ExercicesPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCreate = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await storage.create('fiscal-years', newEx);
+      setShowNewForm(false);
+      await loadData();
+      showAlert('success', 'Succès', 'Nouvel exercice ouvert.');
+    } catch (err) { showAlert('error', 'Erreur', err.message); }
+    finally { setLoading(false); }
   };
 
   const handleCloseYear = () => {
@@ -64,8 +78,30 @@ export default function ExercicesPage() {
         <div className="content-card" style={{ gridColumn: 'span 2' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
             <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Unlock color="var(--success)" /> Exercice Actif</h3>
-            {activeExercise && <button className="btn btn-danger" onClick={handleCloseYear} disabled={isClosing}>{isClosing ? 'Clôture...' : 'Clôturer l\'Année'}</button>}
+            {activeExercise ? (
+              <button className="btn btn-danger" onClick={handleCloseYear} disabled={isClosing}>{isClosing ? 'Clôture...' : 'Clôturer l\'Année'}</button>
+            ) : (
+              <button className="btn btn-primary" onClick={() => setShowNewForm(true)}>Ouvrir un Nouvel Exercice</button>
+            )}
           </div>
+
+          {showNewForm && (
+            <div style={{ marginBottom: '1.5rem', padding: '1.5rem', border: '1px solid var(--primary)', borderRadius: '8px', backgroundColor: '#f9f9ff' }}>
+              <h4 style={{ marginTop: 0 }}>Démarrer un nouvel exercice</h4>
+              <form onSubmit={handleCreate} style={{ display: 'flex', gap: '1rem', alignItems: 'flex-end' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '4px' }}>Nom de l'exercice</label>
+                  <input className="input" value={newEx.name} onChange={e => setNewEx({...newEx, name: e.target.value})} placeholder="Ex: Exercice 2026" required />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: '0.8rem', marginBottom: '4px' }}>Date de début</label>
+                  <input type="date" className="input" value={newEx.startDate} onChange={e => setNewEx({...newEx, startDate: e.target.value})} required />
+                </div>
+                <button type="submit" className="btn btn-primary" disabled={loading}>Valider</button>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowNewForm(false)}>Annuler</button>
+              </form>
+            </div>
+          )}
 
           {activeExercise ? (
             <div style={{ padding: '1rem', backgroundColor: 'var(--primary-light)', borderRadius: '8px', display: 'flex', gap: '2rem' }}>
@@ -73,7 +109,7 @@ export default function ExercicesPage() {
               <div><div className="text-muted">Ouvert le</div><strong>{formatDate(activeExercise.startDate)}</strong></div>
               <div style={{ marginLeft: 'auto' }}><span className="badge badge-success">OUVERT</span></div>
             </div>
-          ) : <div className="badge-warning">Aucun exercice actif.</div>}
+          ) : !showNewForm && <div className="badge-warning" style={{ padding: '1rem', borderRadius: '8px' }}>Aucun exercice actif. Veuillez en ouvrir un pour enregistrer des ventes.</div>}
 
           <div style={{ marginTop: '1.5rem', padding: '1rem', border: '1px dashed var(--border-color)', borderRadius: '8px', fontSize: '0.9rem' }}>
             <div style={{ fontWeight: 600, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}><AlertTriangle size={16} /> Rappel :</div>
@@ -92,7 +128,20 @@ export default function ExercicesPage() {
               <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px', border: '1px solid var(--border-color)', borderRadius: '6px' }}>
                 <FileText color="var(--danger)" />
                 <div style={{ flex: 1 }}><strong>{r.yearName}</strong><div style={{ fontSize: '0.75rem' }}>{formatDate(r.createdAt)}</div></div>
-                <button className="btn btn-secondary btn-sm" onClick={() => showAlert('info', 'PDF', 'Consultable dans C:\\GestionStock_Bilans')}><Download size={16} /></button>
+                <button 
+                  className="btn btn-secondary btn-sm" 
+                  onClick={() => {
+                    const token = sessionStorage.getItem('token');
+                    if (!token) {
+                      showAlert('error', 'Erreur', 'Votre session a expiré. Veuillez vous reconnecter.');
+                      return;
+                    }
+                    window.open(`/exercices/print/${r.id}`, '_blank');
+                  }}
+                  title="Télécharger le PDF"
+                >
+                  <Download size={16} />
+                </button>
               </div>
             ))}
           </div>

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { storage } from '../../lib/storage';
-import { UserPlus, Trash2, Shield, User, Key, CheckCircle, X } from 'lucide-react';
+import { UserPlus, Trash2, Shield, User, Key, CheckCircle, X, Edit2 } from 'lucide-react';
 import { useAuth } from '../../providers';
 import AlertModal from '../../components/AlertModal';
 
@@ -14,6 +14,7 @@ export default function UsersPage() {
   const [formData, setFormData] = useState({
     username: '', password: '', role: 'vendeur', storeId: ''
   });
+  const [editingId, setEditingId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [alertModal, setAlertModal] = useState({ open: false, type: 'info', title: '', message: '', onConfirm: null });
@@ -43,15 +44,34 @@ export default function UsersPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.username || !formData.password || !formData.storeId) return showAlert('error', 'Erreur', "Champs requis manquants");
+    if (!formData.username || (!editingId && !formData.password) || !formData.storeId) {
+      return showAlert('error', 'Erreur', "Champs requis manquants");
+    }
     setIsSubmitting(true);
     try {
-      await storage.create('users', formData);
-      showAlert('success', 'Succès', "Utilisateur créé !");
+      if (editingId) {
+        await storage.update('users', editingId, formData);
+        showAlert('success', 'Succès', "Utilisateur mis à jour !");
+      } else {
+        await storage.create('users', formData);
+        showAlert('success', 'Succès', "Utilisateur créé !");
+      }
       setIsModalOpen(false);
+      setEditingId(null);
       loadUsers();
     } catch (err) { showAlert('error', 'Erreur', err.message); }
     finally { setIsSubmitting(false); }
+  };
+
+  const handleEdit = (u) => {
+    setEditingId(u.id);
+    setFormData({
+      username: u.username,
+      password: '', // On laisse vide pour ne pas changer si non saisi
+      role: u.role,
+      storeId: u.storeId
+    });
+    setIsModalOpen(true);
   };
 
   const handleDelete = (id) => {
@@ -70,7 +90,7 @@ export default function UsersPage() {
     <div className="page">
       <div className="page-header">
         <div><h1>Utilisateurs</h1><p>Gestion des accès et rôles</p></div>
-        <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}><UserPlus size={18} /> Nouveau</button>
+        <button className="btn btn-primary" onClick={() => { setEditingId(null); setFormData({username:'', password:'', role:'vendeur', storeId: stores[0]?.id || ''}); setIsModalOpen(true); }}><UserPlus size={18} /> Nouveau</button>
       </div>
 
       <div className="content-card">
@@ -88,7 +108,14 @@ export default function UsersPage() {
                   </td>
                   <td><span className={`badge ${u.role === 'admin' ? 'badge-primary' : 'badge-success'}`}>{u.role}</span></td>
                   <td className="text-muted">{u.storeName || '-'}</td>
-                  <td><button onClick={() => handleDelete(u.id)} disabled={u.id === currentUser?.id} className="text-danger" style={{ background: 'none', border: 'none' }}><Trash2 size={18} /></button></td>
+                  <td style={{ display: 'flex', gap: '1rem' }}>
+                    <button onClick={() => handleEdit(u)} className="text-primary" style={{ background: 'none', border: 'none' }} title="Modifier">
+                      <Edit2 size={18} />
+                    </button>
+                    <button onClick={() => handleDelete(u.id)} disabled={u.id === currentUser?.id} className="text-danger" style={{ background: 'none', border: 'none' }} title="Supprimer">
+                      <Trash2 size={18} />
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -99,11 +126,14 @@ export default function UsersPage() {
       {isModalOpen && (
         <div className="modal-overlay">
           <div className="modal-content" style={{ maxWidth: '400px' }}>
-            <div className="modal-header"><h3>Nouvel Utilisateur</h3><button className="modal-close" onClick={() => setIsModalOpen(false)}><X size={20} /></button></div>
+            <div className="modal-header"><h3>{editingId ? 'Modifier l\'utilisateur' : 'Nouvel Utilisateur'}</h3><button className="modal-close" onClick={() => setIsModalOpen(false)}><X size={20} /></button></div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body">
                 <div className="form-group"><label className="form-label">Identifiant</label><input type="text" className="form-control" required value={formData.username} onChange={e => setFormData({...formData, username: e.target.value})} /></div>
-                <div className="form-group"><label className="form-label">Mot de passe</label><input type="password" className="form-control" required value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} /></div>
+                <div className="form-group">
+                  <label className="form-label">{editingId ? 'Nouveau mot de passe (laisser vide pour ne pas changer)' : 'Mot de passe'}</label>
+                  <input type="password" className="form-control" required={!editingId} value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
+                </div>
                 <div className="form-group"><label className="form-label">Rôle</label><select className="form-control" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})}>
                   <option value="vendeur">Vendeur</option><option value="gestionnaire">Gestionnaire</option><option value="admin">Admin</option>
                 </select></div>
@@ -111,7 +141,10 @@ export default function UsersPage() {
                   {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select></div>
               </div>
-              <div className="modal-footer"><button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(false)}>Annuler</button><button type="submit" className="btn btn-primary" disabled={isSubmitting}>Créer</button></div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(false)}>Annuler</button>
+                <button type="submit" className="btn btn-primary" disabled={isSubmitting}>{editingId ? 'Mettre à jour' : 'Créer'}</button>
+              </div>
             </form>
           </div>
         </div>

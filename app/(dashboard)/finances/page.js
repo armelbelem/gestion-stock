@@ -3,15 +3,26 @@
 import React, { useState, useEffect } from 'react';
 import { storage } from '../../lib/storage';
 import { Calendar, Printer, DollarSign } from 'lucide-react';
+import { useAuth } from '../../providers';
 
 export default function FinancesPage() {
   const [payments, setPayments] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(false);
+  const [settings, setSettings] = useState(null);
+  const { user: currentUser } = useAuth();
 
   useEffect(() => {
     loadDailyPayments();
+    loadSettings();
   }, [selectedDate]);
+
+  const loadSettings = async () => {
+    try {
+      const data = await storage.get('settings');
+      setSettings(data);
+    } catch (err) { console.error(err); }
+  };
 
   const loadDailyPayments = async () => {
     setLoading(true);
@@ -83,12 +94,24 @@ export default function FinancesPage() {
 
       <div className="content-card">
         <div className="table-wrapper">
-          <div className="receipt-print-only" style={{ textAlign: 'center', marginBottom: '2rem' }}>
-             <h2>Rapport de Caisse Journalier</h2>
-             <p>Date : {new Date(selectedDate).toLocaleDateString('fr-FR')}</p>
+          {/* Version Impression */}
+          <div className="receipt-print-only" style={{ display: 'none' }}>
+            <div style={{ textAlign: 'center', marginBottom: '20px', borderBottom: '2px solid black', paddingBottom: '10px' }}>
+              {settings?.logo ? (
+                <img src={settings.logo} alt="Logo" style={{ maxHeight: '80px', marginBottom: '10px' }} />
+              ) : (
+                <h1 style={{ margin: '0', fontSize: '24px', fontWeight: '800', textTransform: 'uppercase' }}>{settings?.companyName || 'MINING AUTOLOG'}</h1>
+              )}
+              {settings?.address && <p style={{ margin: '2px 0' }}>{settings.address}</p>}
+              {settings?.phone && <p style={{ margin: '2px 0' }}>Tél : {settings.phone}</p>}
+              {settings?.nif && <p style={{ margin: '2px 0' }}>NIF : {settings.nif}</p>}
+              {settings?.rccm && <p style={{ margin: '2px 0' }}>RCCM : {settings.rccm}</p>}
+              <h2 style={{ marginTop: '15px' }}>RAPPORT DE CAISSE JOURNALIER</h2>
+              <p>Date : {new Date(selectedDate).toLocaleDateString('fr-FR')}</p>
+            </div>
           </div>
           
-          <table>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
                 <th>Heure</th>
@@ -112,7 +135,7 @@ export default function FinancesPage() {
                       {payment.saleStatus === 'annulée' && <span className="badge badge-danger" style={{ marginLeft: '8px', fontSize: '0.7rem' }}>Annulée</span>}
                     </td>
                     <td>{payment.clientName}</td>
-                    <td className="text-muted">{payment.notes || '-'}</td>
+                    <td>{payment.notes || '-'}</td>
                     <td style={{ 
                       textAlign: 'right', 
                       fontWeight: 700, 

@@ -21,6 +21,7 @@ export default function NewSalePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successData, setSuccessData] = useState(null);
   const [barcodeInput, setBarcodeInput] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
   const [paymentType, setPaymentType] = useState('complet');
   const [initialPayment, setInitialPayment] = useState(0);
   const [discount, setDiscount] = useState(0);
@@ -67,14 +68,14 @@ export default function NewSalePage() {
       if (item.id === id) {
         let newItem = { ...item, [field]: value };
         if (field === 'articleId') {
-          const article = articles.find(a => a.id === value);
+          const article = articles.find(a => String(a.id) === String(value));
           if (article) {
             newItem.unitPrice = article.price;
             newItem.maxStock = article.currentStock;
           }
         }
         if (field === 'quantity') {
-          const article = articles.find(a => a.id === item.articleId);
+          const article = articles.find(a => String(a.id) === String(item.articleId));
           if (article) {
             const remainingStockAfter = article.currentStock - value;
             if (remainingStockAfter <= article.minStock) {
@@ -100,37 +101,63 @@ export default function NewSalePage() {
     }
   }, [saleItems, paymentType, discount]);
 
+  const handleSearchChange = (val) => {
+    setBarcodeInput(val);
+    if (val.length > 1) {
+      const filtered = articles.filter(a => 
+        a.name.toLowerCase().includes(val.toLowerCase()) || 
+        a.code?.toLowerCase().includes(val.toLowerCase()) ||
+        a.barcode?.toLowerCase().includes(val.toLowerCase())
+      ).slice(0, 10);
+      setSuggestions(filtered);
+    } else {
+      setSuggestions([]);
+    }
+  };
+
+  const handleSelectArticle = (article) => {
+    if (article.currentStock <= 0) {
+      showAlert('error', 'Erreur', `Stock épuisé pour ${article.name}`);
+      setBarcodeInput('');
+      setSuggestions([]);
+      return;
+    }
+    const existingItem = saleItems.find(item => String(item.articleId) === String(article.id));
+    if (existingItem) {
+      if (existingItem.quantity < article.currentStock) {
+        updateItem(existingItem.id, 'quantity', existingItem.quantity + 1);
+      } else {
+        showAlert('error', 'Erreur', `Pas plus de stock pour ${article.name}`);
+      }
+    } else {
+      setSaleItems([...saleItems, {
+        id: Math.random().toString(36).substr(2, 9),
+        articleId: article.id,
+        quantity: 1,
+        unitPrice: article.price,
+        maxStock: article.currentStock
+      }]);
+    }
+    setBarcodeInput('');
+    setSuggestions([]);
+  };
+
   const handleBarcodeScan = (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       const code = barcodeInput.trim();
       if (!code) return;
-      const article = articles.find(a => a.barcode === code);
+
+      if (suggestions.length > 0) {
+        handleSelectArticle(suggestions[0]);
+        return;
+      }
+
+      const article = articles.find(a => a.barcode === code || a.code === code);
       if (article) {
-        if (article.currentStock <= 0) {
-          showAlert('error', 'Erreur', `Stock épuisé pour ${article.name}`);
-          setBarcodeInput('');
-          return;
-        }
-        const existingItem = saleItems.find(item => item.articleId === article.id);
-        if (existingItem) {
-          if (existingItem.quantity < article.currentStock) {
-            updateItem(existingItem.id, 'quantity', existingItem.quantity + 1);
-          } else {
-            showAlert('error', 'Erreur', `Pas plus de stock pour ${article.name}`);
-          }
-        } else {
-          setSaleItems([...saleItems, {
-            id: Math.random().toString(36).substr(2, 9),
-            articleId: article.id,
-            quantity: 1,
-            unitPrice: article.price,
-            maxStock: article.currentStock
-          }]);
-        }
-        setBarcodeInput('');
+        handleSelectArticle(article);
       } else {
-        showAlert('error', 'Erreur', "Code-barres inconnu");
+        showAlert('error', 'Erreur', "Article non trouvé");
         setBarcodeInput('');
       }
     }
@@ -160,7 +187,7 @@ export default function NewSalePage() {
           discount: Number(discount),
           storeId
         });
-        setSuccessData({ ...response, clientName: clients.find(c => c.id === selectedClientId)?.name, items: saleItems.map(si => ({ ...si, articleName: articles.find(a => a.id === si.articleId)?.name })) });
+        setSuccessData({ ...response, clientName: clients.find(c => String(c.id) === String(selectedClientId))?.name, items: saleItems.map(si => ({ ...si, articleName: articles.find(a => String(a.id) === String(si.articleId))?.name })) });
       } catch (err) {
         showAlert('error', 'Erreur', err.message);
         setIsSubmitting(false);
@@ -200,10 +227,48 @@ export default function NewSalePage() {
       <form onSubmit={handleSubmit}>
         <div className="row" style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
           <div style={{ flex: '1 1 600px' }}>
-            <div className="content-card" style={{ marginBottom: '2rem' }}>
-              <div className="form-group" style={{ position: 'relative' }}>
-                <input type="text" className="form-control" placeholder="Scannez ici..." value={barcodeInput} onChange={(e) => setBarcodeInput(e.target.value)} onKeyDown={handleBarcodeScan} autoFocus style={{ border: '2px solid var(--success)', paddingLeft: '3rem' }} />
-                <ScanBarcode size={24} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--success)' }} />
+            <div className="content-card" style={{ marginBottom: '2rem', position: 'relative', overflow: 'visible' }}>
+              <div className="form-group" style={{ position: 'relative', margin: 0 }}>
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  placeholder="Saisissez le nom, code ou scannez..." 
+                  value={barcodeInput} 
+                  onChange={(e) => handleSearchChange(e.target.value)} 
+                  onKeyDown={handleBarcodeScan} 
+                  autoFocus 
+                  style={{ border: '2px solid var(--success)', paddingLeft: '3rem', height: '50px', fontSize: '1.1rem' }} 
+                />
+                <Search size={24} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--success)' }} />
+                
+                {suggestions.length > 0 && (
+                  <div className="suggestions-dropdown" style={{ 
+                    position: 'absolute', top: '100%', left: 0, right: 0, 
+                    backgroundColor: 'white', border: '1px solid var(--border)', 
+                    borderRadius: '8px', marginTop: '4px', zIndex: 100, 
+                    boxShadow: '0 10px 25px rgba(0,0,0,0.1)', overflow: 'hidden'
+                  }}>
+                    {suggestions.map(a => (
+                      <div 
+                        key={a.id} 
+                        className="suggestion-item" 
+                        onClick={() => handleSelectArticle(a)}
+                        style={{ 
+                          padding: '0.75rem 1rem', cursor: 'pointer', borderBottom: '1px solid var(--border-light)',
+                          display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-color)'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      >
+                        <div>
+                          <div style={{ fontWeight: 600 }}>{a.name}</div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Ref: {a.code || '-'} | Stock: {a.currentStock}</div>
+                        </div>
+                        <div style={{ fontWeight: 600, color: 'var(--primary)' }}>{a.price.toLocaleString()} FCFA</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -224,7 +289,19 @@ export default function NewSalePage() {
               </div>
               <div className="table-wrapper">
                 <table>
-                  <thead><tr><th>Article</th><th>Qté</th><th>Prix</th><th>Total</th><th></th></tr></thead>
+                  <thead>
+                    <tr>
+                      <th>Article</th>
+                      <th>Qté</th>
+                      {currentUser?.role !== 'vendeur' && (
+                        <>
+                          <th>Prix</th>
+                          <th>Total</th>
+                        </>
+                      )}
+                      <th></th>
+                    </tr>
+                  </thead>
                   <tbody>
                     {saleItems.map(item => (
                       <tr key={item.id}>
@@ -235,8 +312,12 @@ export default function NewSalePage() {
                           </select>
                         </td>
                         <td><input type="number" className="form-control" value={item.quantity} onChange={(e) => updateItem(item.id, 'quantity', parseInt(e.target.value) || 0)} /></td>
-                        <td><input type="number" className="form-control" value={item.unitPrice} onChange={(e) => updateItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)} /></td>
-                        <td style={{ fontWeight: 600 }}>{(item.quantity * item.unitPrice).toLocaleString()}</td>
+                        {currentUser?.role !== 'vendeur' && (
+                          <>
+                            <td><input type="number" className="form-control" value={item.unitPrice} onChange={(e) => updateItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)} /></td>
+                            <td style={{ fontWeight: 600 }}>{(item.quantity * item.unitPrice).toLocaleString()}</td>
+                          </>
+                        )}
                         <td><button type="button" onClick={() => removeItem(item.id)} className="text-danger"><Trash2 size={18} /></button></td>
                       </tr>
                     ))}
@@ -250,9 +331,13 @@ export default function NewSalePage() {
             <div className="content-card" style={{ position: 'sticky', top: '2rem' }}>
               <h3>Résumé</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Sous-total</span><span>{calculateTotal().toLocaleString()} FCFA</span></div>
-                <div className="form-group"><label className="form-label">Remise</label><input type="number" className="form-control" value={discount} onChange={(e) => setDiscount(Number(e.target.value) || 0)} /></div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1rem' }}><strong>Total Net</strong><strong style={{ color: 'var(--primary)', fontSize: '1.5rem' }}>{(calculateTotal() - discount).toLocaleString()} FCFA</strong></div>
+                {currentUser?.role !== 'vendeur' && (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Sous-total</span><span>{calculateTotal().toLocaleString()} FCFA</span></div>
+                    <div className="form-group"><label className="form-label">Remise</label><input type="number" className="form-control" value={discount} onChange={(e) => setDiscount(Number(e.target.value) || 0)} /></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1rem' }}><strong>Total Net</strong><strong style={{ color: 'var(--primary)', fontSize: '1.5rem' }}>{(calculateTotal() - discount).toLocaleString()} FCFA</strong></div>
+                  </>
+                )}
                 
                 <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
                   <label className="form-label">Mode</label>
@@ -260,7 +345,9 @@ export default function NewSalePage() {
                     <button type="button" className={`btn ${paymentType === 'complet' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1 }} onClick={() => setPaymentType('complet')}>Complet</button>
                     <button type="button" className={`btn ${paymentType === 'credit' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1 }} onClick={() => setPaymentType('credit')}>Crédit</button>
                   </div>
-                  <div className="form-group"><label className="form-label">Versement</label><input type="number" className="form-control" value={initialPayment} onChange={(e) => setInitialPayment(Number(e.target.value) || 0)} disabled={paymentType === 'complet'} /></div>
+                  {currentUser?.role !== 'vendeur' && (
+                    <div className="form-group"><label className="form-label">Versement</label><input type="number" className="form-control" value={initialPayment} onChange={(e) => setInitialPayment(Number(e.target.value) || 0)} disabled={paymentType === 'complet'} /></div>
+                  )}
                   {paymentType === 'credit' && <div className="form-group"><label className="form-label">Échéance</label><input type="date" className="form-control" value={dueDate} onChange={(e) => setDueDate(e.target.value)} required /></div>}
                 </div>
                 <button type="submit" className="btn btn-primary btn-lg" disabled={isSubmitting || saleItems.length === 0}>{isSubmitting ? '...' : 'Valider la vente'}</button>

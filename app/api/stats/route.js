@@ -16,19 +16,28 @@ export async function GET(request) {
     // Get active fiscal year
     const [fyRows] = await db.query("SELECT * FROM fiscal_years WHERE status = 'active'");
     const activeYear = fyRows[0];
-    if (!activeYear) return NextResponse.json({ totalRevenue: 0, totalStockValue: 0, salesHistory: [] });
-
-    // 1. Revenue
-    let salesQuery = 'SELECT SUM(totalAmount) as totalRevenue FROM sales WHERE fiscalYearId = ? AND status != "annulée"';
-    let salesParams = [activeYear.id];
-    if (storeId) { salesQuery += ' AND storeId = ?'; salesParams.push(storeId); }
-    const [salesRow] = await db.query(salesQuery, salesParams);
     
-    // 2. Stock Value
+    // 1. Stock Value (Toujours calculé, indépendamment de l'exercice)
     let stockQuery = 'SELECT SUM(i.quantity * a.price) as totalValue FROM inventory i JOIN articles a ON i.articleId = a.id';
     let stockParams = [];
     if (storeId) { stockQuery += ' WHERE i.storeId = ?'; stockParams.push(storeId); }
     const [stockRow] = await db.query(stockQuery, stockParams);
+    const totalStockValue = stockRow[0].totalValue || 0;
+
+    // Si aucun exercice actif, on renvoie le stock mais 0 en revenus
+    if (!activeYear) {
+      return NextResponse.json({ 
+        totalRevenue: 0, 
+        totalStockValue, 
+        salesHistory: [] 
+      });
+    }
+
+    // 2. Revenue
+    let salesQuery = 'SELECT SUM(totalAmount) as totalRevenue FROM sales WHERE fiscalYearId = ? AND status != "annulée"';
+    let salesParams = [activeYear.id];
+    if (storeId) { salesQuery += ' AND storeId = ?'; salesParams.push(storeId); }
+    const [salesRow] = await db.query(salesQuery, salesParams);
 
     // 3. Last 7 days sales
     const last7Days = [];
@@ -48,7 +57,7 @@ export async function GET(request) {
 
     return NextResponse.json({
       totalRevenue: salesRow[0].totalRevenue || 0,
-      totalStockValue: stockRow[0].totalValue || 0,
+      totalStockValue,
       salesHistory: last7Days
     });
   } catch (err) { return NextResponse.json({ error: err.message }, { status: 500 }); }

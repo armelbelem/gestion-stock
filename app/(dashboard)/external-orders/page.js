@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { storage } from '../../lib/storage';
-import { Plus, CheckCircle, XCircle, Clock, Trash2, Search, X, PackageOpen, ListPlus, Printer } from 'lucide-react';
+import { Plus, CheckCircle, XCircle, Clock, Trash2, Search, X, PackageOpen, ListPlus, Printer, Truck, AlertCircle, Download } from 'lucide-react';
 import AlertModal from '../../components/AlertModal';
+import { exportToExcel } from '../../utils/excelExport';
 
 export default function ExternalOrdersPage() {
   const [orders, setOrders] = useState([]);
@@ -13,8 +14,9 @@ export default function ExternalOrdersPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [printData, setPrintData] = useState(null);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [isPrintingSummary, setIsPrintingSummary] = useState(false);
   const [formData, setFormData] = useState({ 
-    clientId: '', supplierId: '', items: [{ description: '', quantity: 1, price: '' }]
+    clientId: '', supplierId: '', items: [{ description: '', quantity: 1, purchasePrice: '', sellPrice: '' }]
   });
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -43,15 +45,50 @@ export default function ExternalOrdersPage() {
     }
   };
 
+  const handleExport = () => {
+    const exportData = [];
+    filteredOrders.forEach(order => {
+      if (order.items && order.items.length > 0) {
+        order.items.forEach(item => {
+          exportData.push({
+            date: new Date(order.date).toLocaleDateString(),
+            client: order.clientName,
+            fournisseur: order.supplierName,
+            article: item.description,
+            quantite: item.quantity,
+            prixAchat: item.purchasePrice,
+            prixVente: item.sellPrice,
+            benefice: (item.sellPrice - item.purchasePrice) * item.quantity,
+            statut: order.status === 'termine' ? 'Livré & Vendu' : (order.status === 'annule' ? 'Annulé' : 'En attente')
+          });
+        });
+      }
+    });
+
+    const headers = [
+      { key: 'date', label: 'Date' },
+      { key: 'client', label: 'Client' },
+      { key: 'fournisseur', label: 'Fournisseur' },
+      { key: 'article', label: 'Article' },
+      { key: 'quantite', label: 'Qté' },
+      { key: 'prixAchat', label: 'Prix Achat' },
+      { key: 'prixVente', label: 'Prix Vente' },
+      { key: 'benefice', label: 'Bénéfice' },
+      { key: 'statut', label: 'Statut' }
+    ];
+
+    exportToExcel(exportData, headers, `commandes_speciales_${new Date().toISOString().split('T')[0]}`);
+  };
+
   const handleOpenModal = () => {
-    setFormData({ clientId: '', supplierId: '', items: [{ description: '', quantity: 1, price: '' }] });
+    setFormData({ clientId: '', supplierId: '', items: [{ description: '', quantity: 1, purchasePrice: '', sellPrice: '' }] });
     setIsModalOpen(true);
   };
 
   const handleAddItem = () => {
     setFormData({
       ...formData,
-      items: [...formData.items, { description: '', quantity: 1, price: '' }]
+      items: [...formData.items, { description: '', quantity: 1, purchasePrice: '', sellPrice: '' }]
     });
   };
 
@@ -65,6 +102,7 @@ export default function ExternalOrdersPage() {
   const handleItemChange = (index, field, value) => {
     const newItems = [...formData.items];
     if (field === 'quantity') value = parseInt(value) || 1;
+    if (field === 'purchasePrice' || field === 'sellPrice') value = parseFloat(value) || 0;
     newItems[index][field] = value;
     setFormData({ ...formData, items: newItems });
   };
@@ -72,16 +110,8 @@ export default function ExternalOrdersPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const payload = {
-        ...formData,
-        items: formData.items.map(item => ({
-          ...item,
-          purchasePrice: item.price,
-          sellPrice: item.price
-        }))
-      };
-      await storage.create('external-orders', payload);
-      showAlert('success', 'Succès', "Commande externe créée avec succès !");
+      await storage.create('external-orders', formData);
+      showAlert('success', 'Succès', "Commande spéciale créée avec succès !");
       await loadData();
       setIsModalOpen(false);
     } catch (error) {
@@ -93,15 +123,17 @@ export default function ExternalOrdersPage() {
     if (action === 'vendre') {
       showConfirm(
         "Validation de la vente",
-        "Confirmez-vous la réception et la vente de TOUS les produits de cette commande ? (Cela générera une facture de vente).",
+        "Confirmez-vous la réception et la vente de TOUS les produits de cette commande ? (Cela générera une facture de vente et enregistrera votre bénéfice).",
         async () => {
           closeAlert();
           try {
-            await fetch(`/api/external-orders/${id}`, {
+            const res = await fetch(`/api/external-orders/${id}`, {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${sessionStorage.getItem('token')}` },
               body: JSON.stringify({ action: 'vendre' })
             });
+            const result = await res.json();
+            if (!res.ok) throw new Error(result.error);
             showAlert('success', 'Succès', "La commande a été réceptionnée et vendue au client !");
             loadData();
           } catch (e) { showAlert('error', 'Erreur', e.message); }
@@ -138,6 +170,14 @@ export default function ExternalOrdersPage() {
     }, 500);
   };
 
+  const handlePrintSummary = () => {
+    setIsPrintingSummary(true);
+    setTimeout(() => {
+      window.print();
+      setIsPrintingSummary(false);
+    }, 500);
+  };
+
   const getStatusBadge = (status) => {
     switch(status) {
       case 'en_attente': return <span className="badge badge-warning"><Clock size={12} style={{marginRight:4}}/> En attente</span>;
@@ -158,7 +198,7 @@ export default function ExternalOrdersPage() {
       <div className="receipt-print-only" style={{ display: 'block', padding: '20px' }}>
         <div style={{ textAlign: 'center', marginBottom: '20px', borderBottom: '2px solid black', paddingBottom: '10px' }}>
           <h1 style={{ margin: '0', fontSize: '22px', fontWeight: '800' }}>MINING AUTOLOG</h1>
-          <p>BON DE COMMANDE FOURNISSEUR #{printData.id.substring(0, 8).toUpperCase()}</p>
+          <p>BON DE COMMANDE SPÉCIALE #{printData.id.substring(0, 8).toUpperCase()}</p>
           <p>Date : {new Date(printData.date).toLocaleDateString('fr-FR')}</p>
         </div>
         <div style={{ marginBottom: '20px' }}>
@@ -170,7 +210,7 @@ export default function ExternalOrdersPage() {
             <tr style={{ borderBottom: '2px solid black' }}>
               <th style={{ textAlign: 'left', padding: '8px' }}>Description du produit</th>
               <th style={{ textAlign: 'center', padding: '8px' }}>Qté</th>
-              <th style={{ textAlign: 'right', padding: '8px' }}>P.U</th>
+              <th style={{ textAlign: 'right', padding: '8px' }}>P.U Vente</th>
               <th style={{ textAlign: 'right', padding: '8px' }}>Total</th>
             </tr>
           </thead>
@@ -186,7 +226,7 @@ export default function ExternalOrdersPage() {
           </tbody>
           <tfoot>
             <tr style={{ fontWeight: 'bold' }}>
-              <td colSpan="3" style={{ textAlign: 'right', padding: '8px' }}>MONTANT TOTAL</td>
+              <td colSpan="3" style={{ textAlign: 'right', padding: '8px' }}>MONTANT TOTAL À PAYER</td>
               <td style={{ textAlign: 'right', padding: '8px' }}>{totalVente.toLocaleString()} FCFA</td>
             </tr>
           </tfoot>
@@ -199,16 +239,129 @@ export default function ExternalOrdersPage() {
     );
   }
 
+  if (isPrintingSummary) {
+    const totalRevenue = filteredOrders.reduce((sum, o) => sum + (o.items ? o.items.reduce((s, i) => s + (i.quantity * i.sellPrice), 0) : 0), 0);
+    const totalCost = filteredOrders.reduce((sum, o) => sum + (o.items ? o.items.reduce((s, i) => s + (i.quantity * i.purchasePrice), 0) : 0), 0);
+    const totalProfit = totalRevenue - totalCost;
+
+    return (
+      <div className="receipt-print-only" style={{ display: 'block', padding: '30px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '30px', borderBottom: '2px solid black', paddingBottom: '15px' }}>
+          <h1 style={{ margin: '0', fontSize: '26px', fontWeight: '800' }}>MINING AUTOLOG</h1>
+          <h2 style={{ margin: '10px 0 0 0', fontSize: '18px' }}>BILAN DES COMMANDES SPÉCIALES</h2>
+          <p>Édité le : {new Date().toLocaleDateString('fr-FR')} à {new Date().toLocaleTimeString('fr-FR')}</p>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '30px', backgroundColor: '#f9f9f9', padding: '15px', borderRadius: '8px', border: '1px solid #ddd' }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '12px', color: '#666' }}>CHIFFRE D'AFFAIRES (CA)</div>
+            <div style={{ fontSize: '18px', fontWeight: 'bold' }}>{totalRevenue.toLocaleString()} FCFA</div>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '12px', color: '#666' }}>TOTAL ACHATS</div>
+            <div style={{ fontSize: '18px', fontWeight: 'bold' }}>{totalCost.toLocaleString()} FCFA</div>
+          </div>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: '12px', color: '#666' }}>BÉNÉFICE NET</div>
+            <div style={{ fontSize: '18px', fontWeight: 'bold', color: 'green' }}>{totalProfit.toLocaleString()} FCFA</div>
+          </div>
+        </div>
+
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '30px' }}>
+          <thead>
+            <tr style={{ backgroundColor: '#eee', borderBottom: '2px solid black' }}>
+              <th style={{ textAlign: 'left', padding: '10px', fontSize: '12px' }}>DATE</th>
+              <th style={{ textAlign: 'left', padding: '10px', fontSize: '12px' }}>CLIENT / FOURNISSEUR</th>
+              <th style={{ textAlign: 'left', padding: '10px', fontSize: '12px' }}>DÉTAILS PRODUITS</th>
+              <th style={{ textAlign: 'right', padding: '10px', fontSize: '12px' }}>VENTE</th>
+              <th style={{ textAlign: 'right', padding: '10px', fontSize: '12px' }}>MARGE</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredOrders.map((order, idx) => {
+              const orderRevenue = order.items ? order.items.reduce((s, i) => s + (i.quantity * i.sellPrice), 0) : 0;
+              const orderCost = order.items ? order.items.reduce((s, i) => s + (i.quantity * i.purchasePrice), 0) : 0;
+              return (
+                <tr key={idx} style={{ borderBottom: '1px solid #ddd' }}>
+                  <td style={{ padding: '10px', fontSize: '11px' }}>{new Date(order.date).toLocaleDateString()}</td>
+                  <td style={{ padding: '10px', fontSize: '11px' }}>
+                    <strong>{order.clientName}</strong><br/>
+                    <small>F: {order.supplierName}</small>
+                  </td>
+                  <td style={{ padding: '10px', fontSize: '11px' }}>
+                    {order.items?.map((it, iindex) => (
+                      <div key={iindex}>{it.quantity}x {it.description}</div>
+                    ))}
+                  </td>
+                  <td style={{ textAlign: 'right', padding: '10px', fontSize: '11px' }}>{orderRevenue.toLocaleString()}</td>
+                  <td style={{ textAlign: 'right', padding: '10px', fontSize: '11px', fontWeight: 'bold', color: 'green' }}>+{(orderRevenue - orderCost).toLocaleString()}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+
+        <div style={{ marginTop: '100px', display: 'flex', justifyContent: 'space-between' }}>
+          <div style={{ textAlign: 'center', width: '200px' }}>
+            <div style={{ borderBottom: '1px solid black', marginBottom: '10px' }}>Signature Direction</div>
+          </div>
+          <div style={{ textAlign: 'center', width: '200px' }}>
+            <div style={{ borderBottom: '1px solid black', marginBottom: '10px' }}>Cachet de l'Entreprise</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="page">
       <div className="page-header">
         <div>
-          <h1>Commandes Externes</h1>
-          <p>Gérez les pièces hors-catalogue commandées spécifiquement pour des clients</p>
+          <h1>Commandes Spéciales (Achat-Revente)</h1>
+          <p>Gérez les produits hors-catalogue achetés pour vos clients et suivez vos marges</p>
         </div>
-        <button className="btn btn-primary" onClick={handleOpenModal}>
-          <Plus size={16} /> Nouvelle Commande Externe
-        </button>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button className="btn btn-secondary" onClick={handlePrintSummary} disabled={filteredOrders.length === 0}>
+            <Printer size={16} /> Bilan PDF
+          </button>
+          <button className="btn btn-secondary" onClick={handleExport} disabled={filteredOrders.length === 0}>
+            <Download size={16} /> Exporter
+          </button>
+          <button className="btn btn-primary" onClick={handleOpenModal}>
+            <Plus size={16} /> Nouvelle Commande Spéciale
+          </button>
+        </div>
+      </div>
+
+      <div className="dashboard-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', marginBottom: '1.5rem' }}>
+        <div className="stat-card">
+          <div className="stat-value">
+            {filteredOrders.filter(o => o.status === 'termine').reduce((sum, o) => sum + (o.items ? o.items.reduce((s, i) => s + (i.quantity * i.sellPrice), 0) : 0), 0).toLocaleString()} FCFA
+          </div>
+          <div className="stat-label">Ventes Totales (Réalisées)</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-value" style={{ color: 'var(--danger)' }}>
+            {filteredOrders.filter(o => o.status === 'termine').reduce((sum, o) => sum + (o.items ? o.items.reduce((s, i) => s + (i.quantity * i.purchasePrice), 0) : 0), 0).toLocaleString()} FCFA
+          </div>
+          <div className="stat-label">Total Achats (Effectués)</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-value" style={{ color: 'var(--success)' }}>
+            {filteredOrders.filter(o => o.status === 'termine').reduce((sum, o) => {
+              const totalAchat = o.items ? o.items.reduce((s, i) => s + (i.quantity * i.purchasePrice), 0) : 0;
+              const totalVente = o.items ? o.items.reduce((s, i) => s + (i.quantity * i.sellPrice), 0) : 0;
+              return sum + (totalVente - totalAchat);
+            }, 0).toLocaleString()} FCFA
+          </div>
+          <div className="stat-label">Bénéfice Net Réalisé</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-value" style={{ color: 'var(--primary)' }}>
+            {filteredOrders.filter(o => o.status === 'en_attente').length}
+          </div>
+          <div className="stat-label">Commandes en attente</div>
+        </div>
       </div>
 
       <div className="content-card" style={{ marginBottom: '1.5rem', padding: '1rem' }}>
@@ -231,10 +384,10 @@ export default function ExternalOrdersPage() {
             <thead>
               <tr>
                 <th>Date</th>
-                <th>Client</th>
-                <th>Fournisseur</th>
-                <th>Produits demandés</th>
+                <th>Client / Fournisseur</th>
+                <th>Produits & Détails Prix</th>
                 <th>Montant Total</th>
+                <th>Bénéfice (Marge)</th>
                 <th>Statut</th>
                 <th style={{ width: '150px' }}>Actions</th>
               </tr>
@@ -246,26 +399,32 @@ export default function ExternalOrdersPage() {
                 filteredOrders.map(order => {
                   const totalAchat = order.items ? order.items.reduce((sum, item) => sum + (item.quantity * item.purchasePrice), 0) : 0;
                   const totalVente = order.items ? order.items.reduce((sum, item) => sum + (item.quantity * item.sellPrice), 0) : 0;
+                  const profit = totalVente - totalAchat;
                   
                   return (
                     <tr key={order.id}>
                       <td>{new Date(order.date).toLocaleDateString()}</td>
-                      <td style={{fontWeight:500}}>{order.clientName || '-'}</td>
-                      <td>{order.supplierName || '-'}</td>
                       <td>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        <div style={{fontWeight:600}}>{order.clientName || '-'}</div>
+                        <div style={{fontSize:'0.75rem', color:'var(--text-muted)'}}><Truck size={12} /> {order.supplierName || '-'}</div>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                           {order.items && order.items.map(item => (
-                            <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}>
-                              <PackageOpen size={14} className="text-muted" />
-                              <span>{item.quantity}x {item.description}</span>
+                            <div key={item.id} style={{ display: 'flex', flexDirection: 'column', fontSize: '0.9rem', padding: '4px 0', borderBottom: '1px dashed var(--border-color)' }}>
+                              <div style={{fontWeight:500}}>{item.quantity}x {item.description}</div>
+                              <div style={{fontSize:'0.75rem', color:'var(--text-muted)'}}>
+                                Achat: {Number(item.purchasePrice).toLocaleString()} | Vente: {Number(item.sellPrice).toLocaleString()}
+                              </div>
                             </div>
                           ))}
                         </div>
                       </td>
                       <td>
-                        <div style={{display:'flex', flexDirection:'column', fontSize:'0.9rem'}}>
-                          <span style={{fontWeight:600}}>{totalVente} FCFA</span>
-                        </div>
+                        <div style={{fontWeight:600}}>{totalVente.toLocaleString()} FCFA</div>
+                      </td>
+                      <td>
+                        <div style={{fontWeight:600, color:'var(--success)'}}>+{profit.toLocaleString()} FCFA</div>
                       </td>
                       <td>{getStatusBadge(order.status)}</td>
                       <td>
@@ -293,72 +452,90 @@ export default function ExternalOrdersPage() {
 
       {isModalOpen && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{maxWidth: '800px', width: '90%'}}>
+          <div className="modal-content" style={{maxWidth: '850px', width: '95%'}}>
             <div className="modal-header">
-              <h3>Nouvelle Commande Externe</h3>
+              <h3>Nouvelle Commande Spéciale (Produit Externe)</h3>
               <button className="modal-close" onClick={() => setIsModalOpen(false)}><X size={20} /></button>
             </div>
             <form onSubmit={handleSubmit}>
-              <div className="modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+              <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
                   <div className="form-group">
-                    <label className="form-label">Client cible</label>
+                    <label className="form-label">Client qui commande</label>
                     <select className="form-control" required value={formData.clientId} onChange={e => setFormData({...formData, clientId: e.target.value})}>
-                      <option value="">Sélectionner...</option>
+                      <option value="">Sélectionner un client...</option>
                       {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Fournisseur</label>
+                    <label className="form-label">Fournisseur où acheter</label>
                     <select className="form-control" required value={formData.supplierId} onChange={e => setFormData({...formData, supplierId: e.target.value})}>
-                      <option value="">Sélectionner...</option>
+                      <option value="">Sélectionner un fournisseur...</option>
                       {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                     </select>
                   </div>
                 </div>
                 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                  <h4 style={{ margin: 0 }}>Produits commandés</h4>
+                  <h4 style={{ margin: 0 }}>Détail des produits & Marges</h4>
                   <button type="button" className="btn btn-secondary" onClick={handleAddItem} style={{ padding: '0.25rem 0.75rem', fontSize: '0.9rem' }}>
-                    <ListPlus size={16} /> Ajouter un produit
+                    <ListPlus size={16} /> Ajouter un autre produit
                   </button>
                 </div>
 
                 {formData.items.map((item, index) => (
-                  <div key={index} style={{ background: 'var(--bg-color)', padding: '1rem', borderRadius: '8px', marginBottom: '1rem', position: 'relative', border: '1px solid var(--border-color)' }}>
+                  <div key={index} style={{ background: 'var(--bg-light)', padding: '1.25rem', borderRadius: '12px', marginBottom: '1.5rem', position: 'relative', border: '1px solid var(--border)' }}>
                     {formData.items.length > 1 && (
-                      <button type="button" onClick={() => handleRemoveItem(index)} style={{ position: 'absolute', top: '10px', right: '10px', background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}>
-                        <X size={18} />
+                      <button type="button" onClick={() => handleRemoveItem(index)} style={{ position: 'absolute', top: '15px', right: '15px', background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}>
+                        <X size={20} />
                       </button>
                     )}
                     
                     <div className="form-group" style={{ marginBottom: '1rem' }}>
-                      <label className="form-label">Description du produit (Texte libre) #{index + 1}</label>
-                      <input type="text" className="form-control" required placeholder="Ex: Filtre à Huile Caterpillar XYZ" value={item.description} onChange={e => handleItemChange(index, 'description', e.target.value)} style={{ paddingRight: '2rem' }} />
+                      <label className="form-label">Description précise du produit #{index + 1}</label>
+                      <input type="text" className="form-control" required placeholder="Ex: Injecteur complet pour moteur Cummins QSK60" value={item.description} onChange={e => handleItemChange(index, 'description', e.target.value)} />
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '1rem', alignItems: 'flex-end' }}>
                       <div className="form-group" style={{ margin: 0 }}>
                         <label className="form-label">Quantité</label>
                         <input type="number" className="form-control" required min="1" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', e.target.value)} />
                       </div>
                       <div className="form-group" style={{ margin: 0 }}>
-                        <label className="form-label">Prix du produit (Fournisseur)</label>
-                        <input type="number" className="form-control" required min="0" value={item.price} onChange={e => handleItemChange(index, 'price', e.target.value)} />
+                        <label className="form-label">Prix Achat Unit.</label>
+                        <input type="number" className="form-control" required min="0" placeholder="0" value={item.purchasePrice} onChange={e => handleItemChange(index, 'purchasePrice', e.target.value)} />
+                      </div>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label className="form-label">Prix Vente Unit.</label>
+                        <input type="number" className="form-control" required min="0" placeholder="0" value={item.sellPrice} onChange={e => handleItemChange(index, 'sellPrice', e.target.value)} />
+                      </div>
+                      <div style={{ padding: '10px', backgroundColor: 'var(--bg-color)', borderRadius: '8px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Bénéfice estimé</div>
+                        <div style={{ fontWeight: 700, color: (item.sellPrice - item.purchasePrice) >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                          {((item.sellPrice - item.purchasePrice) * item.quantity).toLocaleString()} FCFA
+                        </div>
                       </div>
                     </div>
                   </div>
                 ))}
 
-                <div className="alert alert-info" style={{marginTop: '1.5rem', padding: '1rem', backgroundColor: 'rgba(0,102,255,0.1)', borderRadius: '8px'}}>
-                  <p style={{margin:0, fontSize: '0.9rem', color: 'var(--text-muted)'}}>
-                    <strong>Note:</strong> Ces produits ne seront <strong>pas</strong> ajoutés au catalogue d'articles. Lors de la réception, une facture globale de vente sera générée.
-                  </p>
+                <div className="alert alert-info" style={{marginTop: '1.5rem', padding: '1.25rem', backgroundColor: 'rgba(0,102,255,0.05)', borderRadius: '12px', borderLeft: '4px solid var(--primary)'}}>
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <AlertCircle size={24} className="text-primary" />
+                    <div>
+                      <p style={{margin:'0 0 5px 0', fontWeight: 600}}>Fonctionnement de l'Achat-Revente direct :</p>
+                      <p style={{margin:0, fontSize: '0.85rem', color: 'var(--text-muted)'}}>
+                        1. Ces produits sont <strong>hors-inventaire</strong> (ils ne touchent pas à votre stock habituel).<br/>
+                        2. Lors de la validation, une vente est créée pour le client et le bénéfice est enregistré.<br/>
+                        3. Vous pouvez imprimer un bon de commande spécifique pour votre fournisseur.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(false)}>Annuler</button>
-                <button type="submit" className="btn btn-primary">Créer la commande</button>
+                <button type="submit" className="btn btn-primary" style={{ padding: '0.75rem 2rem' }}>Enregistrer la commande</button>
               </div>
             </form>
           </div>

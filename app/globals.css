@@ -868,7 +868,6 @@ tbody tr:hover {
   
   .receipt-print-only {
     display: block !important;
-    position: absolute !important;
     top: 0 !important;
     left: 0 !important;
     width: 100% !important;
@@ -931,9 +930,7 @@ tbody tr:hover {
   }
   .receipt-print-only {
     display: block !important;
-    width: 210mm; /* Largeur exacte A4 */
-    min-height: 297mm; /* Hauteur exacte A4 */
-    padding: 1.5cm; /* Marge interne pour le contenu */
+    padding: 1cm 0; /* Marge interne pour le contenu */
     margin: 0 auto;
     background: white;
     box-sizing: border-box;

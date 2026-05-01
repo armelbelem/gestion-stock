@@ -16,11 +16,12 @@ export const storage = {
         }
       });
       if (!response.ok) {
-        if (response.status === 401) {
+        if (response.status === 401 || response.status === 403) {
           sessionStorage.removeItem('token');
           window.location.href = '/login';
+          return null; // Arrêter l'exécution ici
         }
-        throw new Error('Network response was not ok');
+        throw new Error(`Erreur HTTP: ${response.status}`);
       }
       return await response.json();
     } catch (error) {
@@ -126,5 +127,14 @@ export const storage = {
     sessionStorage.removeItem('token');
     sessionStorage.removeItem('user');
     window.location.href = '/login';
+  },
+
+  getUser: () => {
+    try {
+      const user = sessionStorage.getItem('user');
+      return user ? JSON.parse(user) : null;
+    } catch (e) {
+      return null;
+    }
   }
 };
