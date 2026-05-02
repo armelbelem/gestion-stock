@@ -1138,3 +1138,136 @@ tbody tr:hover {
   display: block;
   margin-top: 2px;
 }
+
+/* --- Animations de Bienvenue --- */
+@keyframes fadeInUpWelcome {
+  from { opacity: 0; transform: translateY(20px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes fadeOutWelcome {
+  0% { opacity: 1; visibility: visible; }
+  99% { opacity: 0; visibility: visible; }
+  100% { opacity: 0; visibility: hidden; }
+}
+
+@keyframes waveHand {
+  0% { transform: rotate(0deg); }
+  10% { transform: rotate(14deg); }
+  20% { transform: rotate(-8deg); }
+  30% { transform: rotate(14deg); }
+  40% { transform: rotate(-4deg); }
+  50% { transform: rotate(10deg); }
+  60% { transform: rotate(0deg); }
+  100% { transform: rotate(0deg); }
+}
+
+.welcome-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(10px);
+  animation: fadeOutWelcome 0.6s ease-in forwards 9.5s;
+}
+
+.welcome-card {
+  background: rgba(255, 255, 255, 0.95);
+  padding: 3rem;
+  border-radius: 32px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  text-align: center;
+  max-width: 90%;
+  width: 450px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  animation: fadeInUpWelcome 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.welcome-icon {
+  font-size: 4.5rem;
+  margin-bottom: 1.5rem;
+  display: inline-block;
+  animation: waveHand 2s ease-in-out infinite;
+  animation-delay: 0.8s;
+}
+
+.welcome-title {
+  font-size: 2.4rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, #2563eb, #6366f1);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 0.75rem;
+  letter-spacing: -0.02em;
+}
+
+.welcome-text {
+  color: #64748b;
+  font-size: 1.15rem;
+  line-height: 1.6;
+}
+
+[data-theme="dark"] .welcome-card {
+  background: rgba(30, 41, 59, 0.9);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .welcome-text {
+  color: #94a3b8;
+}
+
+.welcome-progress-container {
+  width: 100%;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 2px;
+  margin-top: 2rem;
+  overflow: hidden;
+  position: relative;
+}
+
+.welcome-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #2563eb, #6366f1);
+  width: 0;
+  animation: progressGrow 10s linear forwards;
+}
+
+.welcome-loader {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  margin-top: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 500;
+  animation: pulseText 1.5s ease-in-out infinite;
+}
+
+@keyframes progressGrow {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+@keyframes pulseText {
+  0% { opacity: 0.5; }
+  50% { opacity: 1; }
+  100% { opacity: 0.5; }
+}
+
+[data-theme="dark"] .welcome-progress-container {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

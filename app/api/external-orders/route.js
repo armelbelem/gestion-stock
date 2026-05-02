@@ -42,6 +42,10 @@ export async function POST(request) {
     const { clientId, supplierId, items, storeId: bodyStoreId } = await request.json();
     const orderId = uuidv4();
     const storeId = auth.user.role === 'admin' ? (bodyStoreId || auth.user.storeId) : auth.user.storeId;
+
+    const [fyRows] = await connection.query("SELECT * FROM fiscal_years WHERE status = 'active'");
+    const activeYear = fyRows[0];
+    if (!activeYear) throw new Error("Action impossible : Aucun exercice fiscal n'est ouvert. Veuillez ouvrir un exercice pour les commandes spéciales.");
     
     await connection.query(
       'INSERT INTO external_orders (id, clientId, supplierId, date, storeId) VALUES (?, ?, ?, ?, ?)',

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import db from '../../../lib/db';
 import { authenticateToken } from '../../../lib/auth';
-import { logAction } from '../../../lib/actions';
+import { logAction, getStoreConstraint } from '../../../lib/actions';
 
 export async function PUT(request, { params }) {
   const auth = authenticateToken(request);
@@ -42,16 +42,31 @@ export async function PUT(request, { params }) {
 export async function DELETE(request, { params }) {
   const auth = authenticateToken(request);
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
-  if (auth.user.role !== 'admin') return NextResponse.json({ error: 'Interdit' }, { status: 403 });
 
+  const { searchParams } = new URL(request.url);
+  const requestedStoreId = searchParams.get('storeId');
+  const storeId = getStoreConstraint(auth.user, requestedStoreId);
   const { id: articleId } = await params;
+
   const connection = await db.getConnection();
   try {
     await connection.beginTransaction();
-    await connection.query('DELETE FROM inventory WHERE articleId = ?', [articleId]);
-    await connection.query('DELETE FROM mouvements WHERE articleId = ?', [articleId]);
-    await connection.query('DELETE FROM articles WHERE id = ?', [articleId]);
-    await logAction(auth.user.id, null, 'Suppression article', { id: articleId });
+
+    if (storeId) {
+      // Suppression uniquement pour ce magasin
+      await connection.query('DELETE FROM inventory WHERE articleId = ? AND storeId = ?', [articleId, storeId]);
+      await connection.query('DELETE FROM mouvements WHERE articleId = ? AND storeId = ?', [articleId, storeId]);
+      await logAction(auth.user.id, storeId, 'Suppression article du magasin', { id: articleId });
+    } else {
+      // Suppression globale (Admin uniquement)
+      if (auth.user.role !== 'admin') return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+      
+      await connection.query('DELETE FROM inventory WHERE articleId = ?', [articleId]);
+      await connection.query('DELETE FROM mouvements WHERE articleId = ?', [articleId]);
+      await connection.query('DELETE FROM articles WHERE id = ?', [articleId]);
+      await logAction(auth.user.id, null, 'Suppression globale article', { id: articleId });
+    }
+
     await connection.commit();
     return NextResponse.json({ success: true });
   } catch (err) { 

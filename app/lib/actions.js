@@ -19,3 +19,13 @@ export const getStoreConstraint = (user, queryStoreId) => {
   }
   return user.storeId;
 };
+
+export const checkActiveFiscalYear = async () => {
+  try {
+    const [rows] = await db.query("SELECT id FROM fiscal_years WHERE status = 'active' LIMIT 1");
+    return rows.length > 0;
+  } catch (err) {
+    console.error('[FISCAL CHECK ERROR]', err);
+    return false;
+  }
+};

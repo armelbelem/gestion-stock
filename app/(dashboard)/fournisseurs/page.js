@@ -2,12 +2,15 @@
 
 import React, { useState, useEffect } from 'react';
 import { storage } from '../../lib/storage';
-import { Plus, Edit2, Trash2, X, Truck, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Truck, Search, ChevronLeft, ChevronRight, Download, FileText } from 'lucide-react';
 import AlertModal from '../../components/AlertModal';
+import { exportToExcel } from '../../utils/excelExport';
 
 export default function SuppliersPage() {
   const [suppliers, setSuppliers] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isReporting, setIsReporting] = useState(false);
+  const [settings, setSettings] = useState(null);
   const [formData, setFormData] = useState({ id: '', name: '', email: '', phone: '', address: '' });
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -24,7 +27,15 @@ export default function SuppliersPage() {
 
   useEffect(() => {
     loadSuppliers();
+    loadSettings();
   }, []);
+
+  const loadSettings = async () => {
+    try {
+      const data = await storage.get('settings');
+      setSettings(data);
+    } catch (err) { console.error(err); }
+  };
 
   const loadSuppliers = async () => {
     try {
@@ -33,6 +44,30 @@ export default function SuppliersPage() {
     } catch (err) {
       console.error("Error loading suppliers:", err);
     }
+  };
+
+  const handleExportExcel = () => {
+    const headers = [
+      { key: 'name', label: 'Nom' },
+      { key: 'email', label: 'Email' },
+      { key: 'phone', label: 'Téléphone' },
+      { key: 'address', label: 'Adresse' }
+    ];
+    
+    exportToExcel(filteredSuppliers, headers, 'liste_fournisseurs', {
+      title: "LISTE DES FOURNISSEURS",
+      companyName: settings?.companyName || "NS AUTO",
+      period: `Le ${new Date().toLocaleDateString('fr-FR')}`
+    });
+    showAlert('success', 'Succès', "Exportation Excel réussie !");
+  };
+
+  const handlePrintReport = () => {
+    setIsReporting(true);
+    setTimeout(() => {
+      window.print();
+      setIsReporting(false);
+    }, 500);
   };
 
   const handleOpenModal = (supplier = null) => {
@@ -72,7 +107,9 @@ export default function SuppliersPage() {
       async () => {
         closeAlert();
         try {
-          await storage.remove('fournisseurs', id);
+          const selectedStore = localStorage.getItem('selectedStore');
+          const storeId = selectedStore && selectedStore !== 'all' ? selectedStore : '';
+          await storage.remove('fournisseurs', id, { storeId });
           await loadSuppliers();
           showAlert('success', 'Succès', "Fournisseur supprimé !");
         } catch (error) {
@@ -93,6 +130,43 @@ export default function SuppliersPage() {
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentSuppliers = filteredSuppliers.slice(indexOfFirstItem, indexOfLastItem);
 
+  if (isReporting) {
+    return (
+      <div className="receipt-print-only" style={{ display: 'block', padding: '20px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '20px', borderBottom: '2px solid black', paddingBottom: '10px' }}>
+          <h1 style={{ margin: '0', fontSize: '24px', fontWeight: '800', textTransform: 'uppercase' }}>{settings?.companyName || 'NS AUTO'}</h1>
+          {settings?.address && <p style={{ margin: '2px 0' }}>{settings.address}</p>}
+          <h2 style={{ marginTop: '15px' }}>LISTE DES FOURNISSEURS</h2>
+          <p>Généré le : {new Date().toLocaleString('fr-FR')}</p>
+        </div>
+        
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid black', backgroundColor: '#f5f5f5' }}>
+              <th style={{ textAlign: 'left', padding: '8px' }}>Nom</th>
+              <th style={{ textAlign: 'left', padding: '8px' }}>Email</th>
+              <th style={{ textAlign: 'left', padding: '8px' }}>Téléphone</th>
+              <th style={{ textAlign: 'left', padding: '8px' }}>Adresse</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredSuppliers.map((supplier) => (
+              <tr key={supplier.id} style={{ borderBottom: '1px solid #eee' }}>
+                <td style={{ padding: '8px', fontWeight: 500 }}>{supplier.name}</td>
+                <td style={{ padding: '8px' }}>{supplier.email || '-'}</td>
+                <td style={{ padding: '8px' }}>{supplier.phone || '-'}</td>
+                <td style={{ padding: '8px' }}>{supplier.address || '-'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div style={{ marginTop: '30px', fontSize: '0.8rem', textAlign: 'right' }}>
+          Nombre total de fournisseurs : {filteredSuppliers.length}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="page">
       <div className="page-header">
@@ -100,9 +174,17 @@ export default function SuppliersPage() {
           <h1>Fournisseurs</h1>
           <p>Gestion de vos sources d'approvisionnement</p>
         </div>
-        <button className="btn btn-primary" onClick={() => handleOpenModal()}>
-          <Plus size={16} /> Nouveau Fournisseur
-        </button>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button className="btn btn-secondary" onClick={handleExportExcel} title="Exporter Excel">
+            <Download size={18} /> Excel
+          </button>
+          <button className="btn btn-secondary" onClick={handlePrintReport} title="Imprimer / PDF">
+            <FileText size={18} /> PDF
+          </button>
+          <button className="btn btn-primary" onClick={() => handleOpenModal()}>
+            <Plus size={16} /> Nouveau Fournisseur
+          </button>
+        </div>
       </div>
 
       <div className="content-card" style={{ marginBottom: '1.5rem', padding: '1rem' }}>

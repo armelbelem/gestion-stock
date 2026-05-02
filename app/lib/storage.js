@@ -85,7 +85,13 @@ export const storage = {
   remove: async (key, id) => {
     try {
       const token = sessionStorage.getItem('token');
-      const response = await fetch(`${API_URL}/${key}/${id}`, {
+      const selectedStore = localStorage.getItem('selectedStore');
+      const url = new URL(`${window.location.origin}${API_URL}/${key}/${id}`);
+      if (selectedStore) {
+        url.searchParams.append('storeId', selectedStore);
+      }
+
+      const response = await fetch(url.toString(), {
         method: 'DELETE',
         headers: {
           'Authorization': token ? `Bearer ${token}` : '',
@@ -96,7 +102,8 @@ export const storage = {
           sessionStorage.removeItem('token');
           window.location.href = '/login';
         }
-        throw new Error('Network response was not ok');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Network response was not ok');
       }
       return true;
     } catch (error) {

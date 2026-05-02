@@ -2,18 +2,30 @@
 
 import React, { useState, useEffect } from 'react';
 import { storage } from '../../lib/storage';
-import { BarChart3, Download, TrendingUp, TrendingDown, Package, Coins, User, Printer, Clock } from 'lucide-react';
+import { BarChart3, Download, TrendingUp, TrendingDown, Package, Coins, User, Printer, Clock, FileText } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { exportToExcel } from '../../utils/excelExport';
 
 export default function ReportsPage() {
   const [reportData, setReportData] = useState({ months: [], totalDebt: 0, totalRevenue: 0 });
   const [loading, setLoading] = useState(true);
   const [isPrinting, setIsPrinting] = useState(false);
   const [printData, setPrintData] = useState(null);
+  const [settings, setSettings] = useState(null);
   const pathname = usePathname();
 
-  useEffect(() => { loadReport(); }, []);
+  useEffect(() => { 
+    loadReport(); 
+    loadSettings();
+  }, []);
+
+  const loadSettings = async () => {
+    try {
+      const data = await storage.get('settings');
+      setSettings(data);
+    } catch (err) { console.error(err); }
+  };
 
   const loadReport = async () => {
     setLoading(true);
@@ -23,6 +35,29 @@ export default function ReportsPage() {
       else setReportData({ months: data.months || [], totalDebt: data.totalDebt || 0, totalRevenue: data.totalRevenue || 0 });
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
+  };
+
+  const handleExportExcel = () => {
+    const headers = [
+      { key: 'monthName', label: 'Mois' },
+      { key: 'revenue', label: 'Chiffre d\'Affaires' },
+      { key: 'cash', label: 'Total Encaissé' },
+      { key: 'debt', label: 'Dette' },
+      { key: 'rate', label: 'Taux de Recouvrement (%)' }
+    ];
+    
+    const dataToExport = reportData.months.map(d => ({
+      ...d,
+      monthName: getMonthName(d.month),
+      debt: d.revenue - d.cash,
+      rate: d.revenue > 0 ? ((d.cash / d.revenue) * 100).toFixed(1) : "0"
+    }));
+
+    exportToExcel(dataToExport, headers, 'bilan_financier_mensuel', {
+      title: "BILAN FINANCIER MENSUEL",
+      companyName: settings?.companyName || "NS AUTO",
+      period: `Année ${new Date().getFullYear()}`
+    });
   };
 
   const handleDownloadPDF = async (month) => {
@@ -57,11 +92,11 @@ export default function ReportsPage() {
     return (
       <div className="receipt-print-only" style={{ display: 'block', padding: '40px', backgroundColor: 'white', minHeight: '100vh', color: 'black' }}>
         <div style={{ textAlign: 'center', marginBottom: '30px', borderBottom: '2px solid #000', paddingBottom: '15px' }}>
-          <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 'bold' }}>MINING AUTOLOG</h1>
+          <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 'bold' }}>{settings?.companyName || 'NS AUTO'}</h1>
           <h2 style={{ margin: '5px 0', fontSize: '18px', textTransform: 'uppercase' }}>BILAN FINANCIER MENSUEL</h2>
           <p style={{ margin: 0 }}>Mois de : {getMonthName(printData.month).toUpperCase()}</p>
         </div>
-
+        
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '30px', padding: '15px', backgroundColor: '#f0f0f0', border: '1px solid #ccc' }}>
           <div style={{ textAlign: 'center' }}>
             <p style={{ margin: 0, fontSize: '12px' }}>CHIFFRE D'AFFAIRES</p>
@@ -121,6 +156,11 @@ export default function ReportsPage() {
         <div>
           <h1>Rapports et Analyses</h1>
           <p>Suivez les indicateurs clés de votre activité</p>
+        </div>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button className="btn btn-secondary" onClick={handleExportExcel} title="Exporter Excel">
+            <Download size={18} /> Excel
+          </button>
         </div>
       </div>
 

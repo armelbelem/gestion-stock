@@ -13,36 +13,24 @@ L'application est "portable", ce qui signifie qu'elle ne nécessite aucune insta
 
 ---
 
-## 🔑 2. Activation de la Licence
-Au premier démarrage, l'application identifiera votre ordinateur.
-
-1.  Une fenêtre noire (console) s'ouvrira et affichera votre **ID Machine**.
-2.  Veuillez la communiquer à votre fournisseur pour obtenir votre **Clé d'Activation**.
-3.  Copiez la clé et appuyez sur **Entrée**. Si l'activation réussit, le logiciel s'ouvrira dans votre navigateur.
-
-> **Note :** La licence est liée à cet ordinateur. Si vous changez de PC, une nouvelle activation sera nécessaire.
-
----
-
-## 🖥 3. Utilisation Quotidienne
+## 🔑 2. Utilisation Quotidienne
 *   **Accès** : L'application s'ouvre sur l'adresse `http://localhost:3001`.
 *   **Identifiants par défaut** : 
     *   Utilisateur : `admin`
     *   Mot de passe : `admin`
-*   **Arrêt** : Pour fermer proprement le serveur, fermez la fenêtre de la console ou lancez le fichier `stop.bat`.
+*   **Arrêt** : Pour fermer proprement le serveur, fermez la fenêtre de la console.
 
 ---
 
-## 📂 4. Reçus et Documents
-Tous vos reçus de vente et de règlement sont automatiquement générés en format PDF aux emplacements suivants :
-*   📦 **Ventes** : `C:\GestionStock_Recus`
-*   💳 **Règlements** : `C:\GestionStock_Reglements`
+## 📂 3. Reçus et Documents
+Tous vos reçus de vente et de règlement sont automatiquement générés en format PDF et téléchargeables directement depuis l'application.
 
 ---
 
-## ⚠️ 5. Sécurité et Sauvegarde
-Le logiciel utilise une base de données locale située dans le dossier `server/database.sqlite`. 
-**Conseil** : Pensez à copier régulièrement le dossier de l'application sur un support externe (Clé USB, Disque externe) pour ne jamais perdre vos données.
+## ⚠️ 4. Sécurité et Sauvegarde
+Le logiciel utilise une base de données MySQL. 
+**Conseil** : Pensez à effectuer des sauvegardes régulières de votre base de données Cloud.
+
 
 ---
 *Support technique : [Votre Contact ICI]*

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import db from '../../../lib/db';
 import { authenticateToken } from '../../../lib/auth';
-import { logAction } from '../../../lib/actions';
+import { logAction, getStoreConstraint } from '../../../lib/actions';
 
 export async function PUT(request, { params }) {
   const auth = authenticateToken(request);
@@ -19,10 +19,40 @@ export async function PUT(request, { params }) {
 export async function DELETE(request, { params }) {
   const auth = authenticateToken(request);
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
+  
+  const { searchParams } = new URL(request.url);
+  const storeId = getStoreConstraint(auth.user, searchParams.get('storeId'));
   const { id } = await params;
+
+  const connection = await db.getConnection();
   try {
-    await db.query('DELETE FROM fournisseurs WHERE id = ?', [id]);
-    await logAction(auth.user.id, null, 'Suppression fournisseur', { id });
+    await connection.beginTransaction();
+
+    // Vérifier si le fournisseur a un historique
+    const [movs] = await connection.query('SELECT count(*) as count FROM mouvements WHERE supplierId = ?', [id]);
+    const [orders] = await connection.query('SELECT count(*) as count FROM external_orders WHERE supplierId = ?', [id]);
+    
+    const hasHistory = movs[0].count > 0 || orders[0].count > 0;
+
+    if (hasHistory) {
+      if (auth.user.role === 'admin') {
+        // Pour les admins, on permet la suppression en "détachant" l'historique
+        await connection.query('UPDATE mouvements SET supplierId = NULL WHERE supplierId = ?', [id]);
+        await connection.query('UPDATE external_orders SET supplierId = NULL WHERE supplierId = ?', [id]);
+      } else {
+        throw new Error('Impossible de supprimer : ce fournisseur a un historique de mouvements. Seul un administrateur peut effectuer cette action.');
+      }
+    }
+
+    await connection.query('DELETE FROM fournisseurs WHERE id = ?', [id]);
+    await logAction(auth.user.id, storeId, 'Suppression fournisseur', { id });
+    
+    await connection.commit();
     return NextResponse.json({ success: true });
-  } catch (err) { return NextResponse.json({ error: err.message }, { status: 500 }); }
+  } catch (err) { 
+    await connection.rollback();
+    return NextResponse.json({ error: err.message }, { status: 400 }); 
+  } finally {
+    connection.release();
+  }
 }

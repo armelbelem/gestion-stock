@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { storage } from '../lib/storage';
 import { 
-  AlertTriangle, Package, Tags, ArrowRightLeft, Coins, 
+  Loader2, AlertTriangle, Package, Tags, ArrowRightLeft, Coins, 
   ChevronLeft, ChevronRight, BarChart2, PieChart as PieChartIcon, TrendingUp, Download 
 } from 'lucide-react';
 import { exportToExcel } from '../utils/excelExport';
@@ -30,9 +30,32 @@ export default function DashboardPage() {
   const itemsPerPageLowStock = 5;
   const [currentPageUnpaid, setCurrentPageUnpaid] = useState(1);
   const itemsPerPageUnpaid = 5;
+  const [showWelcome, setShowWelcome] = useState(false);
+  const [hasActiveYear, setHasActiveYear] = useState(true);
+  const user = storage.getUser();
 
   useEffect(() => {
-    if (storage.getUser()?.role === 'vendeur') {
+    const checkFY = async () => {
+      try {
+        const fy = await storage.get('fiscal-years');
+        const active = fy.some(f => f.status === 'active');
+        setHasActiveYear(active);
+      } catch (e) { console.error(e); }
+    };
+    checkFY();
+  }, []);
+
+  useEffect(() => {
+    const hasShownWelcome = sessionStorage.getItem('welcomeShown');
+    if (!hasShownWelcome && user) {
+      setShowWelcome(true);
+      sessionStorage.setItem('welcomeShown', 'true');
+      setTimeout(() => setShowWelcome(false), 10500);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user?.role === 'vendeur') {
       window.location.href = '/sales';
       return;
     }
@@ -118,6 +141,27 @@ export default function DashboardPage() {
 
   return (
     <div className={`page ${stats.lowStockArticles.length > 0 ? 'page-critical-alert' : ''}`}>
+      {showWelcome && (
+        <div className="welcome-overlay">
+          <div className="welcome-card">
+            <span className="welcome-icon">👋</span>
+            <h1 className="welcome-title">Bienvenue, {user?.name || 'Cher utilisateur'} !</h1>
+            <p className="welcome-text">
+              Ravi de vous revoir. <br />
+              Excellente journée de travail !
+            </p>
+
+            <div className="welcome-loader">
+              <Loader2 size={16} className="animate-spin" />
+              Préparation de votre tableau de bord...
+            </div>
+
+            <div className="welcome-progress-container">
+              <div className="welcome-progress-bar"></div>
+            </div>
+          </div>
+        </div>
+      )}
       {stats.lowStockArticles.length > 0 && (
         <div className="content-card" style={{ marginBottom: '2rem', border: '2px solid var(--danger)' }}>
           <div style={{ backgroundColor: 'var(--danger)', padding: '1rem', color: 'white', borderTopLeftRadius: '6px', borderTopRightRadius: '6px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -155,6 +199,21 @@ export default function DashboardPage() {
               <span>Page {currentPageLowStock} / {totalPagesLowStock}</span>
               <button className="btn btn-secondary" onClick={() => setCurrentPageLowStock(p => Math.min(p + 1, totalPagesLowStock))} disabled={currentPageLowStock === totalPagesLowStock}><ChevronRight size={16} /></button>
             </div>
+          )}
+        </div>
+      )}
+
+      {!hasActiveYear && (
+        <div className="alert alert-warning" style={{ marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '1rem', padding: '1.5rem' }}>
+          <AlertTriangle size={32} />
+          <div>
+            <h3 style={{ margin: 0, color: '#92400e' }}>Aucun exercice fiscal actif</h3>
+            <p style={{ margin: '5px 0 0 0' }}>Vous devez ouvrir un nouvel exercice fiscal pour pouvoir enregistrer des ventes et des mouvements de stock.</p>
+          </div>
+          {user?.role === 'admin' && (
+            <button className="btn btn-primary" style={{ marginLeft: 'auto' }} onClick={() => window.location.href = '/settings'}>
+              Aller aux réglages
+            </button>
           )}
         </div>
       )}

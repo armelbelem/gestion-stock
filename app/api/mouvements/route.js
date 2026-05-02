@@ -43,6 +43,7 @@ export async function POST(request) {
   
   const [fyRows] = await db.query("SELECT * FROM fiscal_years WHERE status = 'active'");
   const activeYear = fyRows[0];
+  if (!activeYear) return NextResponse.json({ error: "Action impossible : Aucun exercice fiscal n'est ouvert. Veuillez ouvrir un exercice pour les mouvements de stock." }, { status: 400 });
   
   const storeId = auth.user.role === 'admin' ? (bodyStoreId || auth.user.storeId) : auth.user.storeId;
   if (!storeId) return NextResponse.json({ error: "Magasin non spécifié" }, { status: 400 });

@@ -26,20 +26,24 @@ export default function ExternalOrdersPage() {
   const showAlert = (type, title, message) => setAlertModal({ open: true, type, title, message, onConfirm: null });
   const showConfirm = (title, message, onConfirm) => setAlertModal({ open: true, type: 'confirm', title, message, onConfirm });
 
+  const [hasActiveYear, setHasActiveYear] = useState(true);
+
   useEffect(() => {
     loadData();
   }, []);
 
   const loadData = async () => {
     try {
-      const [oData, cData, sData] = await Promise.all([
+      const [oData, cData, sData, fyData] = await Promise.all([
         storage.get('external-orders'),
         storage.get('clients'),
-        storage.get('fournisseurs')
+        storage.get('fournisseurs'),
+        storage.get('fiscal-years')
       ]);
       setOrders(oData);
       setClients(cData);
       setSuppliers(sData);
+      setHasActiveYear(fyData.some(f => f.status === 'active'));
     } catch (err) {
       console.error("Error loading data:", err);
     }
@@ -109,6 +113,7 @@ export default function ExternalOrdersPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!hasActiveYear) return showAlert('error', 'Action bloquée', "Aucun exercice fiscal n'est ouvert. Veuillez ouvrir un exercice dans les réglages avant de créer une commande spéciale.");
     try {
       await storage.create('external-orders', formData);
       showAlert('success', 'Succès', "Commande spéciale créée avec succès !");
@@ -121,6 +126,7 @@ export default function ExternalOrdersPage() {
 
   const handleAction = (id, action) => {
     if (action === 'vendre') {
+      if (!hasActiveYear) return showAlert('error', 'Action bloquée', "Aucun exercice fiscal n'est ouvert. Veuillez ouvrir un exercice avant de valider cette vente.");
       showConfirm(
         "Validation de la vente",
         "Confirmez-vous la réception et la vente de TOUS les produits de cette commande ? (Cela générera une facture de vente et enregistrera votre bénéfice).",

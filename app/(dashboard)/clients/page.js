@@ -2,13 +2,16 @@
 
 import React, { useState, useEffect } from 'react';
 import { storage } from '../../lib/storage';
-import { Plus, Edit2, Trash2, X, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Search, ChevronLeft, ChevronRight, Download, FileText } from 'lucide-react';
 import AlertModal from '../../components/AlertModal';
 import { useAuth } from '../../providers';
+import { exportToExcel } from '../../utils/excelExport';
 
 export default function ClientsPage() {
   const [clients, setClients] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isReporting, setIsReporting] = useState(false);
+  const [settings, setSettings] = useState(null);
   const [formData, setFormData] = useState({ id: '', name: '', email: '', phone: '', address: '' });
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -26,7 +29,15 @@ export default function ClientsPage() {
 
   useEffect(() => {
     loadClients();
+    loadSettings();
   }, []);
+
+  const loadSettings = async () => {
+    try {
+      const data = await storage.get('settings');
+      setSettings(data);
+    } catch (err) { console.error(err); }
+  };
 
   const loadClients = async () => {
     try {
@@ -35,6 +46,31 @@ export default function ClientsPage() {
     } catch (err) {
       console.error("Error loading clients:", err);
     }
+  };
+
+  const handleExportExcel = () => {
+    const headers = [
+      { key: 'name', label: 'Nom du Client' },
+      { key: 'email', label: 'Email' },
+      { key: 'phone', label: 'Téléphone' },
+      { key: 'address', label: 'Adresse' },
+      { key: 'totalDebt', label: 'Dette (XOF)' }
+    ];
+    
+    exportToExcel(filteredClients, headers, 'liste_clients', {
+      title: "LISTE DES CLIENTS",
+      companyName: settings?.companyName || "NS AUTO",
+      period: `Le ${new Date().toLocaleDateString('fr-FR')}`
+    });
+    showAlert('success', 'Succès', "Exportation Excel réussie !");
+  };
+
+  const handlePrintReport = () => {
+    setIsReporting(true);
+    setTimeout(() => {
+      window.print();
+      setIsReporting(false);
+    }, 500);
   };
 
   const handleOpenModal = (client = null) => {
@@ -76,7 +112,9 @@ export default function ClientsPage() {
       async () => {
         closeAlert();
         try {
-          await storage.remove('clients', id);
+          const selectedStore = localStorage.getItem('selectedStore');
+          const storeId = selectedStore && selectedStore !== 'all' ? selectedStore : '';
+          await storage.remove('clients', id, { storeId });
           await loadClients();
           showAlert('success', 'Succès', "Client supprimé !");
         } catch (error) {
@@ -97,6 +135,43 @@ export default function ClientsPage() {
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentClients = filteredClients.slice(indexOfFirstItem, indexOfLastItem);
 
+  if (isReporting) {
+    return (
+      <div className="receipt-print-only" style={{ display: 'block', padding: '20px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '20px', borderBottom: '2px solid black', paddingBottom: '10px' }}>
+          <h1 style={{ margin: '0', fontSize: '24px', fontWeight: '800', textTransform: 'uppercase' }}>{settings?.companyName || 'NS AUTO'}</h1>
+          {settings?.address && <p style={{ margin: '2px 0' }}>{settings.address}</p>}
+          <h2 style={{ marginTop: '15px' }}>LISTE DES CLIENTS</h2>
+          <p>Généré le : {new Date().toLocaleString('fr-FR')}</p>
+        </div>
+        
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid black', backgroundColor: '#f5f5f5' }}>
+              <th style={{ textAlign: 'left', padding: '8px' }}>Nom</th>
+              <th style={{ textAlign: 'left', padding: '8px' }}>Email</th>
+              <th style={{ textAlign: 'left', padding: '8px' }}>Téléphone</th>
+              <th style={{ textAlign: 'right', padding: '8px' }}>Dette</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredClients.map((client) => (
+              <tr key={client.id} style={{ borderBottom: '1px solid #eee' }}>
+                <td style={{ padding: '8px', fontWeight: 500 }}>{client.name}</td>
+                <td style={{ padding: '8px' }}>{client.email || '-'}</td>
+                <td style={{ padding: '8px' }}>{client.phone || '-'}</td>
+                <td style={{ textAlign: 'right', padding: '8px' }}>{client.totalDebt.toLocaleString()} FCFA</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div style={{ marginTop: '30px', fontSize: '0.8rem', textAlign: 'right' }}>
+          Nombre total de clients : {filteredClients.length}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="page">
       <div className="page-header">
@@ -104,11 +179,19 @@ export default function ClientsPage() {
           <h1>Clients</h1>
           <p>Gestion de votre base de clients</p>
         </div>
-        {user?.role !== 'vendeur' && (
-          <button className="btn btn-primary" onClick={() => handleOpenModal()}>
-            <Plus size={16} /> Nouveau Client
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button className="btn btn-secondary" onClick={handleExportExcel} title="Exporter Excel">
+            <Download size={18} /> Excel
           </button>
-        )}
+          <button className="btn btn-secondary" onClick={handlePrintReport} title="Imprimer / PDF">
+            <FileText size={18} /> PDF
+          </button>
+          {user?.role !== 'vendeur' && (
+            <button className="btn btn-primary" onClick={() => handleOpenModal()}>
+              <Plus size={16} /> Nouveau Client
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="content-card" style={{ marginBottom: '1.5rem', padding: '1rem' }}>

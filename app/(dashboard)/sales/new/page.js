@@ -32,18 +32,22 @@ export default function NewSalePage() {
   const showAlert = (type, title, message) => setAlertModal({ open: true, type, title, message, onConfirm: null });
   const showConfirm = (title, message, onConfirm) => setAlertModal({ open: true, type: 'confirm', title, message, onConfirm });
 
+  const [hasActiveYear, setHasActiveYear] = useState(true);
+
   useEffect(() => {
     loadData();
   }, []);
 
   const loadData = async () => {
     try {
-      const [clientsData, articlesData] = await Promise.all([
+      const [clientsData, articlesData, fyData] = await Promise.all([
         storage.get('clients'),
-        storage.get('articles')
+        storage.get('articles'),
+        storage.get('fiscal-years')
       ]);
       setClients(clientsData);
       setArticles(articlesData);
+      setHasActiveYear(fyData.some(f => f.status === 'active'));
     } catch (err) {
       console.error("Error loading sales form data:", err);
     }
@@ -165,6 +169,7 @@ export default function NewSalePage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!hasActiveYear) return showAlert('error', 'Action bloquée', "Aucun exercice fiscal n'est ouvert. Veuillez ouvrir un exercice dans les réglages avant de pouvoir effectuer une vente.");
     if (!selectedClientId) return showAlert('error', 'Erreur', "Sélectionnez un client");
     const selectedStore = localStorage.getItem('selectedStore');
     const isAdmin = currentUser?.role === 'admin';

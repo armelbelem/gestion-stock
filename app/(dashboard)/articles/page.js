@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { storage } from '../../lib/storage';
-import { Plus, Edit2, Trash2, X, AlertTriangle, Search, Download, ChevronLeft, ChevronRight, Info } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, AlertTriangle, Search, Download, ChevronLeft, ChevronRight, Info, FileText } from 'lucide-react';
 import { exportToExcel } from '../../utils/excelExport';
 import { calculateStockOutPrediction } from '../../utils/stockPrediction';
 import AlertModal from '../../components/AlertModal';
@@ -14,6 +14,10 @@ export default function ArticlesPage() {
   const [stores, setStores] = useState([]);
   const [sales, setSales] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importStoreId, setImportStoreId] = useState('');
+  const [isReporting, setIsReporting] = useState(false);
+  const [settings, setSettings] = useState(null);
   const { user } = useAuth();
   const [formData, setFormData] = useState({
     id: '',
@@ -32,6 +36,11 @@ export default function ArticlesPage() {
   const itemsPerPage = 10;
 
   const [alertModal, setAlertModal] = useState({ open: false, type: 'info', title: '', message: '', onConfirm: null });
+
+  useEffect(() => {
+    const selStore = localStorage.getItem('selectedStore');
+    if (selStore && selStore !== 'all') setImportStoreId(selStore);
+  }, []);
   const closeAlert = () => setAlertModal(prev => ({ ...prev, open: false, onConfirm: null }));
   const showAlert = (type, title, message) => setAlertModal({ open: true, type, title, message, onConfirm: null });
   const showConfirm = (title, message, onConfirm) => setAlertModal({ open: true, type: 'confirm', title, message, onConfirm });
@@ -42,7 +51,15 @@ export default function ArticlesPage() {
 
   useEffect(() => {
     loadData();
+    loadSettings();
   }, []);
+
+  const loadSettings = async () => {
+    try {
+      const data = await storage.get('settings');
+      setSettings(data);
+    } catch (err) { console.error(err); }
+  };
 
   const loadData = async () => {
     try {
@@ -59,14 +76,28 @@ export default function ArticlesPage() {
 
   const handleExport = () => {
     const headers = [
-      { key: 'name', label: 'Nom' },
+      { key: 'code', label: 'Code' },
+      { key: 'name', label: 'Désignation' },
+      { key: 'barcode', label: 'Code-barres' },
       { key: 'price', label: 'Prix (XOF)' },
       { key: 'currentStock', label: 'Stock Actuel' },
       { key: 'minStock', label: 'Seuil d\'Alerte' }
     ];
     
-    exportToExcel(filteredArticles, headers, 'articles_stock');
+    exportToExcel(filteredArticles, headers, 'inventaire_stock', {
+      title: "INVENTAIRE DES ARTICLES",
+      companyName: settings?.companyName || "NS AUTO",
+      period: `Le ${new Date().toLocaleDateString('fr-FR')}`
+    });
     showAlert('success', 'Succès !', "Exportation Excel réussie !");
+  };
+
+  const handlePrintReport = () => {
+    setIsReporting(true);
+    setTimeout(() => {
+      window.print();
+      setIsReporting(false);
+    }, 500);
   };
 
   const handleOpenModal = async (article = null) => {
@@ -154,6 +185,45 @@ export default function ArticlesPage() {
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentArticles = filteredArticles.slice(indexOfFirstItem, indexOfLastItem);
 
+  if (isReporting) {
+    return (
+      <div className="receipt-print-only" style={{ display: 'block', padding: '20px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '20px', borderBottom: '2px solid black', paddingBottom: '10px' }}>
+          <h1 style={{ margin: '0', fontSize: '24px', fontWeight: '800', textTransform: 'uppercase' }}>{settings?.companyName || 'NS AUTO'}</h1>
+          {settings?.address && <p style={{ margin: '2px 0' }}>{settings.address}</p>}
+          <h2 style={{ marginTop: '15px' }}>INVENTAIRE DU STOCK</h2>
+          <p>Généré le : {new Date().toLocaleString('fr-FR')}</p>
+        </div>
+        
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid black', backgroundColor: '#f5f5f5' }}>
+              <th style={{ textAlign: 'left', padding: '8px' }}>Code</th>
+              <th style={{ textAlign: 'left', padding: '8px' }}>Désignation</th>
+              <th style={{ textAlign: 'right', padding: '8px' }}>Prix</th>
+              <th style={{ textAlign: 'center', padding: '8px' }}>Stock</th>
+              <th style={{ textAlign: 'center', padding: '8px' }}>Seuil</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredArticles.map((article) => (
+              <tr key={article.id} style={{ borderBottom: '1px solid #eee' }}>
+                <td style={{ padding: '8px' }}>{article.code || '-'}</td>
+                <td style={{ padding: '8px', fontWeight: 500 }}>{article.name}</td>
+                <td style={{ textAlign: 'right', padding: '8px' }}>{article.price.toLocaleString()} FCFA</td>
+                <td style={{ textAlign: 'center', padding: '8px', fontWeight: 'bold' }}>{article.currentStock}</td>
+                <td style={{ textAlign: 'center', padding: '8px' }}>{article.minStock}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div style={{ marginTop: '30px', fontSize: '0.8rem', textAlign: 'right' }}>
+          Nombre total d'articles : {filteredArticles.length}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="page">
       <div className="page-header">
@@ -163,60 +233,14 @@ export default function ArticlesPage() {
         </div>
         {user?.role === 'admin' && (
           <div style={{ display: 'flex', gap: '0.75rem' }}>
-            <button className="btn btn-secondary" onClick={() => document.getElementById('excel-import').click()}>
+            <button className="btn btn-secondary" onClick={() => setIsImportModalOpen(true)}>
               <Plus size={18} /> Importer
             </button>
-            <input 
-              type="file" 
-              id="excel-import" 
-              hidden 
-              accept=".xlsx, .xls" 
-              onChange={async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                
-                const reader = new FileReader();
-                reader.onload = async (evt) => {
-                  try {
-                    const { read, utils } = await import('xlsx');
-                    const wb = read(evt.target.result, { type: 'binary' });
-                    const wsname = wb.SheetNames[0];
-                    const ws = wb.Sheets[wsname];
-                    const data = utils.sheet_to_json(ws);
-                    
-                    const mappedData = data.map(row => {
-                      // Normaliser les clés pour ignorer la casse
-                      const keys = {};
-                      Object.keys(row).forEach(k => keys[k.toLowerCase()] = row[k]);
-
-                      return {
-                        id: keys.id,
-                        code: keys.code || keys.référence || keys.reference || keys.ref,
-                        name: keys.name || keys.nom || keys.article,
-                        price: keys.price || keys.prix || keys.tarif,
-                        currentStock: keys.currentstock || keys.stock || keys.quantité || keys['stock actuel'],
-                        minStock: keys.minstock || keys['seuil alerte'] || keys.seuil,
-                        barcode: keys.barcode || keys['code-barres'] || keys.codebarre
-                      };
-                    }).filter(row => row.name); // IGNORER les lignes qui n'ont pas de nom (lignes vides)
-
-                    if (mappedData.length === 0) {
-                      throw new Error("Aucune donnée valide trouvée dans le fichier.");
-                    }
-
-                    const res = await storage.create('articles/import', { data: mappedData });
-                    showAlert('success', 'Import réussi !', `${res.updated} articles mis à jour, ${res.created} nouveaux créés.`);
-                    loadData();
-                  } catch (err) {
-                    showAlert('error', 'Erreur d\'import', err.message);
-                  }
-                };
-                reader.readAsBinaryString(file);
-                e.target.value = null;
-              }}
-            />
-            <button className="btn btn-secondary" onClick={handleExport}>
-              <Download size={18} /> Exporter
+            <button className="btn btn-secondary" onClick={handleExport} title="Exporter Excel">
+              <Download size={18} /> Excel
+            </button>
+            <button className="btn btn-secondary" onClick={handlePrintReport} title="Imprimer / PDF">
+              <FileText size={18} /> PDF
             </button>
             <button className="btn btn-primary" onClick={() => handleOpenModal()} >
               <Plus size={16} /> Nouvel Article
@@ -224,6 +248,100 @@ export default function ArticlesPage() {
           </div>
         )}
       </div>
+
+      {isImportModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h3>Importer des articles (Excel)</h3>
+              <button className="modal-close" onClick={() => setIsImportModalOpen(false)}><X size={20} /></button>
+            </div>
+            <div className="modal-body">
+              <div className="alert alert-info" style={{ marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+                <p style={{ margin: 0 }}><strong>Format requis :</strong> .xlsx ou .xls</p>
+                <p style={{ margin: '5px 0 0 0' }}>Colonnes reconnues : Nom (réf.), Code, Prix, Stock, Seuil.</p>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Magasin de destination</label>
+                <select 
+                  className="form-control" 
+                  required 
+                  value={importStoreId} 
+                  onChange={(e) => setImportStoreId(e.target.value)}
+                >
+                  <option value="">Sélectionner un magasin...</option>
+                  {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+                <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                  Tous les articles du fichier seront importés dans ce magasin.
+                </p>
+              </div>
+
+              <div className="form-group" style={{ marginTop: '1.5rem' }}>
+                <label className="form-label">Fichier Excel</label>
+                <input 
+                  type="file" 
+                  className="form-control"
+                  accept=".xlsx, .xls"
+                  disabled={!importStoreId}
+                  onChange={async (e) => {
+                    const file = e.target.files[0];
+                    if (!file || !importStoreId) return;
+                    
+                    const reader = new FileReader();
+                    reader.onload = async (evt) => {
+                      try {
+                        const { read, utils } = await import('xlsx');
+                        const wb = read(evt.target.result, { type: 'binary' });
+                        const wsname = wb.SheetNames[0];
+                        const ws = wb.Sheets[wsname];
+                        const data = utils.sheet_to_json(ws);
+                        
+                        const mappedData = data.map(row => {
+                          const keys = {};
+                          // Normalisation robuste : minuscule + suppression des espaces
+                          Object.keys(row).forEach(k => {
+                            keys[k.toLowerCase().trim()] = row[k];
+                          });
+
+                          return {
+                            id: keys.id,
+                            code: String(keys.code || keys.référence || keys.reference || keys.ref || '').trim(),
+                            name: String(keys.name || keys.nom || keys.article || '').trim(),
+                            price: keys.price || keys.prix || keys.tarif,
+                            currentStock: keys.currentstock || keys.stock || keys.quantité || keys['stock actuel'],
+                            minStock: keys.minstock || keys['seuil alerte'] || keys.seuil,
+                            barcode: String(keys.barcode || keys['code-barres'] || keys.codebarre || '').trim()
+                          };
+                        }).filter(row => row.name);
+
+                        if (mappedData.length === 0) throw new Error("Aucune donnée valide trouvée.");
+
+                        const res = await storage.create('articles/import', { 
+                          data: mappedData, 
+                          storeId: importStoreId 
+                        });
+                        
+                        showAlert('success', 'Import réussi !', `${res.updated} articles mis à jour, ${res.created} nouveaux créés dans le magasin sélectionné.`);
+                        setIsImportModalOpen(false);
+                        loadData();
+                      } catch (err) {
+                        showAlert('error', 'Erreur d\'import', err.message);
+                      }
+                    };
+                    reader.readAsBinaryString(file);
+                    e.target.value = null;
+                  }}
+                />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setIsImportModalOpen(false)}>Fermer</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="toolbar">
         <div className="search-input-wrapper">

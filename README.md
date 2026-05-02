@@ -1,22 +1,33 @@
-# React + Vite
+# Mining AutoLog - Système de Gestion de Stock
 
-Ce projet est une application de gestion de stock avec un backend Node.js et SQLite.
+Application ERP moderne pour la gestion de stocks, ventes et finances, optimisée pour le déploiement Cloud.
 
-## Comment démarrer l'application
+## 🚀 Technologies
+- **Frontend** : Next.js 16 (React 19) avec Vanilla CSS.
+- **Backend** : Next.js API Routes.
+- **Base de données** : MySQL.
+- **Rapports** : PDFKit pour les factures et bilans PDF.
 
-Pour faire fonctionner l'application, vous devez lancer le serveur (backend) et le client (frontend) en même temps.
+## 📦 Installation (Local)
 
-### Option 1 : Utiliser le script automatique (Windows)
-Double-cliquez sur le fichier `start.bat` à la racine du projet. Cela ouvrira deux fenêtres de commande pour lancer les deux services.
+1. **Prérequis** : Node.js installé sur votre machine.
+2. **Dépendances** :
+   ```bash
+   npm install
+   ```
+3. **Configuration** : Créez un fichier `.env` avec vos accès MySQL :
+   ```env
+   DATABASE_URL=mysql://user:password@localhost:3306/gestion_stock_db
+   JWT_SECRET=votre_secret_ici
+   ```
+4. **Lancement** :
+   ```bash
+   npm run dev
+   ```
+L'application sera accessible sur [http://localhost:3000](http://localhost:3000).
 
-### Option 2 : Lancement manuel
+## ☁️ Déploiement
+Le projet est prêt pour un déploiement sur **Vercel** ou **Railway**. Assurez-vous de configurer les variables d'environnement dans l'interface de votre hébergeur.
 
-1.  **Démarrer le Backend** :
-    *   Ouvrez un terminal dans le dossier `server`.
-    *   Lancez la commande : `npm run dev`
-
-2.  **Démarrer le Frontend** :
-    *   Ouvrez un autre terminal à la racine du projet.
-    *   Lancez la commande : `npm run dev`
-
-L'application sera alors accessible sur [http://localhost:5174](http://localhost:5174).
+---
+*Note : Le système de licence locale a été supprimé pour faciliter l'usage Cloud.*

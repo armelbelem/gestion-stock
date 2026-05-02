@@ -61,6 +61,7 @@ export async function POST(request) {
     
     const [fyRows] = await connection.query("SELECT * FROM fiscal_years WHERE status = 'active'");
     const activeYear = fyRows[0];
+    if (!activeYear) throw new Error("Action impossible : Aucun exercice fiscal n'est ouvert. Veuillez ouvrir un exercice pour enregistrer des ventes.");
 
     let totalAmount = 0;
     for (const item of items) {

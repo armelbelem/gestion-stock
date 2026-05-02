@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { storage } from '../../lib/storage';
 import { 
   ChevronLeft, ChevronRight, Search, Filter, XCircle,
-  Download, ArrowDownRight, ArrowUpRight, X
+  Download, ArrowDownRight, ArrowUpRight, X, FileText
 } from 'lucide-react';
 import { exportToExcel } from '../../utils/excelExport';
 import AlertModal from '../../components/AlertModal';
@@ -17,6 +17,8 @@ export default function MouvementsPage() {
   const [suppliers, setSuppliers] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState('IN'); 
+  const [isReporting, setIsReporting] = useState(false);
+  const [settings, setSettings] = useState(null);
   
   const [filterArticleId, setFilterArticleId] = useState('');
   const [filterType, setFilterType] = useState('');
@@ -42,18 +44,30 @@ export default function MouvementsPage() {
     setCurrentPage(1);
   }, [filterArticleId, filterType, startDate, endDate, searchTerm]);
 
+  const [hasActiveYear, setHasActiveYear] = useState(true);
+
   useEffect(() => {
     loadData();
+    loadSettings();
   }, []);
+
+  const loadSettings = async () => {
+    try {
+      const data = await storage.get('settings');
+      setSettings(data);
+    } catch (err) { console.error(err); }
+  };
 
   const loadData = async () => {
     try {
       const movementsData = await storage.get('mouvements');
       const articlesData = await storage.get('articles');
       const suppliersData = await storage.get('fournisseurs');
+      const fyData = await storage.get('fiscal-years');
       setMouvements(movementsData);
       setArticles(articlesData);
       setSuppliers(suppliersData);
+      setHasActiveYear(fyData.some(f => f.status === 'active'));
     } catch (err) {
       console.error("Error loading movements:", err);
     }
@@ -73,8 +87,20 @@ export default function MouvementsPage() {
       typeLabel: mov.type === 'IN' ? 'Entrée' : 'Sortie',
       articleName: getArticleName(mov.articleId)
     }));
-    exportToExcel(dataToExport, headers, 'mouvements_stock');
+    exportToExcel(dataToExport, headers, 'rapport_mouvements', {
+      title: "RAPPORT DES MOUVEMENTS DE STOCK",
+      companyName: settings?.companyName || "NS AUTO",
+      period: `${startDate || 'Début'} au ${endDate || 'Fin'}`
+    });
     showAlert('success', 'Succès', "Exportation Excel réussie !");
+  };
+
+  const handlePrintReport = () => {
+    setIsReporting(true);
+    setTimeout(() => {
+      window.print();
+      setIsReporting(false);
+    }, 500);
   };
 
   const handleOpenModal = (type) => {
@@ -90,6 +116,7 @@ export default function MouvementsPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!hasActiveYear) return showAlert('error', 'Action bloquée', "Aucun exercice fiscal n'est ouvert. Veuillez ouvrir un exercice dans les réglages avant de pouvoir enregistrer des mouvements de stock.");
     const quantity = parseInt(formData.quantity) || 0;
     if (quantity <= 0) return showAlert('error', 'Erreur', "La quantité doit être > 0.");
     const article = articles.find(a => a.id === formData.articleId);
@@ -169,12 +196,56 @@ export default function MouvementsPage() {
     setSuggestions([]);
   };
 
+  if (isReporting) {
+    return (
+      <div className="receipt-print-only" style={{ display: 'block', padding: '20px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '20px', borderBottom: '2px solid black', paddingBottom: '10px' }}>
+          <h1 style={{ margin: '0', fontSize: '24px', fontWeight: '800', textTransform: 'uppercase' }}>{settings?.companyName || 'NS AUTO'}</h1>
+          {settings?.address && <p style={{ margin: '2px 0' }}>{settings.address}</p>}
+          <h2 style={{ marginTop: '15px' }}>RAPPORT DES MOUVEMENTS</h2>
+          <p>Période : {startDate || 'Début'} au {endDate || 'Fin'}</p>
+        </div>
+        
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
+          <thead>
+            <tr style={{ borderBottom: '2px solid black', backgroundColor: '#f5f5f5' }}>
+              <th style={{ textAlign: 'left', padding: '8px' }}>Date</th>
+              <th style={{ textAlign: 'left', padding: '8px' }}>Type</th>
+              <th style={{ textAlign: 'left', padding: '8px' }}>Article</th>
+              <th style={{ textAlign: 'right', padding: '8px' }}>Quantité</th>
+              <th style={{ textAlign: 'left', padding: '8px' }}>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredMouvements.map((mov) => (
+              <tr key={mov.id} style={{ borderBottom: '1px solid #eee' }}>
+                <td style={{ padding: '8px' }}>{formatDate(mov.date)}</td>
+                <td style={{ padding: '8px' }}>{mov.type === 'IN' ? 'Entrée' : 'Sortie'}</td>
+                <td style={{ padding: '8px' }}>{getArticleName(mov.articleId)}</td>
+                <td style={{ textAlign: 'right', padding: '8px', fontWeight: 'bold' }}>{mov.type === 'IN' ? '+' : '-'}{mov.quantity}</td>
+                <td style={{ padding: '8px', fontSize: '0.9rem' }}>{mov.notes || '-'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div style={{ marginTop: '30px', fontSize: '0.8rem', textAlign: 'right' }}>
+          Généré le {new Date().toLocaleString()}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="page">
       <div className="page-header">
         <div><h1>Mouvements</h1><p>Historique des entrées et sorties</p></div>
         <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <button className="btn btn-secondary" onClick={handleExport}><Download size={18} /> Exporter</button>
+          <button className="btn btn-secondary" onClick={handleExport} title="Exporter Excel">
+            <Download size={18} /> Excel
+          </button>
+          <button className="btn btn-secondary" onClick={handlePrintReport} title="Imprimer / PDF">
+            <FileText size={18} /> PDF
+          </button>
           <button className="btn btn-success" onClick={() => { handleOpenModal('IN'); setArticleSearch(''); }}><ArrowDownRight size={16} /> Entrée</button>
           <button className="btn btn-danger" onClick={() => { handleOpenModal('OUT'); setArticleSearch(''); }}><ArrowUpRight size={16} /> Sortie</button>
         </div>
