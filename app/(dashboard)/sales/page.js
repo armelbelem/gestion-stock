@@ -57,6 +57,22 @@ export default function SalesPage() {
     }
   };
 
+  const handleCancelSale = (saleId) => {
+    showConfirm(
+      'Annuler cette vente ?',
+      'Cette action est irréversible. Les articles seront automatiquement remis en stock.',
+      async () => {
+        try {
+          await storage.create(`sales/${saleId}/cancel`, {});
+          loadSales();
+          showAlert('success', 'Annulation réussie', 'La vente a été annulée et le stock a été mis à jour.');
+        } catch (error) {
+          showAlert('error', 'Erreur', error.message);
+        }
+      }
+    );
+  };
+
   const handlePrint = (sale) => {
     setPrintData(sale);
     setIsPrinting(true);
@@ -88,7 +104,7 @@ export default function SalesPage() {
     switch (status) {
       case 'payé': return <span className="badge badge-success">Payé</span>;
       case 'partiel': return <span className="badge badge-warning">Partiel</span>;
-      case 'en_attente': return <span className="badge badge-danger">En attente</span>;
+      case 'en_attente': return <span className="badge badge-danger">Consommation</span>;
       case 'annulée': return <span className="badge badge-danger">Annulée</span>;
       default: return <span className="badge badge-secondary">{status}</span>;
     }
@@ -453,7 +469,7 @@ export default function SalesPage() {
                               <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end', gap: '2rem' }}>
                                 <div style={{ textAlign: 'right' }}>
                                   <p className="text-muted">Payé : {sale.amountPaid.toLocaleString()} FCFA</p>
-                                  <p style={{ fontWeight: 700, color: 'var(--danger)' }}>Reste : {(sale.totalAmount - sale.amountPaid).toLocaleString()} FCFA</p>
+                                  <p style={{ fontWeight: 700, color: 'var(--primary)' }}>À régler : {(sale.totalAmount - sale.amountPaid).toLocaleString()} FCFA</p>
                                 </div>
                               </div>
                             )}

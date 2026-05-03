@@ -14,48 +14,59 @@ export async function GET(request, { params }) {
     const fy = fyRows[0];
     if (!fy) return NextResponse.json({ error: "Exercice non trouvé" }, { status: 404 });
 
-    // 2. Calculer les statistiques
-    const [stats] = await db.query(`
-      SELECT 
-        SUM(totalAmount) as totalRev,
-        SUM(amountPaid) as totalPaid
-      FROM sales 
-      WHERE fiscalYearId = ? AND status != 'annulée'
+    // 2. Calculer les statistiques globales (Ventes + Commandes Spéciales)
+    const [salesStats] = await db.query(`
+      SELECT SUM(totalAmount) as totalRev, SUM(amountPaid) as totalPaid
+      FROM sales WHERE fiscalYearId = ? AND status != 'annulée'
     `, [id]);
 
-    const revenue = stats[0].totalRev || 0;
-    const paid = stats[0].totalPaid || 0;
+    const [extStats] = await db.query(`
+      SELECT SUM(oi.quantity * oi.sellPrice) as totalRev, SUM(e.amountPaid) as totalPaid
+      FROM external_orders e
+      JOIN external_order_items oi ON e.id = oi.externalOrderId
+      WHERE e.fiscalYearId = ? AND e.status = 'termine'
+    `, [id]);
+
+    const revenue = (Number(salesStats[0].totalRev) || 0) + (Number(extStats[0].totalRev) || 0);
+    const paid = (Number(salesStats[0].totalPaid) || 0) + (Number(extStats[0].totalPaid) || 0);
     const debt = revenue - paid;
 
-    // 3. Statistiques par client
-    const [clientStats] = await db.query(`
-      SELECT 
-        COALESCE(c.name, 'Client Anonyme') as clientName,
-        SUM(s.totalAmount) as totalAmount,
-        SUM(qi.totalQty) as totalItems
+    // 3. Statistiques par client (fusionnées)
+    const [clientSales] = await db.query(`
+      SELECT COALESCE(c.name, 'Client Anonyme') as clientName, SUM(s.totalAmount) as amount, SUM(qi.totalQty) as items
       FROM sales s
       LEFT JOIN clients c ON s.clientId = c.id
-      LEFT JOIN (
-        SELECT saleId, SUM(quantity) as totalQty FROM sale_items GROUP BY saleId
-      ) qi ON s.id = qi.saleId
+      LEFT JOIN (SELECT saleId, SUM(quantity) as totalQty FROM sale_items GROUP BY saleId) qi ON s.id = qi.saleId
       WHERE s.fiscalYearId = ? AND s.status != 'annulée'
       GROUP BY s.clientId, c.name
-      ORDER BY totalAmount DESC
     `, [id]);
 
-    // 4. Nombre total d'articles vendus
-    const [itemStats] = await db.query(`
-      SELECT SUM(si.quantity) as totalItems 
-      FROM sale_items si
-      JOIN sales s ON si.saleId = s.id
-      WHERE s.fiscalYearId = ? AND s.status != 'annulée'
+    const [clientExt] = await db.query(`
+      SELECT COALESCE(c.name, 'Client Anonyme') as clientName, SUM(oi.quantity * oi.sellPrice) as amount, SUM(oi.quantity) as items
+      FROM external_orders e
+      JOIN external_order_items oi ON e.id = oi.externalOrderId
+      LEFT JOIN clients c ON e.clientId = c.id
+      WHERE e.fiscalYearId = ? AND e.status = 'termine'
+      GROUP BY e.clientId, c.name
     `, [id]);
+
+    // Fusionner les deux listes de clients en JS
+    const clientMap = {};
+    [...clientSales, ...clientExt].forEach(c => {
+      if (!clientMap[c.clientName]) clientMap[c.clientName] = { clientName: c.clientName, totalAmount: 0, totalItems: 0 };
+      clientMap[c.clientName].totalAmount += Number(c.amount) || 0;
+      clientMap[c.clientName].totalItems += Number(c.items) || 0;
+    });
+    const clientStats = Object.values(clientMap).sort((a, b) => b.totalAmount - a.totalAmount);
+
+    // 4. Nombre total d'articles vendus
+    const totalItems = clientStats.reduce((sum, c) => sum + c.totalItems, 0);
 
     return NextResponse.json({
       revenue,
       paid,
       debt,
-      totalItems: itemStats[0].totalItems || 0,
+      totalItems,
       clientStats,
       exercise: fy,
       generatedAt: new Date().toISOString()

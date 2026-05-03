@@ -23,7 +23,13 @@ export async function POST(request) {
   const auth = authenticateToken(request);
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
+  // Seul l'admin ou un gérant peut créer des catégories
+  if (auth.user.role !== 'admin' && auth.user.role !== 'manager') {
+    return NextResponse.json({ error: 'Accès interdit : Administrateur ou Gérant requis pour créer des catégories' }, { status: 403 });
+  }
+
   const { name, description } = await request.json();
+
   const catId = uuidv4();
   const storeId = auth.user.role === 'admin' ? (null) : auth.user.storeId;
   try {

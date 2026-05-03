@@ -22,10 +22,9 @@ export default function NewSalePage() {
   const [successData, setSuccessData] = useState(null);
   const [barcodeInput, setBarcodeInput] = useState('');
   const [suggestions, setSuggestions] = useState([]);
-  const [paymentType, setPaymentType] = useState('complet');
+  const [paymentType, setPaymentType] = useState('credit');
   const [initialPayment, setInitialPayment] = useState(0);
   const [discount, setDiscount] = useState(0);
-  const [dueDate, setDueDate] = useState('');
 
   const [alertModal, setAlertModal] = useState({ open: false, type: 'info', title: '', message: '', onConfirm: null });
   const closeAlert = () => setAlertModal(prev => ({ ...prev, open: false, onConfirm: null }));
@@ -102,8 +101,10 @@ export default function NewSalePage() {
     if (paymentType === 'complet') {
       const netTotal = calculateTotal() - discount;
       setInitialPayment(netTotal > 0 ? netTotal : 0);
+    } else {
+      setInitialPayment(0);
     }
-  }, [saleItems, paymentType, discount]);
+  }, [paymentType, saleItems, discount]);
 
   const handleSearchChange = (val) => {
     setBarcodeInput(val);
@@ -188,7 +189,6 @@ export default function NewSalePage() {
           items: saleItems,
           paymentType,
           amountPaid: Number(initialPayment),
-          dueDate: paymentType === 'credit' ? dueDate : null,
           discount: Number(discount),
           storeId
         });
@@ -348,12 +348,11 @@ export default function NewSalePage() {
                   <label className="form-label">Mode</label>
                   <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
                     <button type="button" className={`btn ${paymentType === 'complet' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1 }} onClick={() => setPaymentType('complet')}>Complet</button>
-                    <button type="button" className={`btn ${paymentType === 'credit' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1 }} onClick={() => setPaymentType('credit')}>Crédit</button>
+                    <button type="button" className={`btn ${paymentType === 'credit' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1 }} onClick={() => setPaymentType('credit')}>Consommation</button>
                   </div>
                   {currentUser?.role !== 'vendeur' && (
-                    <div className="form-group"><label className="form-label">Versement</label><input type="number" className="form-control" value={initialPayment} onChange={(e) => setInitialPayment(Number(e.target.value) || 0)} disabled={paymentType === 'complet'} /></div>
+                    <div className="form-group"><label className="form-label">Versement</label><input type="number" className="form-control" value={initialPayment} onChange={(e) => setInitialPayment(Number(e.target.value) || 0)} disabled={paymentType === 'credit'} /></div>
                   )}
-                  {paymentType === 'credit' && <div className="form-group"><label className="form-label">Échéance</label><input type="date" className="form-control" value={dueDate} onChange={(e) => setDueDate(e.target.value)} required /></div>}
                 </div>
                 <button type="submit" className="btn btn-primary btn-lg" disabled={isSubmitting || saleItems.length === 0}>{isSubmitting ? '...' : 'Valider la vente'}</button>
               </div>

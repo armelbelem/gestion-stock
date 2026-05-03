@@ -18,8 +18,8 @@ export async function POST(request) {
     const activeYear = rows[0];
     const endDate = new Date().toISOString();
 
-    // 1. Calculer les statistiques de clôture pour le PDF
-    const [stats] = await db.query(`
+    // 1. Calculer les statistiques de clôture (Ventes normales + Commandes spéciales)
+    const [salesStats] = await db.query(`
       SELECT 
         SUM(totalAmount) as totalRev,
         SUM(amountPaid) as totalPaid
@@ -27,8 +27,17 @@ export async function POST(request) {
       WHERE fiscalYearId = ? AND status != 'annulée'
     `, [activeYear.id]);
 
-    const revenue = stats[0].totalRev || 0;
-    const paid = stats[0].totalPaid || 0;
+    const [extStats] = await db.query(`
+      SELECT 
+        SUM(oi.quantity * oi.sellPrice) as totalRev,
+        SUM(e.amountPaid) as totalPaid
+      FROM external_orders e
+      JOIN external_order_items oi ON e.id = oi.externalOrderId
+      WHERE e.fiscalYearId = ? AND e.status = 'termine'
+    `, [activeYear.id]);
+
+    const revenue = (Number(salesStats[0].totalRev) || 0) + (Number(extStats[0].totalRev) || 0);
+    const paid = (Number(salesStats[0].totalPaid) || 0) + (Number(extStats[0].totalPaid) || 0);
     const debt = revenue - paid;
 
     // 2. Mettre à jour la base de données

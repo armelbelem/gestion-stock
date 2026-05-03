@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { 
   LayoutDashboard, Tags, Package, ArrowRightLeft, LogOut, 
   Users, ShoppingCart, Sun, Moon, UserCog, Coins, BarChart3, 
-  Truck, Menu, X, Wallet, AlertCircle, Calendar, Store, ShieldAlert, PackageOpen, Settings
+  Truck, Menu, X, Wallet, AlertCircle, Calendar, Store, ShieldAlert, PackageOpen, Settings, Brain, TrendingDown
 } from 'lucide-react';
 import { useAuth } from '../providers';
 import { storage } from '../lib/storage';
@@ -149,6 +149,7 @@ export default function ClientLayout({ children }) {
               <NavItem href="/finances" icon={Coins} label="Finances" />
               <NavItem href="/payments" icon={Wallet} label="Règlements" />
               <NavItem href="/reports" icon={BarChart3} label="Rapports" />
+              <NavItem href="/intelligence" icon={Brain} label="Intelligence" />
               <NavItem href="/exercices" icon={Calendar} label="Exercices" />
             </>
           )}

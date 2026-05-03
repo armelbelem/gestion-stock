@@ -21,36 +21,18 @@ export async function PUT(request, { params }) {
     const [items] = await connection.query('SELECT * FROM external_order_items WHERE externalOrderId = ?', [id]);
 
     if (action === 'vendre') {
-      const saleId = uuidv4();
-      
-      let totalAmount = 0;
-      for (const item of items) {
-        totalAmount += item.quantity * item.sellPrice;
-      }
-      
       const amount = amountPaid || 0;
-      const status = amount >= totalAmount ? 'payé' : (amount > 0 ? 'partiel' : 'en_attente');
-
-      const [fyRows] = await connection.query("SELECT * FROM fiscal_years WHERE status = 'active'");
-      const activeYear = fyRows[0];
-
+      // On ne crée plus de record dans 'sales'. 
+      // On met juste à jour la commande spéciale avec le montant encaissé et le statut.
       await connection.query(
-        'INSERT INTO sales (id, clientId, userId, totalAmount, discount, amountPaid, paymentType, status, date, storeId, fiscalYearId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [saleId, order.clientId, auth.user.id, totalAmount, 0, amount, paymentType || 'complet', status, new Date().toISOString(), order.storeId, activeYear?.id || null]
+        "UPDATE external_orders SET status = 'termine', amountPaid = ?, paymentType = ? WHERE id = ?", 
+        [amount, paymentType || 'complet', id]
       );
       
-      for (const item of items) {
-        await connection.query('INSERT INTO sale_items (id, saleId, articleId, description, quantity, unitPrice) VALUES (?, ?, ?, ?, ?, ?)', 
-          [uuidv4(), saleId, null, item.description, item.quantity, item.sellPrice]);
-      }
-        
-      if (amount > 0) {
-        await connection.query('INSERT INTO payments (id, saleId, amount, date, storeId) VALUES (?, ?, ?, ?, ?)', 
-          [uuidv4(), saleId, amount, new Date().toISOString(), order.storeId]);
-      }
-
-      await connection.query("UPDATE external_orders SET status = 'termine', saleId = ? WHERE id = ?", [saleId, id]);
-      await logAction(auth.user.id, order.storeId, 'Vente commande externe', { orderId: id, saleId });
+      // Si un paiement a été fait, on peut toujours le tracer dans une table de paiements dédiée ou via un champ
+      // Pour l'instant, on se base sur external_orders.amountPaid
+      
+      await logAction(auth.user.id, order.storeId, 'Validation commande externe', { orderId: id });
     } else if (action === 'annuler') {
       await connection.query("UPDATE external_orders SET status = 'annule' WHERE id = ?", [id]);
       await logAction(auth.user.id, order.storeId, 'Annulation commande externe', { orderId: id });

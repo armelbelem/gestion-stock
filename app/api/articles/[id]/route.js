@@ -7,8 +7,14 @@ export async function PUT(request, { params }) {
   const auth = authenticateToken(request);
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
+  // Seul l'admin ou un gérant peut modifier un article (prix, nom, etc.)
+  if (auth.user.role !== 'admin' && auth.user.role !== 'manager') {
+    return NextResponse.json({ error: 'Accès interdit : Administrateur ou Gérant requis pour modifier les articles' }, { status: 403 });
+  }
+
   const { id: articleId } = await params;
   const { code, name, price, minStock, barcode } = await request.json();
+
 
   const connection = await db.getConnection();
   try {
@@ -47,30 +53,43 @@ export async function DELETE(request, { params }) {
   const requestedStoreId = searchParams.get('storeId');
   const storeId = getStoreConstraint(auth.user, requestedStoreId);
   const { id: articleId } = await params;
+  console.log(`[DELETE] Tentative de suppression de l'article ID: ${articleId} par l'utilisateur: ${auth.user.username}`);
 
-  const connection = await db.getConnection();
-  try {
-    await connection.beginTransaction();
+    const connection = await db.getConnection();
+    try {
+      await connection.beginTransaction();
 
-    if (storeId) {
-      // Suppression uniquement pour ce magasin
-      await connection.query('DELETE FROM inventory WHERE articleId = ? AND storeId = ?', [articleId, storeId]);
-      await connection.query('DELETE FROM mouvements WHERE articleId = ? AND storeId = ?', [articleId, storeId]);
-      await logAction(auth.user.id, storeId, 'Suppression article du magasin', { id: articleId });
-    } else {
-      // Suppression globale (Admin uniquement)
-      if (auth.user.role !== 'admin') return NextResponse.json({ error: 'Interdit' }, { status: 403 });
-      
-      await connection.query('DELETE FROM inventory WHERE articleId = ?', [articleId]);
-      await connection.query('DELETE FROM mouvements WHERE articleId = ?', [articleId]);
-      await connection.query('DELETE FROM articles WHERE id = ?', [articleId]);
-      await logAction(auth.user.id, null, 'Suppression globale article', { id: articleId });
-    }
+      // Si l'utilisateur est ADMIN, on fait TOUJOURS une suppression globale
+      if (auth.user.role === 'admin') {
+        console.log(`[DELETE] ADMIN : Suppression GLOBALE de l'article ${articleId}`);
+        await connection.query('DELETE FROM inventory WHERE articleId = ?', [articleId]);
+        await connection.query('DELETE FROM mouvements WHERE articleId = ?', [articleId]);
+        await connection.query('DELETE FROM articles WHERE id = ?', [articleId]);
+        await logAction(auth.user.id, null, 'Suppression totale article', { id: articleId });
+      } 
+      else if (storeId) {
+        // Suppression locale pour les autres
+        console.log(`[DELETE] Local pour magasin: ${storeId}`);
+        await connection.query('DELETE FROM inventory WHERE articleId = ? AND storeId = ?', [articleId, storeId]);
+        await connection.query('DELETE FROM mouvements WHERE articleId = ? AND storeId = ?', [articleId, storeId]);
+        await logAction(auth.user.id, storeId, 'Suppression article du magasin', { id: articleId });
+      }
+
 
     await connection.commit();
     return NextResponse.json({ success: true });
   } catch (err) { 
     await connection.rollback(); 
+    console.error('Error deleting article:', err);
+
+    // Gestion spécifique des erreurs de contrainte d'intégrité (Clé étrangère)
+    if (err.code === 'ER_ROW_IS_REFERENCED_2' || err.errno === 1451) {
+      return NextResponse.json({ 
+        error: "Impossible de supprimer cet article car il possède un historique (ventes, mouvements ou commandes). Pour des raisons de comptabilité, vous ne pouvez pas supprimer un article qui a déjà été utilisé. Vous pouvez cependant modifier son nom ou son prix." 
+      }, { status: 400 });
+    }
+
     return NextResponse.json({ error: err.message }, { status: 500 }); 
   } finally { connection.release(); }
 }
+

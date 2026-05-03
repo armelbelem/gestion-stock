@@ -12,7 +12,7 @@ export async function GET(request) {
   try {
     const storeId = getStoreConstraint(auth.user, request.nextUrl.searchParams.get('storeId'));
     let query = `
-      SELECT e.id, e.clientId, e.supplierId, e.status, e.saleId, e.date, e.storeId, c.name as clientName, f.name as supplierName
+      SELECT e.id, e.clientId, e.supplierId, e.status, e.saleId, e.date, e.storeId, e.amountPaid, e.paymentType, c.name as clientName, f.name as supplierName
       FROM external_orders e
       LEFT JOIN clients c ON e.clientId = c.id
       LEFT JOIN fournisseurs f ON e.supplierId = f.id
@@ -48,8 +48,8 @@ export async function POST(request) {
     if (!activeYear) throw new Error("Action impossible : Aucun exercice fiscal n'est ouvert. Veuillez ouvrir un exercice pour les commandes spéciales.");
     
     await connection.query(
-      'INSERT INTO external_orders (id, clientId, supplierId, date, storeId) VALUES (?, ?, ?, ?, ?)',
-      [orderId, clientId, supplierId, new Date().toISOString(), storeId]
+      'INSERT INTO external_orders (id, clientId, supplierId, date, storeId, fiscalYearId) VALUES (?, ?, ?, ?, ?, ?)',
+      [orderId, clientId, supplierId, new Date().toISOString(), storeId, activeYear.id]
     );
     
     for (const item of items) {

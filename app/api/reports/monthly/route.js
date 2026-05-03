@@ -68,7 +68,7 @@ export async function GET(request) {
 
     const totalRevenue = Number(totalRevRow[0].total) || 0;
     const totalPaid = Number(totalPaidRow[0].total) || 0;
-    return NextResponse.json({ months, totalRevenue, totalDebt: totalRevenue - totalPaid });
+    return NextResponse.json({ months, totalRevenue, totalPaid, totalDebt: totalRevenue - totalPaid });
   } catch (err) { 
     console.error('[MONTHLY REPORT ERROR]', err);
     return NextResponse.json({ 

@@ -57,7 +57,13 @@ export async function POST(request) {
   const auth = authenticateToken(request);
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
+  // Seul l'admin ou un gérant peut créer des articles
+  if (auth.user.role !== 'admin' && auth.user.role !== 'manager') {
+    return NextResponse.json({ error: 'Accès interdit : Administrateur ou Gérant requis pour créer des articles' }, { status: 403 });
+  }
+
   const { code, name, price, currentStock, minStock, barcode, storeId: bodyStoreId } = await request.json();
+
   let storeId = bodyStoreId || auth.user.storeId;
 
   if (!storeId && auth.user.role === 'admin') {

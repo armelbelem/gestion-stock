@@ -8,6 +8,12 @@ import bcrypt from 'bcryptjs';
 export async function GET(request) {
   const auth = authenticateToken(request);
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
+  
+  // Seul l'admin peut voir la liste complète des utilisateurs
+  if (auth.user.role !== 'admin') {
+    return NextResponse.json({ error: 'Accès interdit : Administrateur requis' }, { status: 403 });
+  }
+
   try {
     const [users] = await db.query(`
       SELECT u.id, u.username, u.role, u.storeId, s.name as storeName, u.createdAt 
@@ -20,7 +26,14 @@ export async function GET(request) {
 export async function POST(request) {
   const auth = authenticateToken(request);
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
+
+  // Seul l'admin peut créer de nouveaux utilisateurs
+  if (auth.user.role !== 'admin') {
+    return NextResponse.json({ error: 'Accès interdit : Administrateur requis' }, { status: 403 });
+  }
+
   const { username, password, role, storeId } = await request.json();
+
   try {
     const hashedPassword = bcrypt.hashSync(password, 10);
     const id = uuidv4();

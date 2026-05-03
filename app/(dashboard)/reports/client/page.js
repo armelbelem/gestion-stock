@@ -6,16 +6,18 @@ import { User, Calendar, FileText, Printer, ChevronLeft, Package, Coins, Downloa
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { exportToExcel } from '../../../utils/excelExport';
+import AlertModal from '../../../components/AlertModal';
 
 export default function ClientReportPage() {
   const [clients, setClients] = useState([]);
   const [selectedClientId, setSelectedClientId] = useState('');
-  const [month, setMonth] = useState(new Date().getMonth() + 1);
-  const [year, setYear] = useState(new Date().getFullYear());
+  const [startDate, setStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
   const [settings, setSettings] = useState(null);
+  const [alertModal, setAlertModal] = useState({ open: false, type: 'info', title: '', message: '', onConfirm: null });
   const pathname = usePathname();
 
   useEffect(() => {
@@ -38,7 +40,7 @@ export default function ClientReportPage() {
     if (!selectedClientId) return;
     setLoading(true);
     try {
-      const res = await storage.get(`reports/sales-by-client?clientId=${selectedClientId}&month=${month}&year=${year}`);
+      const res = await storage.get(`reports/sales-by-client?clientId=${selectedClientId}&startDate=${startDate}&endDate=${endDate}`);
       setData(res);
     } catch (err) {
       console.error(err);
@@ -67,18 +69,57 @@ export default function ClientReportPage() {
     exportToExcel(
       data.items, 
       headers, 
-      `Bilan_${selectedClient?.name}_${monthName}_${year}`,
+      `Bilan_${selectedClient?.name}_du_${startDate}_au_${endDate}`,
       {
-        title: `BILAN DE VENTE MENSUEL - ${selectedClient?.name}`,
+        title: `BILAN DE CONSOMMATION - ${selectedClient?.name}`,
         companyName: settings?.companyName || "NS AUTO",
-        period: `${monthName.toUpperCase()} ${year}`,
+        period: `Du ${new Date(startDate).toLocaleDateString()} au ${new Date(endDate).toLocaleDateString()}`,
         summary: ['', 'TOTAUX GÉNÉRAUX', '', data.summary.totalQuantity, `${data.summary.totalAmount.toLocaleString()} FCFA`]
       }
     );
   };
+  
+  const handleSettle = async () => {
+    setAlertModal({
+      open: true,
+      type: 'confirm',
+      title: 'Régler la période ?',
+      message: `Voulez-vous marquer TOUTES les consommations de ${selectedClient?.name} du ${new Date(startDate).toLocaleDateString()} au ${new Date(endDate).toLocaleDateString()} comme PAYÉES ?`,
+      onConfirm: async () => {
+        setAlertModal(prev => ({ ...prev, open: false }));
+        setLoading(true);
+        try {
+          const res = await storage.create('reports/sales-by-client', {
+            clientId: selectedClientId,
+            startDate,
+            endDate
+          });
+          if (res.success) {
+            setAlertModal({
+              open: true,
+              type: 'info',
+              title: 'Succès',
+              message: `La période a été réglée avec succès. Total encaissé : ${res.totalSettled.toLocaleString()} FCFA.`
+            });
+            generateReport();
+          } else {
+            setAlertModal({
+              open: true,
+              type: 'info',
+              title: 'Information',
+              message: res.message || "Aucune vente à régler pour cette période."
+            });
+          }
+        } catch (err) {
+          setAlertModal({ open: true, type: 'error', title: 'Erreur', message: err.message });
+        } finally {
+          setLoading(false);
+        }
+      }
+    });
+  };
 
   const selectedClient = clients.find(c => c.id === selectedClientId);
-  const monthName = new Date(year, month - 1).toLocaleString('fr-FR', { month: 'long' });
 
   if (isPrinting && data) {
     return (
@@ -91,8 +132,8 @@ export default function ClientReportPage() {
           )}
           {settings?.address && <p style={{ margin: '2px 0' }}>{settings.address}</p>}
           {settings?.phone && <p style={{ margin: '2px 0' }}>Tél : {settings.phone}</p>}
-          <h2 style={{ margin: '15px 0 5px 0', fontSize: '18px', textTransform: 'uppercase' }}>BILAN DE VENTE MENSUEL</h2>
-          <p style={{ margin: 0 }}>Période : {monthName.toUpperCase()} {year}</p>
+          <h2 style={{ margin: '15px 0 5px 0', fontSize: '18px', textTransform: 'uppercase' }}>BILAN DE CONSOMMATION</h2>
+          <p style={{ margin: 0 }}>Période : Du {new Date(startDate).toLocaleDateString()} au {new Date(endDate).toLocaleDateString()}</p>
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '30px' }}>
@@ -130,8 +171,18 @@ export default function ClientReportPage() {
           </tbody>
           <tfoot>
             <tr style={{ backgroundColor: '#f0f0f0', fontWeight: 'bold' }}>
-              <td colSpan="3" style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>TOTAUX GÉNÉRAUX</td>
+              <td colSpan="3" style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>TOTAL BRUT</td>
               <td style={{ textAlign: 'center', padding: '10px', border: '1px solid #000' }}>{data.summary.totalQuantity}</td>
+              <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>{data.summary.totalGrossAmount.toLocaleString()} FCFA</td>
+            </tr>
+            {data.summary.totalDiscount > 0 && (
+              <tr style={{ fontWeight: 'bold' }}>
+                <td colSpan="4" style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>TOTAL REMISES</td>
+                <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>-{data.summary.totalDiscount.toLocaleString()} FCFA</td>
+              </tr>
+            )}
+            <tr style={{ backgroundColor: '#e0e0e0', fontWeight: 'bold' }}>
+              <td colSpan="4" style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>TOTAL NET À RÉGLER</td>
               <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000', fontSize: '18px' }}>{data.summary.totalAmount.toLocaleString()} FCFA</td>
             </tr>
           </tfoot>
@@ -188,18 +239,12 @@ export default function ClientReportPage() {
             </select>
           </div>
           <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label">Mois</label>
-            <select className="form-control" value={month} onChange={e => setMonth(e.target.value)}>
-              {[...Array(12)].map((_, i) => (
-                <option key={i+1} value={i+1}>{new Date(0, i).toLocaleString('fr-FR', { month: 'long' })}</option>
-              ))}
-            </select>
+            <label className="form-label">Date Début</label>
+            <input type="date" className="form-control" value={startDate} onChange={e => setStartDate(e.target.value)} />
           </div>
           <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label">Année</label>
-            <select className="form-control" value={year} onChange={e => setYear(e.target.value)}>
-              {[2023, 2024, 2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
+            <label className="form-label">Date Fin</label>
+            <input type="date" className="form-control" value={endDate} onChange={e => setEndDate(e.target.value)} />
           </div>
           <button className="btn btn-primary" onClick={generateReport} disabled={!selectedClientId || loading}>
             {loading ? 'Calcul...' : 'Calculer le bilan'}
@@ -217,6 +262,9 @@ export default function ClientReportPage() {
               </button>
               <button className="btn btn-secondary" onClick={handlePrint}>
                 <Printer size={18} /> Imprimer / PDF
+              </button>
+              <button className="btn btn-success" onClick={handleSettle} disabled={loading}>
+                <Coins size={18} /> Régler la période
               </button>
             </div>
           </div>
@@ -245,15 +293,33 @@ export default function ClientReportPage() {
               </tbody>
               <tfoot style={{ backgroundColor: 'var(--bg-light)', fontWeight: 'bold' }}>
                 <tr>
-                  <td colSpan="3" style={{ textAlign: 'right' }}>TOTAL GÉNÉRAL</td>
-                  <td style={{ textAlign: 'center', fontSize: '1.1rem' }}>{data.summary.totalQuantity}</td>
-                  <td style={{ textAlign: 'right', fontSize: '1.1rem', color: 'var(--primary)' }}>{data.summary.totalAmount.toLocaleString()} FCFA</td>
+                  <td colSpan="3" style={{ textAlign: 'right' }}>TOTAL BRUT</td>
+                  <td style={{ textAlign: 'center' }}>{data.summary.totalQuantity}</td>
+                  <td style={{ textAlign: 'right' }}>{data.summary.totalGrossAmount.toLocaleString()} FCFA</td>
+                </tr>
+                {data.summary.totalDiscount > 0 && (
+                  <tr>
+                    <td colSpan="4" style={{ textAlign: 'right', color: 'var(--danger)' }}>REMISES ACCORDÉES</td>
+                    <td style={{ textAlign: 'right', color: 'var(--danger)' }}>-{data.summary.totalDiscount.toLocaleString()} FCFA</td>
+                  </tr>
+                )}
+                <tr style={{ fontSize: '1.2rem', borderTop: '2px solid var(--primary)' }}>
+                  <td colSpan="4" style={{ textAlign: 'right' }}>TOTAL NET</td>
+                  <td style={{ textAlign: 'right', color: 'var(--primary)' }}>{data.summary.totalAmount.toLocaleString()} FCFA</td>
                 </tr>
               </tfoot>
             </table>
           </div>
         </div>
       )}
+      <AlertModal 
+        isOpen={alertModal.open} 
+        type={alertModal.type} 
+        title={alertModal.title} 
+        message={alertModal.message} 
+        onClose={() => setAlertModal({ ...alertModal, open: false, onConfirm: null })} 
+        onConfirm={alertModal.onConfirm} 
+      />
     </div>
   );
 }

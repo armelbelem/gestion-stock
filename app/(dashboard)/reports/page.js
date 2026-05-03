@@ -8,7 +8,7 @@ import { usePathname } from 'next/navigation';
 import { exportToExcel } from '../../utils/excelExport';
 
 export default function ReportsPage() {
-  const [reportData, setReportData] = useState({ months: [], totalDebt: 0, totalRevenue: 0 });
+  const [reportData, setReportData] = useState({ months: [], totalDebt: 0, totalRevenue: 0, totalPaid: 0 });
   const [loading, setLoading] = useState(true);
   const [isPrinting, setIsPrinting] = useState(false);
   const [printData, setPrintData] = useState(null);
@@ -31,8 +31,13 @@ export default function ReportsPage() {
     setLoading(true);
     try {
       const data = await storage.get('reports/monthly');
-      if (Array.isArray(data)) setReportData({ months: data, totalDebt: 0, totalRevenue: 0 });
-      else setReportData({ months: data.months || [], totalDebt: data.totalDebt || 0, totalRevenue: data.totalRevenue || 0 });
+      if (Array.isArray(data)) setReportData({ months: data, totalDebt: 0, totalRevenue: 0, totalPaid: 0 });
+      else setReportData({ 
+        months: data.months || [], 
+        totalDebt: data.totalDebt || 0, 
+        totalRevenue: data.totalRevenue || 0,
+        totalPaid: data.totalPaid || 0 
+      });
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };
@@ -76,6 +81,38 @@ export default function ReportsPage() {
     } catch (err) { 
       console.error(err);
       alert("Erreur lors de la préparation du document");
+      setLoading(false);
+    }
+  };
+
+  const handleExportExcelMonth = async (month) => {
+    setLoading(true);
+    try {
+      const storeId = localStorage.getItem('selectedStore');
+      const data = await storage.get(`reports/monthly/details?month=${month}${storeId !== 'all' && storeId ? `&storeId=${storeId}` : ''}`);
+      
+      const headers = [
+        { key: 'date', label: 'Date' },
+        { key: 'clientName', label: 'Client' },
+        { key: 'totalAmount', label: 'Montant Total' },
+        { key: 'amountPaid', label: 'Montant Payé' },
+        { key: 'status', label: 'Statut' }
+      ];
+
+      const rows = data.sales.map(s => ({
+        ...s,
+        date: new Date(s.date).toLocaleDateString('fr-FR'),
+        clientName: s.clientName || 'Client Divers'
+      }));
+
+      exportToExcel(rows, headers, `ventes_${month}`, {
+        title: `DÉTAIL DES VENTES - ${getMonthName(month).toUpperCase()}`,
+        companyName: settings?.companyName || "NS AUTO"
+      });
+    } catch (err) {
+      console.error(err);
+      alert("Erreur lors de l'export Excel");
+    } finally {
       setLoading(false);
     }
   };
@@ -191,6 +228,10 @@ export default function ReportsPage() {
                 <div className="stat-label">Chiffre d'Affaires Total</div>
               </div>
               <div className="stat-card">
+                <div className="stat-value" style={{ color: 'var(--success)' }}>{reportData.totalPaid.toLocaleString()} FCFA</div>
+                <div className="stat-label">Total Encaissé</div>
+              </div>
+              <div className="stat-card">
                 <div className="stat-value" style={{ color: 'var(--danger)' }}>{reportData.totalDebt.toLocaleString()} FCFA</div>
                 <div className="stat-label">Dette Globale</div>
               </div>
@@ -236,7 +277,12 @@ export default function ReportsPage() {
                           <td style={{ color: 'var(--success)' }}>{d.cash.toLocaleString()}</td>
                           <td style={{ color: d.revenue-d.cash > 0 ? 'var(--danger)' : 'inherit' }}>{(d.revenue-d.cash).toLocaleString()}</td>
                           <td><span className={`badge ${rate >= 80 ? 'badge-success' : 'badge-warning'}`}>{rate.toFixed(1)}%</span></td>
-                          <td><button className="btn btn-secondary btn-sm" onClick={() => handleDownloadPDF(d.month)}><Download size={14} /> PDF</button></td>
+                          <td>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              <button className="btn btn-secondary btn-sm" onClick={() => handleDownloadPDF(d.month)}><FileText size={14} /> PDF</button>
+                              <button className="btn btn-secondary btn-sm" onClick={() => handleExportExcelMonth(d.month)}><Download size={14} /> Excel</button>
+                            </div>
+                          </td>
                         </tr>
                       );
                     })}

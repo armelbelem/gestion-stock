@@ -325,8 +325,8 @@ export default function DashboardPage() {
 
       {stats.unpaidSales && stats.unpaidSales.length > 0 && (
         <div className="content-card" style={{ marginTop: '2rem' }}>
-          <h2 style={{ fontSize: '1.2rem', marginBottom: '1rem', color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Coins size={18} /> Dettes à recouvrer ({stats.unpaidSales.length})
+          <h2 style={{ fontSize: '1.2rem', marginBottom: '1rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Coins size={18} /> Consommations à régler ({stats.unpaidSales.length})
             <button className="btn btn-secondary btn-sm" onClick={() => {
               const headers = [
                 { key: 'ref', label: 'Référence' },
@@ -340,7 +340,7 @@ export default function DashboardPage() {
                 debt: s.totalAmount - s.amountPaid,
                 date: new Date(s.date).toLocaleDateString()
               }));
-              exportToExcel(data, headers, 'dettes_clients');
+              exportToExcel(data, headers, 'consommations_clients');
             }} style={{ marginLeft: 'auto' }}>
               <Download size={14} /> Exporter
             </button>

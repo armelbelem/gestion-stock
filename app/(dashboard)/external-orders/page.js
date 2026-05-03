@@ -10,6 +10,7 @@ export default function ExternalOrdersPage() {
   const [orders, setOrders] = useState([]);
   const [clients, setClients] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
+  const [settings, setSettings] = useState(null);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [printData, setPrintData] = useState(null);
@@ -20,6 +21,7 @@ export default function ExternalOrdersPage() {
   });
   
   const [searchTerm, setSearchTerm] = useState('');
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
   
   const [alertModal, setAlertModal] = useState({ open: false, type: 'info', title: '', message: '', onConfirm: null });
   const closeAlert = () => setAlertModal(prev => ({ ...prev, open: false, onConfirm: null }));
@@ -34,15 +36,17 @@ export default function ExternalOrdersPage() {
 
   const loadData = async () => {
     try {
-      const [oData, cData, sData, fyData] = await Promise.all([
+      const [oData, cData, sData, fyData, stData] = await Promise.all([
         storage.get('external-orders'),
         storage.get('clients'),
         storage.get('fournisseurs'),
-        storage.get('fiscal-years')
+        storage.get('fiscal-years'),
+        storage.get('settings')
       ]);
       setOrders(oData);
       setClients(cData);
       setSuppliers(sData);
+      setSettings(stData);
       setHasActiveYear(fyData.some(f => f.status === 'active'));
     } catch (err) {
       console.error("Error loading data:", err);
@@ -125,12 +129,12 @@ export default function ExternalOrdersPage() {
   };
 
   const handleAction = (id, action) => {
-    if (action === 'vendre') {
-      if (!hasActiveYear) return showAlert('error', 'Action bloquée', "Aucun exercice fiscal n'est ouvert. Veuillez ouvrir un exercice avant de valider cette vente.");
-      showConfirm(
-        "Validation de la vente",
-        "Confirmez-vous la réception et la vente de TOUS les produits de cette commande ? (Cela générera une facture de vente et enregistrera votre bénéfice).",
-        async () => {
+      if (action === 'vendre') {
+        if (!hasActiveYear) return showAlert('error', 'Action bloquée', "Aucun exercice fiscal n'est ouvert. Veuillez ouvrir un exercice avant de valider cette vente.");
+        showConfirm(
+          "Validation de la réception",
+          "Confirmez-vous la réception et la livraison de cette commande ? (Le bénéfice sera enregistré uniquement dans ce module spécial).",
+          async () => {
           closeAlert();
           try {
             const res = await fetch(`/api/external-orders/${id}`, {
@@ -193,19 +197,42 @@ export default function ExternalOrdersPage() {
     }
   };
 
-  const filteredOrders = orders.filter(o => 
-    (o.clientName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (o.items && o.items.some(i => i.description.toLowerCase().includes(searchTerm.toLowerCase())))
-  );
+  const filteredOrders = orders.filter(o => {
+    const matchesSearch = (o.clientName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (o.items && o.items.some(i => i.description.toLowerCase().includes(searchTerm.toLowerCase())));
+    
+    if (!matchesSearch) return false;
+
+    const orderDate = new Date(o.date);
+    const start = dateRange.start ? new Date(dateRange.start) : null;
+    const end = dateRange.end ? new Date(dateRange.end) : null;
+    if (start) start.setHours(0,0,0,0);
+    if (end) end.setHours(23,59,59,999);
+
+    return (!start || orderDate >= start) && (!end || orderDate <= end);
+  });
 
   if (isPrinting && printData) {
     const totalVente = printData.items ? printData.items.reduce((sum, item) => sum + (item.quantity * item.sellPrice), 0) : 0;
     return (
       <div className="receipt-print-only" style={{ display: 'block', padding: '20px' }}>
         <div style={{ textAlign: 'center', marginBottom: '20px', borderBottom: '2px solid black', paddingBottom: '10px' }}>
-          <h1 style={{ margin: '0', fontSize: '22px', fontWeight: '800' }}>MINING AUTOLOG</h1>
-          <p>BON DE COMMANDE SPÉCIALE #{printData.id.substring(0, 8).toUpperCase()}</p>
-          <p>Date : {new Date(printData.date).toLocaleDateString('fr-FR')}</p>
+          {settings?.logo ? (
+            <img src={settings.logo} alt="Logo" style={{ maxHeight: '80px', marginBottom: '10px' }} />
+          ) : (
+            <h1 style={{ margin: '0', fontSize: '24px', fontWeight: '800', textTransform: 'uppercase' }}>{settings?.companyName || 'MINING AUTOLOG'}</h1>
+          )}
+          {settings?.address && <p style={{ margin: '2px 0' }}>{settings.address}</p>}
+          {settings?.phone && <p style={{ margin: '2px 0' }}>Tél : {settings.phone}</p>}
+          {(settings?.nif || settings?.rccm) && (
+            <p style={{ fontSize: '0.8rem', margin: '2px 0' }}>
+              {settings?.nif && `NIF: ${settings.nif}`} {settings?.rccm && `| RCCM: ${settings.rccm}`}
+            </p>
+          )}
+          <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #ccc' }}>
+            <h2 style={{ margin: '0', fontSize: '18px' }}>BON DE COMMANDE SPÉCIALE #{printData.id.substring(0, 8).toUpperCase()}</h2>
+            <p style={{ margin: '5px 0' }}>Date : {new Date(printData.date).toLocaleDateString('fr-FR')}</p>
+          </div>
         </div>
         <div style={{ marginBottom: '20px' }}>
           <p><strong>Fournisseur :</strong> {printData.supplierName}</p>
@@ -253,14 +280,23 @@ export default function ExternalOrdersPage() {
     return (
       <div className="receipt-print-only" style={{ display: 'block', padding: '30px' }}>
         <div style={{ textAlign: 'center', marginBottom: '30px', borderBottom: '2px solid black', paddingBottom: '15px' }}>
-          <h1 style={{ margin: '0', fontSize: '26px', fontWeight: '800' }}>MINING AUTOLOG</h1>
+          {settings?.logo ? (
+            <img src={settings.logo} alt="Logo" style={{ maxHeight: '80px', marginBottom: '10px' }} />
+          ) : (
+            <h1 style={{ margin: '0', fontSize: '26px', fontWeight: '800' }}>{settings?.companyName || 'MINING AUTOLOG'}</h1>
+          )}
           <h2 style={{ margin: '10px 0 0 0', fontSize: '18px' }}>BILAN DES COMMANDES SPÉCIALES</h2>
+          <p style={{ margin: '5px 0' }}>
+            {dateRange.start || dateRange.end 
+              ? `Période : ${dateRange.start ? new Date(dateRange.start).toLocaleDateString() : 'Début'} au ${dateRange.end ? new Date(dateRange.end).toLocaleDateString() : 'Fin'}`
+              : 'Période : Historique Complet'}
+          </p>
           <p>Édité le : {new Date().toLocaleDateString('fr-FR')} à {new Date().toLocaleTimeString('fr-FR')}</p>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '30px', backgroundColor: '#f9f9f9', padding: '15px', borderRadius: '8px', border: '1px solid #ddd' }}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '12px', color: '#666' }}>CHIFFRE D'AFFAIRES (CA)</div>
+            <div style={{ fontSize: '12px', color: '#666' }}>CHIFFRE D'AFFAIRES</div>
             <div style={{ fontSize: '18px', fontWeight: 'bold' }}>{totalRevenue.toLocaleString()} FCFA</div>
           </div>
           <div style={{ textAlign: 'center' }}>
@@ -371,16 +407,26 @@ export default function ExternalOrdersPage() {
       </div>
 
       <div className="content-card" style={{ marginBottom: '1.5rem', padding: '1rem' }}>
-        <div className="form-group" style={{ margin: 0, position: 'relative' }}>
-          <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-          <input 
-            type="text" 
-            className="form-control" 
-            placeholder="Rechercher par description ou client..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ paddingLeft: '2.5rem' }}
-          />
+        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          <div className="form-group" style={{ margin: 0, position: 'relative', flex: '1 1 300px' }}>
+            <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+            <input 
+              type="text" 
+              className="form-control" 
+              placeholder="Rechercher par description ou client..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ paddingLeft: '2.5rem' }}
+            />
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <input type="date" className="form-control" value={dateRange.start} onChange={e => setDateRange({...dateRange, start: e.target.value})} />
+            <span className="text-muted">au</span>
+            <input type="date" className="form-control" value={dateRange.end} onChange={e => setDateRange({...dateRange, end: e.target.value})} />
+            {(dateRange.start || dateRange.end) && (
+              <button className="btn btn-secondary" onClick={() => setDateRange({start:'', end:''})}><X size={16} /></button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -532,7 +578,7 @@ export default function ExternalOrdersPage() {
                       <p style={{margin:'0 0 5px 0', fontWeight: 600}}>Fonctionnement de l'Achat-Revente direct :</p>
                       <p style={{margin:0, fontSize: '0.85rem', color: 'var(--text-muted)'}}>
                         1. Ces produits sont <strong>hors-inventaire</strong> (ils ne touchent pas à votre stock habituel).<br/>
-                        2. Lors de la validation, une vente est créée pour le client et le bénéfice est enregistré.<br/>
+                        2. Lors de la validation, l'opération est clôturée et le bénéfice est enregistré uniquement dans ce module (pas de mélange avec la comptabilité générale).<br/>
                         3. Vous pouvez imprimer un bon de commande spécifique pour votre fournisseur.
                       </p>
                     </div>
