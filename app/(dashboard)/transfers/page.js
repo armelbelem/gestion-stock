@@ -230,7 +230,7 @@ export default function TransfersPage() {
                     {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select></div>
                 </div>
-                <div className="form-group"><label className="form-label">Quantité</label><input type="number" className="form-control" min="1" value={formData.quantity} onChange={(e) => setFormData({...formData, quantity: parseInt(e.target.value)})} required /></div>
+                <div className="form-group"><label className="form-label">Quantité</label><input type="number" className="form-control" min="1" value={formData.quantity} onChange={(e) => setFormData({...formData, quantity: e.target.value === '' ? '' : parseInt(e.target.value)})} required /></div>
                 <div className="form-group"><label className="form-label">Notes</label><textarea className="form-control" value={formData.notes} onChange={(e) => setFormData({...formData, notes: e.target.value})} /></div>
               </div>
               <div className="modal-footer">

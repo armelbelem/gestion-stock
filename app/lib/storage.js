@@ -6,7 +6,7 @@ export const storage = {
       const token = sessionStorage.getItem('token');
       const selectedStore = localStorage.getItem('selectedStore');
       const url = new URL(`${window.location.origin}${API_URL}/${key}`);
-      if (selectedStore) {
+      if (selectedStore && !url.searchParams.has('storeId')) {
         url.searchParams.append('storeId', selectedStore);
       }
 
@@ -87,7 +87,7 @@ export const storage = {
       const token = sessionStorage.getItem('token');
       const selectedStore = localStorage.getItem('selectedStore');
       const url = new URL(`${window.location.origin}${API_URL}/${key}/${id}`);
-      if (selectedStore) {
+      if (selectedStore && !url.searchParams.has('storeId')) {
         url.searchParams.append('storeId', selectedStore);
       }
 

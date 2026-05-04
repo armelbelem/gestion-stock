@@ -37,7 +37,7 @@ export default function ExternalOrdersPage() {
   const loadData = async () => {
     try {
       const [oData, cData, sData, fyData, stData] = await Promise.all([
-        storage.get('external-orders'),
+        storage.get('external-orders?storeId=all'), // Forcer la vue globale ici
         storage.get('clients'),
         storage.get('fournisseurs'),
         storage.get('fiscal-years'),
@@ -119,8 +119,9 @@ export default function ExternalOrdersPage() {
     e.preventDefault();
     if (!hasActiveYear) return showAlert('error', 'Action bloquée', "Aucun exercice fiscal n'est ouvert. Veuillez ouvrir un exercice dans les réglages avant de créer une commande spéciale.");
     try {
-      await storage.create('external-orders', formData);
-      showAlert('success', 'Succès', "Commande spéciale créée avec succès !");
+      // Forcer le storeId à null (Global) pour les commandes spéciales selon la nouvelle règle
+      await storage.create('external-orders', { ...formData, storeId: null });
+      showAlert('success', 'Succès', "Commande spéciale créée avec succès dans le Magasin Global !");
       await loadData();
       setIsModalOpen(false);
     } catch (error) {
@@ -359,7 +360,10 @@ export default function ExternalOrdersPage() {
     <div className="page">
       <div className="page-header">
         <div>
-          <h1>Commandes Spéciales (Achat-Revente)</h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <h1>Commandes Spéciales (Achat-Revente)</h1>
+            <span className="badge badge-primary" style={{ fontSize: '0.7rem', verticalAlign: 'middle' }}>VUE GLOBALE</span>
+          </div>
           <p>Gérez les produits hors-catalogue achetés pour vos clients et suivez vos marges</p>
         </div>
         <div style={{ display: 'flex', gap: '0.75rem' }}>
@@ -369,7 +373,10 @@ export default function ExternalOrdersPage() {
           <button className="btn btn-secondary" onClick={handleExport} disabled={filteredOrders.length === 0}>
             <Download size={16} /> Exporter
           </button>
-          <button className="btn btn-primary" onClick={handleOpenModal}>
+          <button 
+            className="btn btn-primary" 
+            onClick={handleOpenModal}
+          >
             <Plus size={16} /> Nouvelle Commande Spéciale
           </button>
         </div>

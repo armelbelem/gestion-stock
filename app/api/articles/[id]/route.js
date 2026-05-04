@@ -59,8 +59,8 @@ export async function DELETE(request, { params }) {
     try {
       await connection.beginTransaction();
 
-      // Si l'utilisateur est ADMIN, on fait TOUJOURS une suppression globale
-      if (auth.user.role === 'admin') {
+      // Si l'utilisateur est ADMIN et qu'aucun magasin n'est spécifié (vue globale), on fait une suppression globale
+      if (auth.user.role === 'admin' && !storeId) {
         console.log(`[DELETE] ADMIN : Suppression GLOBALE de l'article ${articleId}`);
         await connection.query('DELETE FROM inventory WHERE articleId = ?', [articleId]);
         await connection.query('DELETE FROM mouvements WHERE articleId = ?', [articleId]);

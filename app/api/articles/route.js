@@ -33,8 +33,8 @@ export async function GET(request) {
     let params = [storeId, storeId];
 
     if (storeId) {
-      query += ' WHERE (a.storeId = ? OR a.id IN (SELECT articleId FROM inventory WHERE storeId = ?))';
-      params.push(storeId, storeId);
+      query += ' WHERE a.id IN (SELECT articleId FROM inventory WHERE storeId = ?)';
+      params.push(storeId);
     }
 
     query += ' ORDER BY a.createdAt DESC';

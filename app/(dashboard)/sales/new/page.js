@@ -316,10 +316,10 @@ export default function NewSalePage() {
                             {articles.map(a => <option key={a.id} value={a.id} disabled={a.currentStock <= 0}>{a.name} ({a.currentStock})</option>)}
                           </select>
                         </td>
-                        <td><input type="number" className="form-control" value={item.quantity} onChange={(e) => updateItem(item.id, 'quantity', parseInt(e.target.value) || 0)} /></td>
+                        <td><input type="number" className="form-control" value={item.quantity} onChange={(e) => updateItem(item.id, 'quantity', e.target.value === '' ? '' : parseInt(e.target.value))} /></td>
                         {currentUser?.role !== 'vendeur' && (
                           <>
-                            <td><input type="number" className="form-control" value={item.unitPrice} onChange={(e) => updateItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)} /></td>
+                            <td><input type="number" className="form-control" value={item.unitPrice} onChange={(e) => updateItem(item.id, 'unitPrice', e.target.value === '' ? '' : parseFloat(e.target.value))} /></td>
                             <td style={{ fontWeight: 600 }}>{(item.quantity * item.unitPrice).toLocaleString()}</td>
                           </>
                         )}
