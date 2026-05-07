@@ -22,6 +22,15 @@ export default function ExternalOrdersPage() {
   
   const [searchTerm, setSearchTerm] = useState('');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
+
+  useEffect(() => {
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    setDateRange({
+      start: firstDay.toISOString().split('T')[0],
+      end: now.toISOString().split('T')[0]
+    });
+  }, []);
   
   const [alertModal, setAlertModal] = useState({ open: false, type: 'info', title: '', message: '', onConfirm: null });
   const closeAlert = () => setAlertModal(prev => ({ ...prev, open: false, onConfirm: null }));
@@ -31,13 +40,15 @@ export default function ExternalOrdersPage() {
   const [hasActiveYear, setHasActiveYear] = useState(true);
 
   useEffect(() => {
-    loadData();
-  }, []);
+    if (dateRange.start && dateRange.end) {
+      loadData();
+    }
+  }, [dateRange]);
 
   const loadData = async () => {
     try {
       const [oData, cData, sData, fyData, stData] = await Promise.all([
-        storage.get('external-orders?storeId=all'), // Forcer la vue globale ici
+        storage.get(`external-orders?storeId=all&startDate=${dateRange.start}&endDate=${dateRange.end}`),
         storage.get('clients'),
         storage.get('fournisseurs'),
         storage.get('fiscal-years'),
@@ -189,6 +200,22 @@ export default function ExternalOrdersPage() {
     }, 500);
   };
 
+  const setQuickPeriod = (period) => {
+    const end = new Date();
+    const start = new Date();
+    if (period === 'week') {
+      start.setDate(end.getDate() - 7);
+    } else if (period === 'month') {
+      start.setDate(1);
+    } else if (period === 'last30') {
+      start.setDate(end.getDate() - 30);
+    }
+    setDateRange({
+      start: start.toISOString().split('T')[0],
+      end: end.toISOString().split('T')[0]
+    });
+  };
+
   const getStatusBadge = (status) => {
     switch(status) {
       case 'en_attente': return <span className="badge badge-warning"><Clock size={12} style={{marginRight:4}}/> En attente</span>;
@@ -199,18 +226,8 @@ export default function ExternalOrdersPage() {
   };
 
   const filteredOrders = orders.filter(o => {
-    const matchesSearch = (o.clientName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    return (o.clientName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (o.items && o.items.some(i => i.description.toLowerCase().includes(searchTerm.toLowerCase())));
-    
-    if (!matchesSearch) return false;
-
-    const orderDate = new Date(o.date);
-    const start = dateRange.start ? new Date(dateRange.start) : null;
-    const end = dateRange.end ? new Date(dateRange.end) : null;
-    if (start) start.setHours(0,0,0,0);
-    if (end) end.setHours(23,59,59,999);
-
-    return (!start || orderDate >= start) && (!end || orderDate <= end);
   });
 
   if (isPrinting && printData) {
@@ -221,7 +238,7 @@ export default function ExternalOrdersPage() {
           {settings?.logo ? (
             <img src={settings.logo} alt="Logo" style={{ maxHeight: '80px', marginBottom: '10px' }} />
           ) : (
-            <h1 style={{ margin: '0', fontSize: '24px', fontWeight: '800', textTransform: 'uppercase' }}>{settings?.companyName || 'MINING AUTOLOG'}</h1>
+            <h1 style={{ margin: '0', fontSize: '24px', fontWeight: '800', textTransform: 'uppercase' }}>{settings?.companyName || 'NS AUTOFLOW'}</h1>
           )}
           {settings?.address && <p style={{ margin: '2px 0' }}>{settings.address}</p>}
           {settings?.phone && <p style={{ margin: '2px 0' }}>Tél : {settings.phone}</p>}
@@ -426,6 +443,13 @@ export default function ExternalOrdersPage() {
               style={{ paddingLeft: '2.5rem' }}
             />
           </div>
+          
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button className="btn btn-secondary btn-sm" onClick={() => setQuickPeriod('week')}>Semaine</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => setQuickPeriod('month')}>Mois</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => setQuickPeriod('last30')}>30 j</button>
+          </div>
+
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
             <input type="date" className="form-control" value={dateRange.start} onChange={e => setDateRange({...dateRange, start: e.target.value})} />
             <span className="text-muted">au</span>

@@ -22,13 +22,13 @@ export async function POST(request) {
   const auth = authenticateToken(request);
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const body = await request.json();
-  const { name, email, phone, address } = body;
+  const { name, email, phone, address, clientCode, rccm, nif, bp } = body;
   const clientId = uuidv4();
   const storeId = auth.user.role === 'admin' ? (body.storeId || auth.user.storeId) : auth.user.storeId;
   try {
-    await db.query('INSERT INTO clients (id, name, email, phone, address, storeId) VALUES (?, ?, ?, ?, ?, ?)', 
-      [clientId, name, email || null, phone || null, address || null, storeId]);
-    await logAction(auth.user.id, storeId, 'Création client', { name });
+    await db.query('INSERT INTO clients (id, name, email, phone, address, storeId, clientCode, rccm, nif, bp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', 
+      [clientId, name, email || null, phone || null, address || null, storeId, clientCode || null, rccm || null, nif || null, bp || null]);
+    await logAction(auth.user.id, storeId, 'Création client', { name, clientCode });
     const [rows] = await db.query('SELECT * FROM clients WHERE id = ?', [clientId]);
     return NextResponse.json(rows[0], { status: 201 });
   } catch (err) { return NextResponse.json({ error: err.message }, { status: 500 }); }

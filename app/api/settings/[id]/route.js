@@ -10,7 +10,10 @@ export async function PUT(request, { params }) {
 
   const body = await request.json();
   const { 
-    companyName, address, phone, email, nif, rccm, logo, currency, footerMessage, receiptFormat 
+    companyName, address, phone, email, nif, rccm, logo, currency, footerMessage, receiptFormat,
+    supervisorName, supervisorTitle, stampImage, signatureImage, tvaRate,
+    website, bankInfo, taxSystem, secondaryAddress, blSupervisorName, blSupervisorTitle,
+    blStampImage, blSignatureImage, bcTitlePrefix, blTitlePrefix, bp, division
   } = body;
 
   try {
@@ -18,10 +21,20 @@ export async function PUT(request, { params }) {
       UPDATE settings SET 
         companyName = ?, address = ?, phone = ?, email = ?, 
         nif = ?, rccm = ?, logo = ?, currency = ?, 
-        footerMessage = ?, receiptFormat = ? 
+        footerMessage = ?, receiptFormat = ?,
+        supervisorName = ?, supervisorTitle = ?, 
+        stampImage = ?, signatureImage = ?, tvaRate = ?,
+        website = ?, bankInfo = ?, taxSystem = ?, secondaryAddress = ?,
+        blSupervisorName = ?, blSupervisorTitle = ?,
+        blStampImage = ?, blSignatureImage = ?,
+        bcTitlePrefix = ?, blTitlePrefix = ?,
+        bp = ?, division = ?
       WHERE id = 1
     `, [
-      companyName, address, phone, email, nif, rccm, logo, currency, footerMessage, receiptFormat
+      companyName, address, phone, email, nif, rccm, logo, currency, footerMessage, receiptFormat,
+      supervisorName, supervisorTitle, stampImage, signatureImage, tvaRate,
+      website, bankInfo, taxSystem, secondaryAddress, blSupervisorName, blSupervisorTitle,
+      blStampImage, blSignatureImage, bcTitlePrefix, blTitlePrefix, bp, division
     ]);
 
     await logAction(auth.user.id, auth.user.storeId, 'Mise à jour paramètres', { companyName });

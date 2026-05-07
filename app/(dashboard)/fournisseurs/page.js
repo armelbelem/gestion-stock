@@ -11,7 +11,7 @@ export default function SuppliersPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isReporting, setIsReporting] = useState(false);
   const [settings, setSettings] = useState(null);
-  const [formData, setFormData] = useState({ id: '', name: '', email: '', phone: '', address: '' });
+  const [formData, setFormData] = useState({ id: '', name: '', email: '', phone: '', address: '', rccm: '', nif: '', bp: '', myClientCode: '' });
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -51,7 +51,11 @@ export default function SuppliersPage() {
       { key: 'name', label: 'Nom' },
       { key: 'email', label: 'Email' },
       { key: 'phone', label: 'Téléphone' },
-      { key: 'address', label: 'Adresse' }
+      { key: 'address', label: 'Adresse' },
+      { key: 'bp', label: 'BP' },
+      { key: 'myClientCode', label: 'Mon Code Client' },
+      { key: 'rccm', label: 'RCCM' },
+      { key: 'nif', label: 'NIF / IFU' }
     ];
     
     exportToExcel(filteredSuppliers, headers, 'liste_fournisseurs', {
@@ -74,7 +78,7 @@ export default function SuppliersPage() {
     if (supplier) {
       setFormData(supplier);
     } else {
-      setFormData({ id: '', name: '', email: '', phone: '', address: '' });
+      setFormData({ id: '', name: '', email: '', phone: '', address: '', rccm: '', nif: '', bp: '', myClientCode: '' });
     }
     setIsModalOpen(true);
   };
@@ -122,7 +126,11 @@ export default function SuppliersPage() {
   const filteredSuppliers = suppliers.filter(supplier => 
     supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (supplier.email && supplier.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (supplier.phone && supplier.phone.toLowerCase().includes(searchTerm.toLowerCase()))
+    (supplier.phone && supplier.phone.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (supplier.rccm && supplier.rccm.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (supplier.nif && supplier.nif.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (supplier.bp && supplier.bp.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (supplier.myClientCode && supplier.myClientCode.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const totalPages = Math.ceil(filteredSuppliers.length / itemsPerPage);
@@ -146,7 +154,10 @@ export default function SuppliersPage() {
               <th style={{ textAlign: 'left', padding: '8px' }}>Nom</th>
               <th style={{ textAlign: 'left', padding: '8px' }}>Email</th>
               <th style={{ textAlign: 'left', padding: '8px' }}>Téléphone</th>
-              <th style={{ textAlign: 'left', padding: '8px' }}>Adresse</th>
+              <th style={{ textAlign: 'left', padding: '8px' }}>RCCM</th>
+              <th style={{ textAlign: 'left', padding: '8px' }}>BP</th>
+              <th style={{ textAlign: 'left', padding: '8px' }}>Mon Code Client</th>
+              <th style={{ textAlign: 'left', padding: '8px' }}>IFU</th>
             </tr>
           </thead>
           <tbody>
@@ -155,7 +166,10 @@ export default function SuppliersPage() {
                 <td style={{ padding: '8px', fontWeight: 500 }}>{supplier.name}</td>
                 <td style={{ padding: '8px' }}>{supplier.email || '-'}</td>
                 <td style={{ padding: '8px' }}>{supplier.phone || '-'}</td>
-                <td style={{ padding: '8px' }}>{supplier.address || '-'}</td>
+                <td style={{ padding: '8px' }}>{supplier.rccm || '-'}</td>
+                <td style={{ padding: '8px' }}>{supplier.bp || '-'}</td>
+                <td style={{ padding: '8px' }}>{supplier.myClientCode || '-'}</td>
+                <td style={{ padding: '8px' }}>{supplier.nif || '-'}</td>
               </tr>
             ))}
           </tbody>
@@ -209,14 +223,17 @@ export default function SuppliersPage() {
                 <th>Nom</th>
                 <th>Email</th>
                 <th>Téléphone</th>
-                <th>Adresse</th>
+                <th>RCCM</th>
+                <th>BP</th>
+                <th>Mon Code</th>
+                <th>IFU</th>
                 <th style={{ width: '150px' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {currentSuppliers.length === 0 ? (
                 <tr>
-                  <td colSpan="5" style={{ textAlign: 'center', padding: '2rem' }}>Aucun fournisseur trouvé.</td>
+                  <td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }}>Aucun fournisseur trouvé.</td>
                 </tr>
               ) : (
                 currentSuppliers.map((supplier) => (
@@ -231,7 +248,10 @@ export default function SuppliersPage() {
                     </td>
                     <td>{supplier.email || '-'}</td>
                     <td>{supplier.phone || '-'}</td>
-                    <td>{supplier.address || '-'}</td>
+                    <td>{supplier.rccm || '-'}</td>
+                    <td>{supplier.bp || '-'}</td>
+                    <td>{supplier.myClientCode || '-'}</td>
+                    <td>{supplier.nif || '-'}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
                         <button className="btn btn-secondary" onClick={() => handleOpenModal(supplier)}><Edit2 size={16} /></button>
@@ -265,19 +285,40 @@ export default function SuppliersPage() {
               <div className="modal-body">
                 <div className="form-group">
                   <label className="form-label">Nom du fournisseur</label>
-                  <input type="text" className="form-control" required value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
+                  <input type="text" className="form-control" required value={formData.name || ''} onChange={(e) => setFormData({...formData, name: e.target.value})} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Email</label>
-                  <input type="email" className="form-control" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} />
+                  <input type="email" className="form-control" value={formData.email || ''} onChange={(e) => setFormData({...formData, email: e.target.value})} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Téléphone</label>
-                  <input type="text" className="form-control" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} />
+                  <input type="text" className="form-control" value={formData.phone || ''} onChange={(e) => setFormData({...formData, phone: e.target.value})} />
+                </div>
+                <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className="form-group">
+                    <label className="form-label">Mon Code Client chez eux</label>
+                    <input type="text" className="form-control" placeholder="ex: CL-001" value={formData.myClientCode || ''} onChange={(e) => setFormData({...formData, myClientCode: e.target.value})} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Boîte Postale (BP)</label>
+                    <input type="text" className="form-control" placeholder="ex: 01 BP 23 Ouaga 01" value={formData.bp || ''} onChange={(e) => setFormData({...formData, bp: e.target.value})} />
+                  </div>
+                </div>
+
+                <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className="form-group">
+                    <label className="form-label">RCCM</label>
+                    <input type="text" className="form-control" value={formData.rccm || ''} onChange={(e) => setFormData({...formData, rccm: e.target.value})} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">NIF / IFU</label>
+                    <input type="text" className="form-control" value={formData.nif || ''} onChange={(e) => setFormData({...formData, nif: e.target.value})} />
+                  </div>
                 </div>
                 <div className="form-group">
                   <label className="form-label">Adresse</label>
-                  <textarea className="form-control" rows="2" value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} />
+                  <textarea className="form-control" rows="2" value={formData.address || ''} onChange={(e) => setFormData({...formData, address: e.target.value})} />
                 </div>
               </div>
               <div className="modal-footer">

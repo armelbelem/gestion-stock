@@ -12,7 +12,7 @@ export default function ClientsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isReporting, setIsReporting] = useState(false);
   const [settings, setSettings] = useState(null);
-  const [formData, setFormData] = useState({ id: '', name: '', email: '', phone: '', address: '' });
+  const [formData, setFormData] = useState({ id: '', clientCode: '', name: '', email: '', phone: '', address: '', rccm: '', nif: '', bp: '' });
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const { user } = useAuth();
@@ -50,6 +50,7 @@ export default function ClientsPage() {
 
   const handleExportExcel = () => {
     const headers = [
+      { key: 'clientCode', label: 'Code Client' },
       { key: 'name', label: 'Nom du Client' },
       { key: 'email', label: 'Email' },
       { key: 'phone', label: 'Téléphone' },
@@ -77,7 +78,7 @@ export default function ClientsPage() {
     if (client) {
       setFormData(client);
     } else {
-      setFormData({ id: '', name: '', email: '', phone: '', address: '' });
+      setFormData({ id: '', clientCode: '', name: '', email: '', phone: '', address: '', rccm: '', nif: '', bp: '' });
     }
     setIsModalOpen(true);
   };
@@ -126,6 +127,7 @@ export default function ClientsPage() {
 
   const filteredClients = clients.filter(client => 
     client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (client.clientCode && client.clientCode.toLowerCase().includes(searchTerm.toLowerCase())) ||
     (client.email && client.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
     (client.phone && client.phone.includes(searchTerm))
   );
@@ -148,6 +150,7 @@ export default function ClientsPage() {
         <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid black', backgroundColor: '#f5f5f5' }}>
+              <th style={{ textAlign: 'left', padding: '8px' }}>Code</th>
               <th style={{ textAlign: 'left', padding: '8px' }}>Nom</th>
               <th style={{ textAlign: 'left', padding: '8px' }}>Email</th>
               <th style={{ textAlign: 'left', padding: '8px' }}>Téléphone</th>
@@ -157,10 +160,11 @@ export default function ClientsPage() {
           <tbody>
             {filteredClients.map((client) => (
               <tr key={client.id} style={{ borderBottom: '1px solid #eee' }}>
+                <td style={{ padding: '8px' }}>{client.clientCode || '-'}</td>
                 <td style={{ padding: '8px', fontWeight: 500 }}>{client.name}</td>
                 <td style={{ padding: '8px' }}>{client.email || '-'}</td>
                 <td style={{ padding: '8px' }}>{client.phone || '-'}</td>
-                <td style={{ textAlign: 'right', padding: '8px' }}>{client.totalDebt.toLocaleString()} FCFA</td>
+                <td style={{ textAlign: 'right', padding: '8px' }}>{(client.totalDebt || 0).toLocaleString()} FCFA</td>
               </tr>
             ))}
           </tbody>
@@ -213,6 +217,7 @@ export default function ClientsPage() {
           <table>
             <thead>
               <tr>
+                <th>Code</th>
                 <th>Nom</th>
                 <th>Email</th>
                 <th>Téléphone</th>
@@ -223,11 +228,12 @@ export default function ClientsPage() {
             <tbody>
               {currentClients.length === 0 ? (
                 <tr>
-                  <td colSpan="5" style={{ textAlign: 'center', padding: '2rem' }}>Aucun client trouvé.</td>
+                  <td colSpan="6" style={{ textAlign: 'center', padding: '2rem' }}>Aucun client trouvé.</td>
                 </tr>
               ) : (
                 currentClients.map((client) => (
                   <tr key={client.id}>
+                    <td>{client.clientCode || '-'}</td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                         <div className="avatar" style={{ width: '32px', height: '32px', fontSize: '0.9rem' }}>
@@ -241,7 +247,7 @@ export default function ClientsPage() {
                     <td>
                       {client.totalDebt > 0 ? (
                         <span className="badge badge-danger">
-                          {client.totalDebt.toLocaleString('fr-FR')} FCFA
+                          {(client.totalDebt || 0).toLocaleString('fr-FR')} FCFA
                         </span>
                       ) : (
                         <span className="text-success" style={{ fontWeight: 600 }}>0 FCFA</span>
@@ -280,21 +286,41 @@ export default function ClientsPage() {
             </div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body">
-                <div className="form-group">
-                  <label className="form-label">Nom complet</label>
-                  <input type="text" className="form-control" required value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem' }}>
+                  <div className="form-group">
+                    <label className="form-label">Code Client</label>
+                    <input type="text" className="form-control" placeholder="Ex: CL-001" value={formData.clientCode || ''} onChange={(e) => setFormData({...formData, clientCode: e.target.value})} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Nom complet</label>
+                    <input type="text" className="form-control" required value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
+                  </div>
                 </div>
                 <div className="form-group">
                   <label className="form-label">Email</label>
-                  <input type="email" className="form-control" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} />
+                  <input type="email" className="form-control" value={formData.email || ''} onChange={(e) => setFormData({...formData, email: e.target.value})} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Téléphone</label>
-                  <input type="text" className="form-control" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} />
+                  <input type="text" className="form-control" value={formData.phone || ''} onChange={(e) => setFormData({...formData, phone: e.target.value})} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Adresse</label>
-                  <textarea className="form-control" rows="2" value={formData.address} onChange={(e) => setFormData({...formData, address: e.target.value})} />
+                  <textarea className="form-control" rows="2" value={formData.address || ''} onChange={(e) => setFormData({...formData, address: e.target.value})} />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className="form-group">
+                    <label className="form-label">RCCM</label>
+                    <input type="text" className="form-control" value={formData.rccm || ''} onChange={(e) => setFormData({...formData, rccm: e.target.value})} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">NIF / IFU</label>
+                    <input type="text" className="form-control" value={formData.nif || ''} onChange={(e) => setFormData({...formData, nif: e.target.value})} />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Boîte Postale (BP)</label>
+                  <input type="text" className="form-control" value={formData.bp || ''} onChange={(e) => setFormData({...formData, bp: e.target.value})} />
                 </div>
               </div>
               <div className="modal-footer">

@@ -23,7 +23,8 @@ export const storage = {
         }
         throw new Error(`Erreur HTTP: ${response.status}`);
       }
-      return await response.json();
+      const text = await response.text();
+      return text ? JSON.parse(text) : [];
     } catch (error) {
       console.error(`Error fetching ${key}:`, error);
       return [];
@@ -46,10 +47,12 @@ export const storage = {
           sessionStorage.removeItem('token');
           window.location.href = '/login';
         }
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Network response was not ok');
+        const text = await response.text();
+        const errorData = text ? JSON.parse(text) : {};
+        throw new Error(errorData.error || `Erreur serveur (${response.status})`);
       }
-      return await response.json();
+      const text = await response.text();
+      return text ? JSON.parse(text) : { success: true };
     } catch (error) {
       console.error(`Error creating ${key}:`, error);
       throw error;
@@ -72,10 +75,12 @@ export const storage = {
           sessionStorage.removeItem('token');
           window.location.href = '/login';
         }
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Network response was not ok');
+        const text = await response.text();
+        const errorData = text ? JSON.parse(text) : {};
+        throw new Error(errorData.error || `Erreur serveur (${response.status})`);
       }
-      return await response.json();
+      const text = await response.text();
+      return text ? JSON.parse(text) : { success: true };
     } catch (error) {
       console.error(`Error updating ${key}:`, error);
       throw error;
@@ -102,8 +107,9 @@ export const storage = {
           sessionStorage.removeItem('token');
           window.location.href = '/login';
         }
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Network response was not ok');
+        const text = await response.text();
+        const errorData = text ? JSON.parse(text) : {};
+        throw new Error(errorData.error || `Erreur serveur (${response.status})`);
       }
       return true;
     } catch (error) {

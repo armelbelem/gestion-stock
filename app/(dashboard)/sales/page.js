@@ -22,6 +22,7 @@ export default function SalesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const [printChoiceModal, setPrintChoiceModal] = useState({ open: false, sale: null });
   const itemsPerPage = 10;
   const [isReporting, setIsReporting] = useState(false);
   const [settings, setSettings] = useState(null);
@@ -72,6 +73,28 @@ export default function SalesPage() {
       }
     );
   };
+  
+  const handleConvertProforma = (saleId) => {
+    showConfirm(
+      'Convertir en vente réelle ?',
+      'Cette action déduira les articles du stock et validera la transaction définitivement.',
+      async () => {
+        try {
+          const res = await fetch(`/api/sales/${saleId}/convert`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${sessionStorage.getItem('token')}` }
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || "Erreur lors de la conversion");
+          
+          loadSales();
+          showAlert('success', 'Conversion réussie', 'Le proforma a été transformé en vente réelle.');
+        } catch (error) {
+          showAlert('error', 'Erreur', error.message);
+        }
+      }
+    );
+  };
 
   const handlePrint = (sale) => {
     setPrintData(sale);
@@ -106,6 +129,7 @@ export default function SalesPage() {
       case 'partiel': return <span className="badge badge-warning">Partiel</span>;
       case 'en_attente': return <span className="badge badge-danger">Consommation</span>;
       case 'annulée': return <span className="badge badge-danger">Annulée</span>;
+      case 'proforma': return <span className="badge" style={{ backgroundColor: '#fff7ed', color: '#9a3412', border: '1px solid #fdba74' }}>PROFORMA</span>;
       default: return <span className="badge badge-secondary">{status}</span>;
     }
   };
@@ -153,6 +177,9 @@ export default function SalesPage() {
     
     if (!matchesSearch) return false;
 
+    // Restriction : Seul l'admin voit les proformas
+    if (sale.status === 'proforma' && currentUser?.role !== 'admin') return false;
+
     const saleDate = new Date(sale.date);
     const start = dateRange.start ? new Date(dateRange.start) : null;
     const end = dateRange.end ? new Date(dateRange.end) : null;
@@ -164,6 +191,39 @@ export default function SalesPage() {
   });
 
   const totalPeriodAmount = filteredSales.reduce((acc, s) => acc + (s.status !== 'annulée' ? s.totalAmount : 0), 0);
+
+  const handleExportSaleExcel = (sale) => {
+    const isProforma = sale.status === 'proforma';
+    const title = isProforma ? "FACTURE PROFORMA" : "REÇU DE VENTE";
+    
+    const headers = [
+      { key: 'articleName', label: 'Désignation' },
+      { key: 'quantity', label: 'Quantité' },
+      { key: 'unitPrice', label: 'Prix Unitaire' },
+      { key: 'total', label: 'Total HT' }
+    ];
+    
+    const afterDiscount = sale.totalAmount - (sale.tvaAmount || 0);
+    const subtotalHT = afterDiscount + (sale.discount || 0);
+
+    exportToExcel(
+      items, 
+      headers, 
+      `${isProforma ? 'proforma' : 'facture'}_${sale.id.substring(0,8)}`,
+      {
+        title: title,
+        companyName: settings?.companyName || "NS AUTO",
+        period: `Le ${formatDate(sale.date)}`,
+        summary: [
+          '', '', 'SOUS-TOTAL HT', `${subtotalHT.toLocaleString()} FCFA`,
+          '', '', 'REMISE', `-${(sale.discount || 0).toLocaleString()} FCFA`,
+          '', '', 'TVA', `${(sale.tvaAmount || 0).toLocaleString()} FCFA`,
+          '', '', 'TOTAL NET TTC', `${sale.totalAmount.toLocaleString()} FCFA`
+        ]
+      }
+    );
+    showAlert('success', 'Succès', 'Exportation Excel générée !');
+  };
 
   const handleExportExcel = () => {
     const headers = [
@@ -224,7 +284,9 @@ export default function SalesPage() {
             </p>
           )}
           <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #ccc' }}>
-            <h2 style={{ margin: '0', fontSize: '18px' }}>REÇU DE VENTE #{printData.id.substring(0, 8).toUpperCase()}</h2>
+            <h2 style={{ margin: '0', fontSize: '18px' }}>
+              {printData.status === 'proforma' ? 'FACTURE PROFORMA' : 'REÇU DE VENTE'} #{printData.id.substring(0, 8).toUpperCase()}
+            </h2>
             <p style={{ margin: '5px 0' }}>Date : {formatDate(printData.date)}</p>
           </div>
         </div>
@@ -250,9 +312,23 @@ export default function SalesPage() {
             ))}
           </tbody>
           <tfoot>
-            <tr style={{ fontWeight: 'bold' }}>
-              <td colSpan="2" style={{ textAlign: 'right', padding: '8px' }}>TOTAL NET</td>
-              <td style={{ textAlign: 'right', padding: '8px' }}>{printData.totalAmount.toLocaleString()} FCFA</td>
+            <tr style={{ borderTop: '1px solid black' }}>
+              <td colSpan="2" style={{ textAlign: 'right', padding: '4px 8px', fontSize: '0.9rem', color: '#666' }}>TOTAL HT</td>
+              <td style={{ textAlign: 'right', padding: '4px 8px', fontSize: '0.9rem', color: '#666' }}>{(printData.totalAmount - (printData.tvaAmount || 0) + (printData.discount || 0)).toLocaleString()} FCFA</td>
+            </tr>
+            {printData.discount > 0 && (
+              <tr>
+                <td colSpan="2" style={{ textAlign: 'right', padding: '4px 8px', fontSize: '0.9rem', color: '#666' }}>REMISE</td>
+                <td style={{ textAlign: 'right', padding: '4px 8px', fontSize: '0.9rem', color: '#666' }}>-{(printData.discount || 0).toLocaleString()} FCFA</td>
+              </tr>
+            )}
+            <tr style={{ borderBottom: '1px solid #eee' }}>
+              <td colSpan="2" style={{ textAlign: 'right', padding: '4px 8px', fontSize: '0.9rem', color: '#666' }}>TVA</td>
+              <td style={{ textAlign: 'right', padding: '4px 8px', fontSize: '0.9rem', color: '#666' }}>{(printData.tvaAmount || 0).toLocaleString()} FCFA</td>
+            </tr>
+            <tr style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
+              <td colSpan="2" style={{ textAlign: 'right', padding: '12px 8px' }}>TOTAL NET TTC</td>
+              <td style={{ textAlign: 'right', padding: '12px 8px' }}>{printData.totalAmount.toLocaleString()} FCFA</td>
             </tr>
           </tfoot>
         </table>
@@ -399,7 +475,7 @@ export default function SalesPage() {
                 {currentUser?.role === 'admin' && <th>Vendeur</th>}
                 <th>Date</th>
                 {currentUser?.role === 'admin' && <th>Montant</th>}
-                <th>Statut</th>
+                {currentUser?.role !== 'vendeur' && <th>Statut</th>}
                 <th>Actions</th>
               </tr>
             </thead>
@@ -416,17 +492,30 @@ export default function SalesPage() {
                       {currentUser?.role === 'admin' && <td>{sale.sellerName}</td>}
                       <td>{formatDate(sale.date)}</td>
                       {currentUser?.role === 'admin' && <td style={{ fontWeight: 600 }}>{sale.totalAmount.toLocaleString()} FCFA</td>}
-                      <td>{getStatusBadge(sale.status)}</td>
+                      {currentUser?.role !== 'vendeur' && <td>{getStatusBadge(sale.status)}</td>}
                       <td>
                         <div style={{ display: 'flex', gap: '4px' }}>
                           <button className="btn btn-secondary btn-sm" onClick={(e) => { e.stopPropagation(); toggleExpand(sale.id); }}><Eye size={14} /></button>
-                          {sale.status !== 'payé' && sale.status !== 'annulée' && (
-                            <button className="btn btn-primary btn-sm" onClick={(e) => { e.stopPropagation(); setPaymentModal({ open: true, saleId: sale.id, total: sale.totalAmount, paid: sale.amountPaid }); setNewPayment({ amount: sale.totalAmount - sale.amountPaid, notes: '' }); }}><DollarSign size={14} /></button>
+                          
+                          {currentUser?.role !== 'vendeur' && (
+                            <>
+                              {sale.status === 'proforma' && (
+                                <button className="btn btn-sm" style={{ backgroundColor: '#fff7ed', color: '#9a3412', border: '1px solid #fdba74' }} title="Transformer en vente" onClick={(e) => { e.stopPropagation(); handleConvertProforma(sale.id); }}>
+                                  <ShoppingCart size={14} />
+                                </button>
+                              )}
+                              {sale.status !== 'payé' && sale.status !== 'annulée' && sale.status !== 'proforma' && (
+                                <button className="btn btn-primary btn-sm" onClick={(e) => { e.stopPropagation(); setPaymentModal({ open: true, saleId: sale.id, total: sale.totalAmount, paid: sale.amountPaid }); setNewPayment({ amount: sale.totalAmount - sale.amountPaid, notes: '' }); }}><DollarSign size={14} /></button>
+                              )}
+                              {sale.status !== 'annulée' && (
+                                <button className="btn btn-danger-outline btn-sm" onClick={(e) => { e.stopPropagation(); handleCancelSale(sale.id); }}><XCircle size={14} /></button>
+                              )}
+                            </>
                           )}
-                          <button className="btn btn-secondary btn-sm" onClick={(e) => { e.stopPropagation(); handlePrint(sale); }}><Printer size={14} /></button>
-                          {sale.status !== 'annulée' && (
-                            <button className="btn btn-danger-outline btn-sm" onClick={(e) => { e.stopPropagation(); handleCancelSale(sale.id); }}><XCircle size={14} /></button>
-                          )}
+                          
+                          <button className="btn btn-secondary btn-sm" onClick={(e) => { e.stopPropagation(); setPrintChoiceModal({ open: true, sale: sale }); }} title="Imprimer / Exporter">
+                            <Printer size={14} />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -516,6 +605,39 @@ export default function SalesPage() {
                 <button type="submit" className="btn btn-primary">Valider</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {printChoiceModal.open && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '350px', textAlign: 'center' }}>
+            <div className="modal-header">
+              <h3>Format d'exportation</h3>
+              <button className="modal-close" onClick={() => setPrintChoiceModal({ open: false, sale: null })}>&times;</button>
+            </div>
+            <div className="modal-body" style={{ padding: '2rem 1rem' }}>
+              <p style={{ marginBottom: '1.5rem', color: 'var(--text-muted)' }}>Comment souhaitez-vous obtenir le document #{printChoiceModal.sale?.id.substring(0,8).toUpperCase()} ?</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.75rem' }}>
+                <button 
+                  className="btn btn-primary btn-lg" 
+                  onClick={() => { handlePrint(printChoiceModal.sale); setPrintChoiceModal({ open: false, sale: null }); }}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                >
+                  <FileText size={20} /> Imprimer en PDF
+                </button>
+                <button 
+                  className="btn btn-secondary btn-lg" 
+                  onClick={() => { handleExportSaleExcel(printChoiceModal.sale); setPrintChoiceModal({ open: false, sale: null }); }}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', backgroundColor: '#f0fdf4', color: '#166534', borderColor: '#bbf7d0' }}
+                >
+                  <Download size={20} /> Exporter en Excel
+                </button>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setPrintChoiceModal({ open: false, sale: null })}>Annuler</button>
+            </div>
           </div>
         </div>
       )}

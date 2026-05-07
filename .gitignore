@@ -44,3 +44,6 @@ Thumbs.db
 # Dossiers temporaires
 scratch/
 .vercel
+
+# Uploads (Documents archives)
+public/uploads/

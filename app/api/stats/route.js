@@ -33,21 +33,54 @@ export async function GET(request) {
       });
     }
 
-    // 2. Revenue
-    let salesQuery = 'SELECT SUM(totalAmount) as totalRevenue FROM sales WHERE fiscalYearId = ? AND status != "annulée"';
-    let salesParams = [activeYear.id];
-    if (storeId) { salesQuery += ' AND storeId = ?'; salesParams.push(storeId); }
-    const [salesRow] = await db.query(salesQuery, salesParams);
+    // 2. Revenue (Physical vs Virtual)
+    // Physical Revenue (excluding CFAO)
+    let physicalQuery = 'SELECT SUM(totalAmount) as total FROM sales WHERE fiscalYearId = ? AND status != "annulée" AND (storeId != "CFAO" OR storeId IS NULL)';
+    let physicalParams = [activeYear.id];
+    if (storeId) { 
+      if (storeId === 'CFAO') {
+        physicalQuery = 'SELECT 0 as total';
+        physicalParams = [];
+      } else {
+        physicalQuery += ' AND storeId = ?';
+        physicalParams.push(storeId);
+      }
+    }
+    const [physicalRow] = await db.query(physicalQuery, physicalParams);
+    const revenuePhysical = physicalRow[0].total || 0;
 
-    // 3. Last 7 days sales
+    // Virtual Revenue (CFAO only)
+    let virtualQuery = 'SELECT SUM(totalAmount) as total FROM sales WHERE fiscalYearId = ? AND status != "annulée" AND storeId = "CFAO"';
+    let virtualParams = [activeYear.id];
+    if (storeId) {
+      if (storeId !== 'CFAO') {
+        virtualQuery = 'SELECT 0 as total';
+        virtualParams = [];
+      } else {
+        virtualQuery += ' AND storeId = ?';
+        virtualParams.push(storeId);
+      }
+    }
+    const [virtualRow] = await db.query(virtualQuery, virtualParams);
+    const revenueVirtual = virtualRow[0].total || 0;
+
+    // 3. Last 7 days sales (Physical only for the chart to keep it clean)
     const last7Days = [];
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       const dateStr = d.toISOString().split('T')[0];
-      let dayQuery = 'SELECT SUM(totalAmount) as dayTotal FROM sales WHERE date LIKE ? AND status != "annulée"';
+      let dayQuery = 'SELECT SUM(totalAmount) as dayTotal FROM sales WHERE date LIKE ? AND status != "annulée" AND (storeId != "CFAO" OR storeId IS NULL)';
       let dayParams = [dateStr + '%'];
-      if (storeId) { dayQuery += ' AND storeId = ?'; dayParams.push(storeId); }
+      if (storeId) { 
+        if (storeId === 'CFAO') {
+          dayQuery = 'SELECT 0 as dayTotal';
+          dayParams = [];
+        } else {
+          dayQuery += ' AND storeId = ?';
+          dayParams.push(storeId);
+        }
+      }
       const [dayRow] = await db.query(dayQuery, dayParams);
       last7Days.push({
         name: d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }),
@@ -56,9 +89,14 @@ export async function GET(request) {
     }
 
     return NextResponse.json({
-      totalRevenue: salesRow[0].totalRevenue || 0,
+      totalRevenue: revenuePhysical + revenueVirtual,
+      revenuePhysical,
+      revenueVirtual,
       totalStockValue,
       salesHistory: last7Days
     });
-  } catch (err) { return NextResponse.json({ error: err.message }, { status: 500 }); }
+  } catch (err) { 
+    console.error('[STATS ERROR]', err);
+    return NextResponse.json({ error: err.message }, { status: 500 }); 
+  }
 }

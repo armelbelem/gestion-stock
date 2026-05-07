@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { storage } from '../lib/storage';
 import { 
   Loader2, AlertTriangle, Package, Tags, ArrowRightLeft, Coins, 
-  ChevronLeft, ChevronRight, BarChart2, PieChart as PieChartIcon, TrendingUp, Download 
+  ChevronLeft, ChevronRight, BarChart2, PieChart as PieChartIcon, TrendingUp, Download, Globe 
 } from 'lucide-react';
 import { exportToExcel } from '../utils/excelExport';
 import {
@@ -30,6 +30,8 @@ export default function DashboardPage() {
   const itemsPerPageLowStock = 5;
   const [currentPageUnpaid, setCurrentPageUnpaid] = useState(1);
   const itemsPerPageUnpaid = 5;
+  const [currentPageTopArticles, setCurrentPageTopArticles] = useState(1);
+  const itemsPerPageTopArticles = 6;
   const [showWelcome, setShowWelcome] = useState(false);
   const [hasActiveYear, setHasActiveYear] = useState(true);
   const user = storage.getUser();
@@ -102,7 +104,7 @@ export default function DashboardPage() {
       const topArticlesDetail = Object.entries(articleStats)
         .map(([name, data]) => ({ name, ...data }))
         .sort((a, b) => b.qty - a.qty)
-        .slice(0, 8); // Top 8 products
+        .slice(0, 30); // Top 30 products to allow pagination
 
       const topArticlesPie = topArticlesDetail.slice(0, 5).map(a => ({ name: a.name, value: a.qty }));
 
@@ -115,6 +117,8 @@ export default function DashboardPage() {
         totalArticles: articles.length,
         mouvementsCount: mouvements.filter(m => new Date(m.date) >= startOfMonth).length,
         totalSales: apiStats.totalRevenue || 0,
+        revenuePhysical: apiStats.revenuePhysical || 0,
+        revenueVirtual: apiStats.revenueVirtual || 0,
         lowStockArticles: lowStock,
         unpaidSales: unpaid,
         totalStockValue: apiStats.totalStockValue || 0,
@@ -225,14 +229,27 @@ export default function DashboardPage() {
           <div className="stat-icon" style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary)' }}><Package size={24} /></div>
           <div className="stat-info"><div className="stat-value">{stats.totalArticles}</div><div className="stat-label">Articles</div></div>
         </div>
+        
         <div className="stat-card">
-          <div className="stat-icon" style={{ backgroundColor: 'var(--success-light)', color: 'var(--success)' }}><TrendingUp size={24} /></div>
-          <div className="stat-info"><div className="stat-value">{stats.totalSales.toLocaleString()} <span style={{ fontSize: '0.8rem' }}>FCFA</span></div><div className="stat-label">CA Global</div></div>
+          <div className="stat-icon" style={{ backgroundColor: '#ECFDF5', color: '#10B981' }}><TrendingUp size={24} /></div>
+          <div className="stat-info"><div className="stat-value" style={{ color: '#10B981' }}>{(stats.revenuePhysical || 0).toLocaleString()} <span style={{ fontSize: '0.8rem' }}>FCFA</span></div><div className="stat-label">CA Physique (NS Auto)</div></div>
         </div>
+
+        <div className="stat-card">
+          <div className="stat-icon" style={{ backgroundColor: '#F0F9FF', color: '#0EA5E9' }}><Globe size={24} /></div>
+          <div className="stat-info"><div className="stat-value" style={{ color: '#0EA5E9' }}>{(stats.revenueVirtual || 0).toLocaleString()} <span style={{ fontSize: '0.8rem' }}>FCFA</span></div><div className="stat-label">CA Virtuel (CFAO)</div></div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon" style={{ backgroundColor: '#FEF3C7', color: '#D97706' }}><Coins size={24} /></div>
+          <div className="stat-info"><div className="stat-value" style={{ color: '#D97706' }}>{stats.totalSales.toLocaleString()} <span style={{ fontSize: '0.8rem' }}>FCFA</span></div><div className="stat-label">Chiffre d'Affaires Global</div></div>
+        </div>
+
         <div className="stat-card">
           <div className="stat-icon" style={{ backgroundColor: '#E0F2FE', color: '#0369A1' }}><Coins size={24} /></div>
           <div className="stat-info"><div className="stat-value" style={{ color: '#0369A1' }}>{stats.totalStockValue.toLocaleString()} <span style={{ fontSize: '0.8rem' }}>FCFA</span></div><div className="stat-label">Valeur du Stock</div></div>
         </div>
+
         <div className="stat-card">
           <div className="stat-icon" style={{ backgroundColor: 'var(--danger-light)', color: 'var(--danger)' }}><AlertTriangle size={24} /></div>
           <div className="stat-info"><div className="stat-value text-danger">{stats.lowStockArticles.length}</div><div className="stat-label">Ruptures imminentes</div></div>
@@ -281,7 +298,7 @@ export default function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {stats.topArticlesDetail.map((a, idx) => (
+                  {stats.topArticlesDetail.slice((currentPageTopArticles - 1) * itemsPerPageTopArticles, currentPageTopArticles * itemsPerPageTopArticles).map((a, idx) => (
                     <tr key={idx}>
                       <td style={{ fontWeight: 500 }}>{a.name}</td>
                       <td style={{ textAlign: 'center' }}>
@@ -293,6 +310,13 @@ export default function DashboardPage() {
                 </tbody>
               </table>
             </div>
+            {Math.ceil(stats.topArticlesDetail.length / itemsPerPageTopArticles) > 1 && (
+              <div className="pagination" style={{ padding: '1rem', borderTop: '1px solid var(--border)' }}>
+                <button className="btn btn-secondary" onClick={() => setCurrentPageTopArticles(p => Math.max(p - 1, 1))} disabled={currentPageTopArticles === 1}><ChevronLeft size={16} /></button>
+                <span>Page {currentPageTopArticles} / {Math.ceil(stats.topArticlesDetail.length / itemsPerPageTopArticles)}</span>
+                <button className="btn btn-secondary" onClick={() => setCurrentPageTopArticles(p => Math.min(p + 1, Math.ceil(stats.topArticlesDetail.length / itemsPerPageTopArticles)))} disabled={currentPageTopArticles === Math.ceil(stats.topArticlesDetail.length / itemsPerPageTopArticles)}><ChevronRight size={16} /></button>
+              </div>
+            )}
           </div>
         )}
 

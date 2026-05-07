@@ -16,11 +16,11 @@ export async function GET(request) {
 export async function POST(request) {
   const auth = authenticateToken(request);
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
-  const { name, email, phone, address } = await request.json();
+  const { name, email, phone, address, rccm, nif, bp, myClientCode } = await request.json();
   const id = uuidv4();
   try {
-    await db.query('INSERT INTO fournisseurs (id, name, email, phone, address) VALUES (?, ?, ?, ?, ?)',
-      [id, name, email || null, phone || null, address || null]);
+    await db.query('INSERT INTO fournisseurs (id, name, email, phone, address, rccm, nif, bp, myClientCode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [id, name, email || null, phone || null, address || null, rccm || null, nif || null, bp || null, myClientCode || null]);
     await logAction(auth.user.id, null, 'Création fournisseur', { name });
     const [rows] = await db.query('SELECT * FROM fournisseurs WHERE id = ?', [id]);
     return NextResponse.json(rows[0], { status: 201 });

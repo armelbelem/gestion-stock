@@ -25,6 +25,8 @@ export default function NewSalePage() {
   const [paymentType, setPaymentType] = useState('credit');
   const [initialPayment, setInitialPayment] = useState(0);
   const [discount, setDiscount] = useState(0);
+  const [tvaRate, setTvaRate] = useState(18); // Par défaut 18%
+  const [settings, setSettings] = useState(null);
 
   const [alertModal, setAlertModal] = useState({ open: false, type: 'info', title: '', message: '', onConfirm: null });
   const closeAlert = () => setAlertModal(prev => ({ ...prev, open: false, onConfirm: null }));
@@ -39,26 +41,33 @@ export default function NewSalePage() {
 
   const loadData = async () => {
     try {
-      const [clientsData, articlesData, fyData] = await Promise.all([
+      const [clientsData, articlesData, fyData, settingsData] = await Promise.all([
         storage.get('clients'),
         storage.get('articles'),
-        storage.get('fiscal-years')
+        storage.get('fiscal-years'),
+        storage.get('settings')
       ]);
       setClients(clientsData);
       setArticles(articlesData);
       setHasActiveYear(fyData.some(f => f.status === 'active'));
+      if (settingsData) {
+        setSettings(settingsData);
+        if (settingsData.tvaRate !== undefined) setTvaRate(settingsData.tvaRate);
+      }
     } catch (err) {
       console.error("Error loading sales form data:", err);
     }
   };
 
-  const addItem = () => {
+  const addItem = (isManual = false) => {
     setSaleItems([...saleItems, {
       id: Math.random().toString(36).substr(2, 9),
       articleId: '',
+      description: '',
       quantity: 1,
       unitPrice: 0,
-      maxStock: 0
+      maxStock: 0,
+      isManual: isManual
     }]);
   };
 
@@ -98,13 +107,17 @@ export default function NewSalePage() {
   };
 
   useEffect(() => {
+    const subtotal = calculateTotal();
+    const afterDiscount = subtotal - discount;
+    const tvaAmount = Math.round(afterDiscount * (tvaRate / 100));
+    const netTotal = afterDiscount + tvaAmount;
+
     if (paymentType === 'complet') {
-      const netTotal = calculateTotal() - discount;
       setInitialPayment(netTotal > 0 ? netTotal : 0);
     } else {
       setInitialPayment(0);
     }
-  }, [paymentType, saleItems, discount]);
+  }, [paymentType, saleItems, discount, tvaRate]);
 
   const handleSearchChange = (val) => {
     setBarcodeInput(val);
@@ -138,9 +151,11 @@ export default function NewSalePage() {
       setSaleItems([...saleItems, {
         id: Math.random().toString(36).substr(2, 9),
         articleId: article.id,
+        description: article.name,
         quantity: 1,
         unitPrice: article.price,
-        maxStock: article.currentStock
+        maxStock: article.currentStock,
+        isManual: false
       }]);
     }
     setBarcodeInput('');
@@ -169,30 +184,52 @@ export default function NewSalePage() {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
+    const isProforma = e?.isProforma || false;
+    
     if (!hasActiveYear) return showAlert('error', 'Action bloquée', "Aucun exercice fiscal n'est ouvert. Veuillez ouvrir un exercice dans les réglages avant de pouvoir effectuer une vente.");
     if (!selectedClientId) return showAlert('error', 'Erreur', "Sélectionnez un client");
     const selectedStore = localStorage.getItem('selectedStore');
     const isAdmin = currentUser?.role === 'admin';
     if (isAdmin && (!selectedStore || selectedStore === 'all')) return showAlert('error', 'Action impossible', "Sélectionnez un magasin spécifique.");
     if (saleItems.length === 0) return showAlert('error', 'Erreur', "Panier vide");
+    
+    const invalidItem = saleItems.find(item => !item.articleId && !item.description);
+    if (invalidItem) return showAlert('error', 'Erreur', "Veuillez remplir la désignation pour tous les articles manuels ou sélectionner un produit du catalogue.");
 
     const totalAmount = calculateTotal();
     const storeId = isAdmin ? selectedStore : currentUser?.storeId;
 
-    showConfirm('Valider la vente ?', 'Confirmez-vous l\'enregistrement de cette transaction ?', async () => {
+    showConfirm(isProforma ? 'Enregistrer le Proforma ?' : 'Valider la vente ?', 
+                isProforma ? 'Ce document ne déduira pas le stock.' : 'Confirmez-vous l\'enregistrement de cette transaction ?', 
+                async () => {
       closeAlert();
       setIsSubmitting(true);
       try {
+        const subtotal = calculateTotal();
+        const afterDiscount = subtotal - Number(discount);
+        const tvaAmount = Math.round(afterDiscount * (tvaRate / 100));
+        const totalAmount = afterDiscount + tvaAmount;
+
         const response = await storage.create('sales', {
           clientId: selectedClientId,
           items: saleItems,
           paymentType,
           amountPaid: Number(initialPayment),
           discount: Number(discount),
-          storeId
+          tvaAmount: tvaAmount,
+          totalAmount: totalAmount,
+          storeId,
+          isProforma: !!isProforma
         });
-        setSuccessData({ ...response, clientName: clients.find(c => String(c.id) === String(selectedClientId))?.name, items: saleItems.map(si => ({ ...si, articleName: articles.find(a => String(a.id) === String(si.articleId))?.name })) });
+        setSuccessData({ 
+          ...response, 
+          clientName: clients.find(c => String(c.id) === String(selectedClientId))?.name, 
+          items: saleItems.map(si => ({ 
+            ...si, 
+            articleName: si.isManual ? si.description : articles.find(a => String(a.id) === String(si.articleId))?.name 
+          })) 
+        });
       } catch (err) {
         showAlert('error', 'Erreur', err.message);
         setIsSubmitting(false);
@@ -205,10 +242,10 @@ export default function NewSalePage() {
       <div className="page" style={{ maxWidth: '600px', textAlign: 'center', padding: '4rem 1rem' }}>
         <div className="content-card">
           <div style={{ marginBottom: '2rem' }}>
-            <div className="avatar" style={{ width: '80px', height: '80px', margin: '0 auto 1.5rem', backgroundColor: 'var(--success)' }}>
+            <div className="avatar" style={{ width: '80px', height: '80px', margin: '0 auto 1.5rem', backgroundColor: successData.status === 'proforma' ? 'var(--warning)' : 'var(--success)' }}>
               <CheckCircle size={48} />
             </div>
-            <h1>Vente réussie !</h1>
+            <h1>{successData.status === 'proforma' ? 'Proforma enregistré !' : 'Vente réussie !'}</h1>
           </div>
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
             <button onClick={() => window.print()} className="btn btn-primary"><Printer size={18} /> Reçu</button>
@@ -234,17 +271,26 @@ export default function NewSalePage() {
           <div style={{ flex: '1 1 600px' }}>
             <div className="content-card" style={{ marginBottom: '2rem', position: 'relative', overflow: 'visible' }}>
               <div className="form-group" style={{ position: 'relative', margin: 0 }}>
-                <input 
-                  type="text" 
-                  className="form-control" 
-                  placeholder="Saisissez le nom, code ou scannez..." 
-                  value={barcodeInput} 
-                  onChange={(e) => handleSearchChange(e.target.value)} 
-                  onKeyDown={handleBarcodeScan} 
-                  autoFocus 
-                  style={{ border: '2px solid var(--success)', paddingLeft: '3rem', height: '50px', fontSize: '1.1rem' }} 
-                />
-                <Search size={24} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--success)' }} />
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <div style={{ position: 'relative', flex: 1 }}>
+                    <input 
+                      type="text" 
+                      className="form-control" 
+                      placeholder="Saisissez le nom, code ou scannez..." 
+                      value={barcodeInput} 
+                      onChange={(e) => handleSearchChange(e.target.value)} 
+                      onKeyDown={handleBarcodeScan} 
+                      autoFocus 
+                      style={{ border: '2px solid var(--success)', paddingLeft: '3rem', height: '50px', fontSize: '1.1rem' }} 
+                    />
+                    <Search size={24} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--success)' }} />
+                  </div>
+                  {currentUser?.role === 'admin' && (
+                    <button type="button" className="btn btn-secondary" style={{ height: '50px', whiteSpace: 'nowrap' }} onClick={() => addItem(true)}>
+                      <Plus size={18} /> Ajout Manuel
+                    </button>
+                  )}
+                </div>
                 
                 {suggestions.length > 0 && (
                   <div className="suggestions-dropdown" style={{ 
@@ -290,7 +336,7 @@ export default function NewSalePage() {
             <div className="content-card">
               <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
                 <h3>Panier</h3>
-                <button type="button" className="btn btn-secondary btn-sm" onClick={addItem}><Plus size={14} /> Ajouter</button>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => addItem(false)}><Plus size={14} /> Ajouter</button>
               </div>
               <div className="table-wrapper">
                 <table>
@@ -311,10 +357,20 @@ export default function NewSalePage() {
                     {saleItems.map(item => (
                       <tr key={item.id}>
                         <td>
-                          <select className="form-control" value={item.articleId} onChange={(e) => updateItem(item.id, 'articleId', e.target.value)}>
-                            <option value="">Choisir...</option>
-                            {articles.map(a => <option key={a.id} value={a.id} disabled={a.currentStock <= 0}>{a.name} ({a.currentStock})</option>)}
-                          </select>
+                          {item.isManual ? (
+                            <input 
+                              type="text" 
+                              className="form-control" 
+                              placeholder="Désignation de l'article..." 
+                              value={item.description} 
+                              onChange={(e) => updateItem(item.id, 'description', e.target.value)} 
+                            />
+                          ) : (
+                            <select className="form-control" value={item.articleId} onChange={(e) => updateItem(item.id, 'articleId', e.target.value)}>
+                              <option value="">Choisir...</option>
+                              {articles.map(a => <option key={a.id} value={a.id} disabled={a.currentStock <= 0}>{a.name} ({a.currentStock})</option>)}
+                            </select>
+                          )}
                         </td>
                         <td><input type="number" className="form-control" value={item.quantity} onChange={(e) => updateItem(item.id, 'quantity', e.target.value === '' ? '' : parseInt(e.target.value))} /></td>
                         {currentUser?.role !== 'vendeur' && (
@@ -338,9 +394,35 @@ export default function NewSalePage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
                 {currentUser?.role !== 'vendeur' && (
                   <>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}><span>Sous-total</span><span>{calculateTotal().toLocaleString()} FCFA</span></div>
-                    <div className="form-group"><label className="form-label">Remise</label><input type="number" className="form-control" value={discount} onChange={(e) => setDiscount(Number(e.target.value) || 0)} /></div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1rem' }}><strong>Total Net</strong><strong style={{ color: 'var(--primary)', fontSize: '1.5rem' }}>{(calculateTotal() - discount).toLocaleString()} FCFA</strong></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span className="text-muted">Sous-total HT</span>
+                      <span>{calculateTotal().toLocaleString()} FCFA</span>
+                    </div>
+                    <div className="form-group" style={{ margin: '0.5rem 0' }}>
+                      <label className="form-label" style={{ fontSize: '0.8rem' }}>Remise</label>
+                      <input type="number" className="form-control" value={discount} onChange={(e) => setDiscount(Number(e.target.value) || 0)} />
+                    </div>
+                    
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderTop: '1px dashed var(--border)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span className="text-muted">TVA (%)</span>
+                        <input 
+                          type="number" 
+                          className="form-control" 
+                          style={{ width: '70px', height: '30px', padding: '0 5px', textAlign: 'center' }} 
+                          value={tvaRate} 
+                          onChange={(e) => setTvaRate(Number(e.target.value) || 0)} 
+                        />
+                      </div>
+                      <span>{(Math.round((calculateTotal() - discount) * (tvaRate / 100))).toLocaleString()} FCFA</span>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1rem', paddingTop: '1rem', borderTop: '2px solid var(--border)' }}>
+                      <strong>Total Net TTC</strong>
+                      <strong style={{ color: 'var(--primary)', fontSize: '1.5rem' }}>
+                        {(Math.round((calculateTotal() - discount) * (1 + tvaRate / 100))).toLocaleString()} FCFA
+                      </strong>
+                    </div>
                   </>
                 )}
                 
@@ -354,7 +436,16 @@ export default function NewSalePage() {
                     <div className="form-group"><label className="form-label">Versement</label><input type="number" className="form-control" value={initialPayment} onChange={(e) => setInitialPayment(Number(e.target.value) || 0)} disabled={paymentType === 'credit'} /></div>
                   )}
                 </div>
-                <button type="submit" className="btn btn-primary btn-lg" disabled={isSubmitting || saleItems.length === 0}>{isSubmitting ? '...' : 'Valider la vente'}</button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {currentUser?.role === 'admin' && (
+                    <button type="button" onClick={() => handleSubmit({ preventDefault: () => {}, isProforma: true })} className="btn btn-secondary btn-lg" disabled={isSubmitting || saleItems.length === 0} style={{ backgroundColor: '#fff7ed', color: '#9a3412', borderColor: '#fdba74' }}>
+                      {isSubmitting ? '...' : 'Générer Proforma'}
+                    </button>
+                  )}
+                  <button type="submit" className="btn btn-primary btn-lg" disabled={isSubmitting || saleItems.length === 0}>
+                    {isSubmitting ? '...' : 'Valider la vente'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

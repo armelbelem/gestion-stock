@@ -10,15 +10,27 @@ export async function GET(request) {
   const auth = authenticateToken(request);
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
   try {
-    const storeId = getStoreConstraint(auth.user, request.nextUrl.searchParams.get('storeId'));
+    const { searchParams } = request.nextUrl;
+    const storeId = getStoreConstraint(auth.user, searchParams.get('storeId'));
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
+
     let query = `
       SELECT e.id, e.clientId, e.supplierId, e.status, e.saleId, e.date, e.storeId, e.amountPaid, e.paymentType, c.name as clientName, f.name as supplierName
       FROM external_orders e
       LEFT JOIN clients c ON e.clientId = c.id
       LEFT JOIN fournisseurs f ON e.supplierId = f.id
+      WHERE 1=1
     `;
     let params = [];
-    if (storeId) { query += ' WHERE e.storeId = ?'; params.push(storeId); }
+    if (storeId && storeId !== 'all') { 
+      query += ' AND e.storeId = ?'; 
+      params.push(storeId); 
+    }
+    if (startDate && endDate) {
+      query += ' AND e.date BETWEEN ? AND ?';
+      params.push(startDate, endDate + 'T23:59:59');
+    }
     query += ' ORDER BY e.date DESC';
     const [orders] = await db.query(query, params);
     

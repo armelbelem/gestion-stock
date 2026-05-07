@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { 
   LayoutDashboard, Tags, Package, ArrowRightLeft, LogOut, 
   Users, ShoppingCart, Sun, Moon, UserCog, Coins, BarChart3, 
-  Truck, Menu, X, Wallet, AlertCircle, Calendar, Store, ShieldAlert, PackageOpen, Settings, Brain, TrendingDown
+  Truck, Menu, X, Wallet, AlertCircle, Calendar, Store, ShieldAlert, PackageOpen, Settings, Brain, TrendingDown, Globe, Archive
 } from 'lucide-react';
 import { useAuth } from '../providers';
 import { storage } from '../lib/storage';
@@ -128,7 +128,7 @@ export default function ClientLayout({ children }) {
 
       <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <h2>StockFlow</h2>
+          <h2>NS AutoFlow</h2>
           <button className="menu-toggle" onClick={() => setIsSidebarOpen(false)}>
             <X size={24} />
           </button>
@@ -146,10 +146,12 @@ export default function ClientLayout({ children }) {
               <NavItem href="/transfers" icon={ArrowRightLeft} label="Transferts" />
               <NavItem href="/fournisseurs" icon={Truck} label="Fournisseurs" />
               <NavItem href="/external-orders" icon={PackageOpen} label="Commandes Spéciales" />
+              <NavItem href="/contract-gateway" icon={Globe} label="Achats Partenaires" />
               <NavItem href="/finances" icon={Coins} label="Finances" />
               <NavItem href="/payments" icon={Wallet} label="Règlements" />
               <NavItem href="/reports" icon={BarChart3} label="Rapports" />
               <NavItem href="/intelligence" icon={Brain} label="Intelligence" />
+              <NavItem href="/archives" icon={Archive} label="Archives" />
               <NavItem href="/exercices" icon={Calendar} label="Exercices" />
             </>
           )}

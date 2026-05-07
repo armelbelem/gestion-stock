@@ -7,11 +7,11 @@ export async function PUT(request, { params }) {
   const auth = authenticateToken(request);
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const { id } = await params;
-  const { name, email, phone, address } = await request.json();
+  const { name, email, phone, address, clientCode, rccm, nif, bp } = await request.json();
   try {
-    await db.query('UPDATE clients SET name = ?, email = ?, phone = ?, address = ? WHERE id = ?', 
-      [name, email || null, phone || null, address || null, id]);
-    await logAction(auth.user.id, null, 'Modification client', { id, name });
+    await db.query('UPDATE clients SET name = ?, email = ?, phone = ?, address = ?, clientCode = ?, rccm = ?, nif = ?, bp = ? WHERE id = ?', 
+      [name, email || null, phone || null, address || null, clientCode || null, rccm || null, nif || null, bp || null, id]);
+    await logAction(auth.user.id, null, 'Modification client', { id, name, clientCode });
     return NextResponse.json({ success: true });
   } catch (err) { return NextResponse.json({ error: err.message }, { status: 500 }); }
 }

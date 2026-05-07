@@ -9,16 +9,30 @@ import { exportToExcel } from '../../utils/excelExport';
 
 export default function ReportsPage() {
   const [reportData, setReportData] = useState({ months: [], totalDebt: 0, totalRevenue: 0, totalPaid: 0 });
+  const [dates, setDates] = useState({ start: '', end: '' });
   const [loading, setLoading] = useState(true);
   const [isPrinting, setIsPrinting] = useState(false);
   const [printData, setPrintData] = useState(null);
   const [settings, setSettings] = useState(null);
   const pathname = usePathname();
 
-  useEffect(() => { 
-    loadReport(); 
+  useEffect(() => {
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    const dateRange = {
+      start: firstDay.toISOString().split('T')[0],
+      end: now.toISOString().split('T')[0]
+    };
+    setDates(dateRange);
     loadSettings();
+    // loadReport sera appelé par l'autre useEffect
   }, []);
+
+  useEffect(() => {
+    if (dates.start && dates.end) {
+      loadReport();
+    }
+  }, [dates]);
 
   const loadSettings = async () => {
     try {
@@ -30,7 +44,7 @@ export default function ReportsPage() {
   const loadReport = async () => {
     setLoading(true);
     try {
-      const data = await storage.get('reports/monthly');
+      const data = await storage.get(`reports/monthly?startDate=${dates.start}&endDate=${dates.end}`);
       if (Array.isArray(data)) setReportData({ months: data, totalDebt: 0, totalRevenue: 0, totalPaid: 0 });
       else setReportData({ 
         months: data.months || [], 
@@ -40,6 +54,22 @@ export default function ReportsPage() {
       });
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
+  };
+
+  const setQuickPeriod = (period) => {
+    const end = new Date();
+    const start = new Date();
+    if (period === 'week') {
+      start.setDate(end.getDate() - 7);
+    } else if (period === 'month') {
+      start.setDate(1);
+    } else if (period === 'last30') {
+      start.setDate(end.getDate() - 30);
+    }
+    setDates({
+      start: start.toISOString().split('T')[0],
+      end: end.toISOString().split('T')[0]
+    });
   };
 
   const handleExportExcel = () => {
@@ -58,10 +88,10 @@ export default function ReportsPage() {
       rate: d.revenue > 0 ? ((d.cash / d.revenue) * 100).toFixed(1) : "0"
     }));
 
-    exportToExcel(dataToExport, headers, 'bilan_financier_mensuel', {
-      title: "BILAN FINANCIER MENSUEL",
+    exportToExcel(dataToExport, headers, `bilan_financier_${dates.start}_${dates.end}`, {
+      title: "BILAN FINANCIER",
       companyName: settings?.companyName || "NS AUTO",
-      period: `Année ${new Date().getFullYear()}`
+      period: `Période du ${new Date(dates.start).toLocaleDateString('fr-FR')} au ${new Date(dates.end).toLocaleDateString('fr-FR')}`
     });
   };
 
@@ -220,7 +250,37 @@ export default function ReportsPage() {
       </div>
 
       <div style={{ marginTop: '1.5rem' }}>
-        {loading && !isPrinting ? <p>Traitement en cours...</p> : (
+        <div className="toolbar" style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'center', marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button className="btn btn-secondary btn-sm" onClick={() => setQuickPeriod('week')}>Semaine</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => setQuickPeriod('month')}>Mois</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => setQuickPeriod('last30')}>30 j</button>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <input 
+              type="date" 
+              className="form-control" 
+              value={dates.start} 
+              onChange={(e) => setDates({...dates, start: e.target.value})} 
+            />
+            <span>au</span>
+            <input 
+              type="date" 
+              className="form-control" 
+              value={dates.end} 
+              onChange={(e) => setDates({...dates, end: e.target.value})} 
+            />
+          </div>
+          
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
+             <button className="btn btn-primary" onClick={loadReport} disabled={loading}>
+               Actualiser
+             </button>
+          </div>
+        </div>
+
+        {loading && !isPrinting ? <p>Analyse des données financières en cours...</p> : (
           <>
             <div className="dashboard-grid">
               <div className="stat-card">

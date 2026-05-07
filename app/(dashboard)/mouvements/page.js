@@ -200,7 +200,7 @@ export default function MouvementsPage() {
     return (
       <div className="receipt-print-only" style={{ display: 'block', padding: '20px' }}>
         <div style={{ textAlign: 'center', marginBottom: '20px', borderBottom: '2px solid black', paddingBottom: '10px' }}>
-          <h1 style={{ margin: '0', fontSize: '24px', fontWeight: '800', textTransform: 'uppercase' }}>{settings?.companyName || 'NS AUTO'}</h1>
+          <h1 style={{ margin: '0', fontSize: '24px', fontWeight: '800', textTransform: 'uppercase' }}>{settings?.companyName || 'NS AUTOFLOW'}</h1>
           {settings?.address && <p style={{ margin: '2px 0' }}>{settings.address}</p>}
           <h2 style={{ marginTop: '15px' }}>RAPPORT DES MOUVEMENTS</h2>
           <p>Période : {startDate || 'Début'} au {endDate || 'Fin'}</p>

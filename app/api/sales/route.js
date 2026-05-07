@@ -29,7 +29,13 @@ export async function GET(request) {
       query += ' WHERE 1=0';
     }
 
-    if (storeId) { query += ' AND s.storeId = ?'; params.push(storeId); }
+    if (storeId) { 
+      query += ' AND s.storeId = ?'; 
+      params.push(storeId); 
+    } else {
+      // Exclure le magasin virtuel par défaut pour ne pas mélanger avec le physique
+      query += " AND (s.storeId != 'CFAO' OR s.storeId IS NULL)";
+    }
     query += ' ORDER BY s.date DESC';
     const [sales] = await db.query(query, params);
     for (let sale of sales) {
@@ -54,7 +60,7 @@ export async function POST(request) {
   try {
     await connection.beginTransaction();
     const body = await request.json();
-    const { clientId, items, discount, amountPaid, paymentType, dueDate, notes, storeId: bodyStoreId } = body;
+    const { clientId, items, discount, amountPaid, paymentType, dueDate, notes, storeId: bodyStoreId, isProforma, tvaAmount, totalAmount: bodyTotalAmount } = body;
     const saleId = uuidv4();
     const storeId = auth.user.role === 'admin' ? (bodyStoreId || auth.user.storeId) : auth.user.storeId;
     if (!storeId) throw new Error('Aucun magasin sélectionné pour cette vente.');
@@ -63,32 +69,44 @@ export async function POST(request) {
     const activeYear = fyRows[0];
     if (!activeYear) throw new Error("Action impossible : Aucun exercice fiscal n'est ouvert. Veuillez ouvrir un exercice pour enregistrer des ventes.");
 
-    let totalAmount = 0;
+    let calculatedTotal = 0;
     for (const item of items) {
       const quantity = parseInt(item.quantity);
       const unitPrice = parseFloat(item.unitPrice);
-      totalAmount += quantity * unitPrice;
-      const [inv] = await connection.query('SELECT quantity FROM inventory WHERE articleId = ? AND storeId = ?', [item.articleId, storeId]);
-      if (inv.length === 0 || inv[0].quantity < quantity) throw new Error(`Stock insuffisant pour l'article ID ${item.articleId}`);
-      await connection.query('UPDATE inventory SET quantity = quantity - ? WHERE articleId = ? AND storeId = ?', [quantity, item.articleId, storeId]);
-      await connection.query('INSERT INTO mouvements (id, articleId, type, quantity, date, storeId, fiscalYearId) VALUES (?, ?, ?, ?, ?, ?, ?)', 
-        [uuidv4(), item.articleId, 'OUT', quantity, new Date().toISOString(), storeId, activeYear?.id || null]);
-      await connection.query('INSERT INTO sale_items (id, saleId, articleId, quantity, unitPrice) VALUES (?, ?, ?, ?, ?)', 
-        [uuidv4(), saleId, item.articleId, quantity, unitPrice]);
+      calculatedTotal += quantity * unitPrice;
+      
+      if (item.articleId) {
+        // Si c'est un proforma, on ne déstocke pas
+        if (!isProforma) {
+          const [inv] = await connection.query('SELECT quantity FROM inventory WHERE articleId = ? AND storeId = ?', [item.articleId, storeId]);
+          if (inv.length === 0 || inv[0].quantity < quantity) throw new Error(`Stock insuffisant pour l'article ID ${item.articleId}`);
+          await connection.query('UPDATE inventory SET quantity = quantity - ? WHERE articleId = ? AND storeId = ?', [quantity, item.articleId, storeId]);
+          await connection.query('INSERT INTO mouvements (id, articleId, type, quantity, date, storeId, fiscalYearId) VALUES (?, ?, ?, ?, ?, ?, ?)', 
+            [uuidv4(), item.articleId, 'OUT', quantity, new Date().toISOString(), storeId, activeYear?.id || null]);
+        }
+      } else {
+        if (auth.user.role !== 'admin') throw new Error('Action refusée : Seul un administrateur peut saisir des articles hors catalogue.');
+      }
+      
+      await connection.query('INSERT INTO sale_items (id, saleId, articleId, quantity, unitPrice, description) VALUES (?, ?, ?, ?, ?, ?)', 
+        [uuidv4(), saleId, item.articleId || null, quantity, unitPrice, item.description || null]);
     }
     
-    const status = amountPaid >= (totalAmount - discount) ? 'payé' : (amountPaid > 0 ? 'partiel' : 'en_attente');
+    // On utilise le total calculé coté serveur ou celui envoyé par le body s'il contient déjà la TVA
+    const finalTotal = bodyTotalAmount !== undefined ? bodyTotalAmount : (calculatedTotal - (discount || 0));
+    const status = isProforma ? 'proforma' : (amountPaid >= finalTotal ? 'payé' : (amountPaid > 0 ? 'partiel' : 'en_attente'));
+    
     await connection.query(
-      'INSERT INTO sales (id, clientId, userId, totalAmount, discount, amountPaid, paymentType, status, dueDate, notes, date, storeId, fiscalYearId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [saleId, clientId, auth.user.id, totalAmount - (discount || 0), discount || 0, amountPaid || 0, paymentType || 'complet', status, dueDate || null, notes || null, new Date().toISOString(), storeId, activeYear?.id || null]
+      'INSERT INTO sales (id, clientId, userId, totalAmount, discount, tvaAmount, amountPaid, paymentType, status, dueDate, notes, date, storeId, fiscalYearId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [saleId, clientId, auth.user.id, finalTotal, discount || 0, tvaAmount || 0, amountPaid || 0, paymentType || 'complet', status, dueDate || null, notes || null, new Date().toISOString(), storeId, activeYear?.id || null]
     );
-    if (amountPaid > 0) {
+    if (!isProforma && amountPaid > 0) {
       await connection.query('INSERT INTO payments (id, saleId, amount, date, storeId, fiscalYearId) VALUES (?, ?, ?, ?, ?, ?)', 
         [uuidv4(), saleId, amountPaid, new Date().toISOString(), storeId, activeYear?.id || null]);
     }
-    await logAction(auth.user.id, storeId, 'Nouvelle vente', { saleId, totalAmount });
+    await logAction(auth.user.id, storeId, isProforma ? 'Nouveau proforma' : 'Nouvelle vente', { saleId, totalAmount: finalTotal });
     await connection.commit();
-    return NextResponse.json({ id: saleId, success: true }, { status: 201 });
+    return NextResponse.json({ id: saleId, success: true, status: status }, { status: 201 });
   } catch (err) {
     await connection.rollback();
     return NextResponse.json({ error: err.message }, { status: 500 });

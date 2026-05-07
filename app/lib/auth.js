@@ -23,3 +23,10 @@ export function authenticateToken(request) {
     return { error: `Session expirée ou invalide (${err.message})`, status: 403 };
   }
 }
+export function isAdmin(user) {
+  return user && user.role === 'admin';
+}
+
+export function isManager(user) {
+  return user && (user.role === 'admin' || user.role === 'manager');
+}
