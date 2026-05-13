@@ -39,6 +39,7 @@ export default function ClientReportPage() {
   const generateReport = async () => {
     if (!selectedClientId) return;
     setLoading(true);
+    setData(null); // Vider les anciennes données immédiatement
     try {
       const res = await storage.get(`reports/sales-by-client?clientId=${selectedClientId}&startDate=${startDate}&endDate=${endDate}`);
       setData(res);
@@ -74,7 +75,11 @@ export default function ClientReportPage() {
         title: `BILAN DE CONSOMMATION - ${selectedClient?.name}`,
         companyName: settings?.companyName || "NS AUTO",
         period: `Du ${new Date(startDate).toLocaleDateString()} au ${new Date(endDate).toLocaleDateString()}`,
-        summary: ['', 'TOTAUX GÉNÉRAUX', '', data.summary.totalQuantity, `${data.summary.totalAmount.toLocaleString()} FCFA`]
+        summary: [
+          ['', 'TOTAL BRUT (HT)', '', data.summary.totalQuantity, `${data.summary.totalGrossAmount.toLocaleString()} FCFA`],
+          ['', `MONTANT TVA (${Math.round((data.summary.totalTva / (data.summary.totalGrossAmount - data.summary.totalDiscount)) * 100)}%)`, '', '', `${(data.summary.totalTva || 0).toLocaleString()} FCFA`],
+          ['', 'TOTAL NET (TTC)', '', '', `${data.summary.totalAmount.toLocaleString()} FCFA`]
+        ]
       }
     );
   };
@@ -179,6 +184,14 @@ export default function ClientReportPage() {
               <tr style={{ fontWeight: 'bold' }}>
                 <td colSpan="4" style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>TOTAL REMISES</td>
                 <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>-{data.summary.totalDiscount.toLocaleString()} FCFA</td>
+              </tr>
+            )}
+            {data.summary.totalTva > 0 && (
+              <tr style={{ fontWeight: 'bold' }}>
+                <td colSpan="4" style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>
+                  MONTANT TVA ({Math.round((data.summary.totalTva / (data.summary.totalGrossAmount - data.summary.totalDiscount)) * 100)}%)
+                </td>
+                <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>{data.summary.totalTva.toLocaleString()} FCFA</td>
               </tr>
             )}
             <tr style={{ backgroundColor: '#e0e0e0', fontWeight: 'bold' }}>
@@ -301,6 +314,14 @@ export default function ClientReportPage() {
                   <tr>
                     <td colSpan="4" style={{ textAlign: 'right', color: 'var(--danger)' }}>REMISES ACCORDÉES</td>
                     <td style={{ textAlign: 'right', color: 'var(--danger)' }}>-{data.summary.totalDiscount.toLocaleString()} FCFA</td>
+                  </tr>
+                )}
+                {data.summary.totalTva > 0 && (
+                  <tr>
+                    <td colSpan="4" style={{ textAlign: 'right', color: 'var(--primary)' }}>
+                      MONTANT TVA ({Math.round((data.summary.totalTva / (data.summary.totalGrossAmount - data.summary.totalDiscount)) * 100)}%)
+                    </td>
+                    <td style={{ textAlign: 'right', color: 'var(--primary)' }}>{data.summary.totalTva.toLocaleString()} FCFA</td>
                   </tr>
                 )}
                 <tr style={{ fontSize: '1.2rem', borderTop: '2px solid var(--primary)' }}>

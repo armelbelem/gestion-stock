@@ -177,8 +177,8 @@ export default function SalesPage() {
     
     if (!matchesSearch) return false;
 
-    // Restriction : Seul l'admin voit les proformas
-    if (sale.status === 'proforma' && currentUser?.role !== 'admin') return false;
+    // Restriction : Seul l'admin et le gestionnaire voient les proformas
+    if (sale.status === 'proforma' && (currentUser?.role !== 'admin' && currentUser?.role !== 'gestionnaire')) return false;
 
     const saleDate = new Date(sale.date);
     const start = dateRange.start ? new Date(dateRange.start) : null;
@@ -270,26 +270,34 @@ export default function SalesPage() {
   if (isPrinting && printData) {
     return (
       <div className="receipt-print-only" style={{ display: 'block', padding: '20px' }}>
-        <div style={{ textAlign: 'center', marginBottom: '20px', borderBottom: '2px solid black', paddingBottom: '10px' }}>
-          {settings?.logo ? (
-            <img src={settings.logo} alt="Logo" style={{ maxHeight: '80px', marginBottom: '10px' }} />
-          ) : (
-            <h1 style={{ margin: '0', fontSize: '24px', fontWeight: '800', textTransform: 'uppercase' }}>{settings?.companyName || 'MINING AUTOLOG'}</h1>
+        {/* Header Rebrand - Perfect Alignment */}
+        <div style={{ display: 'flex', alignItems: 'flex-end', marginBottom: '12px' }}>
+          {settings?.logo && (
+            <img 
+              src={settings.logo} 
+              alt="Logo" 
+              style={{ maxHeight: '100px', marginRight: '2px' }} 
+            />
           )}
+          <div style={{ flex: 1, height: '2.5pt', backgroundColor: '#b91c1c', marginBottom: '11px', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}></div>
+        </div>
+
+        {/* Company Info below line */}
+        <div style={{ textAlign: 'center', marginBottom: '20px', fontSize: '11px' }}>
           {settings?.address && <p style={{ margin: '2px 0' }}>{settings.address}</p>}
           {settings?.phone && <p style={{ margin: '2px 0' }}>Tél : {settings.phone}</p>}
           {(settings?.nif || settings?.rccm) && (
-            <p style={{ fontSize: '0.8rem', margin: '2px 0' }}>
+            <p style={{ margin: '2px 0' }}>
               {settings?.nif && `NIF: ${settings.nif}`} {settings?.rccm && `| RCCM: ${settings.rccm}`}
             </p>
           )}
+        </div>
           <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed #ccc' }}>
             <h2 style={{ margin: '0', fontSize: '18px' }}>
               {printData.status === 'proforma' ? 'FACTURE PROFORMA' : 'REÇU DE VENTE'} #{printData.id.substring(0, 8).toUpperCase()}
             </h2>
             <p style={{ margin: '5px 0' }}>Date : {formatDate(printData.date)}</p>
           </div>
-        </div>
         <div style={{ marginBottom: '20px' }}>
           <p><strong>Client :</strong> {printData.clientName}</p>
           <p><strong>Vendeur :</strong> {printData.sellerName}</p>
@@ -323,7 +331,9 @@ export default function SalesPage() {
               </tr>
             )}
             <tr style={{ borderBottom: '1px solid #eee' }}>
-              <td colSpan="2" style={{ textAlign: 'right', padding: '4px 8px', fontSize: '0.9rem', color: '#666' }}>TVA</td>
+              <td colSpan="2" style={{ textAlign: 'right', padding: '4px 8px', fontSize: '0.9rem', color: '#666' }}>
+                TVA ({printData.totalAmount - printData.tvaAmount > 0 ? Math.round((printData.tvaAmount / (printData.totalAmount - printData.tvaAmount)) * 100) : 0}%)
+              </td>
               <td style={{ textAlign: 'right', padding: '4px 8px', fontSize: '0.9rem', color: '#666' }}>{(printData.tvaAmount || 0).toLocaleString()} FCFA</td>
             </tr>
             <tr style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
@@ -332,6 +342,12 @@ export default function SalesPage() {
             </tr>
           </tfoot>
         </table>
+        
+        {printData.notes && (
+          <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: '#f9f9f9', borderLeft: '3px solid #ccc', fontSize: '10px' }}>
+            <strong>Note :</strong> {printData.notes}
+          </div>
+        )}
         
         {settings?.footerMessage && (
           <div style={{ textAlign: 'center', marginTop: '30px', paddingTop: '10px', borderTop: '1px dashed #ccc', fontSize: '0.9rem', fontStyle: 'italic' }}>
@@ -349,11 +365,24 @@ export default function SalesPage() {
   if (isReporting) {
     return (
       <div className="receipt-print-only" style={{ display: 'block', padding: '20px' }}>
-        <div style={{ textAlign: 'center', marginBottom: '20px', borderBottom: '2px solid black', paddingBottom: '10px' }}>
-          <h1 style={{ margin: '0', fontSize: '24px', fontWeight: '800', textTransform: 'uppercase' }}>{settings?.companyName || 'MINING AUTOLOG'}</h1>
-          {settings?.address && <p style={{ margin: '2px 0' }}>{settings.address}</p>}
-          <h2 style={{ marginTop: '15px' }}>RAPPORT DE VENTES</h2>
-          <p>Période : {dateRange.start ? formatShortDate(dateRange.start) : 'Début'} au {dateRange.end ? formatShortDate(dateRange.end) : 'Fin'}</p>
+        {/* Header Rebrand - Baseline Aligned */}
+        <div style={{ display: 'flex', alignItems: 'flex-end', marginBottom: '15px' }}>
+          {settings?.logo ? (
+            <img 
+              src={settings.logo} 
+              alt="Logo" 
+              style={{ maxHeight: '100px', marginRight: '5px' }} 
+            />
+          ) : (
+            <h1 style={{ margin: '0', fontSize: '24px', fontWeight: '800', textTransform: 'uppercase', marginRight: '15px' }}>{settings?.companyName || 'NS AUTO'}</h1>
+          )}
+          <div style={{ flex: 1, height: '4px', backgroundColor: '#b91c1c', marginBottom: '14px', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}></div>
+        </div>
+
+        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+          {settings?.address && <p style={{ margin: '2px 0', fontSize: '11px' }}>{settings.address}</p>}
+          <h2 style={{ marginTop: '10px', fontSize: '18px' }}>RAPPORT DE VENTES</h2>
+          <p style={{ fontSize: '12px' }}>Période : {dateRange.start ? formatShortDate(dateRange.start) : 'Début'} au {dateRange.end ? formatShortDate(dateRange.end) : 'Fin'}</p>
         </div>
         
         <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
@@ -472,9 +501,9 @@ export default function SalesPage() {
                 <th style={{ width: '40px' }}></th>
                 <th>Référence</th>
                 <th>Client</th>
-                {currentUser?.role === 'admin' && <th>Vendeur</th>}
+                {(currentUser?.role === 'admin' || currentUser?.role === 'gestionnaire') && <th>Vendeur</th>}
                 <th>Date</th>
-                {currentUser?.role === 'admin' && <th>Montant</th>}
+                {(currentUser?.role === 'admin' || currentUser?.role === 'gestionnaire') && <th>Montant</th>}
                 {currentUser?.role !== 'vendeur' && <th>Statut</th>}
                 <th>Actions</th>
               </tr>
@@ -489,9 +518,9 @@ export default function SalesPage() {
                       <td>{expandedSale === sale.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</td>
                       <td style={{ fontWeight: 600, color: 'var(--primary)' }}>#{sale.id.substring(0, 8).toUpperCase()}</td>
                       <td>{sale.clientName}</td>
-                      {currentUser?.role === 'admin' && <td>{sale.sellerName}</td>}
+                      {(currentUser?.role === 'admin' || currentUser?.role === 'gestionnaire') && <td>{sale.sellerName}</td>}
                       <td>{formatDate(sale.date)}</td>
-                      {currentUser?.role === 'admin' && <td style={{ fontWeight: 600 }}>{sale.totalAmount.toLocaleString()} FCFA</td>}
+                      {(currentUser?.role === 'admin' || currentUser?.role === 'gestionnaire') && <td style={{ fontWeight: 600 }}>{sale.totalAmount.toLocaleString()} FCFA</td>}
                       {currentUser?.role !== 'vendeur' && <td>{getStatusBadge(sale.status)}</td>}
                       <td>
                         <div style={{ display: 'flex', gap: '4px' }}>
@@ -530,7 +559,7 @@ export default function SalesPage() {
                                   <tr>
                                     <th>Article</th>
                                     <th>Qté</th>
-                                    {currentUser?.role === 'admin' && (
+                                    {(currentUser?.role === 'admin' || currentUser?.role === 'gestionnaire') && (
                                       <>
                                         <th>Prix</th>
                                         <th style={{ textAlign: 'right' }}>Total</th>
@@ -543,7 +572,7 @@ export default function SalesPage() {
                                     <tr key={idx}>
                                       <td>{item.articleName}</td>
                                       <td>{item.quantity}</td>
-                                      {currentUser?.role === 'admin' && (
+                                      {(currentUser?.role === 'admin' || currentUser?.role === 'gestionnaire') && (
                                         <>
                                           <td>{item.unitPrice.toLocaleString()} FCFA</td>
                                           <td style={{ textAlign: 'right' }}>{(item.quantity * item.unitPrice).toLocaleString()} FCFA</td>
@@ -553,15 +582,29 @@ export default function SalesPage() {
                                   ))}
                                 </tbody>
                               </table>
-                            </div>
-                            {currentUser?.role === 'admin' && (
-                              <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end', gap: '2rem' }}>
-                                <div style={{ textAlign: 'right' }}>
-                                  <p className="text-muted">Payé : {sale.amountPaid.toLocaleString()} FCFA</p>
-                                  <p style={{ fontWeight: 700, color: 'var(--primary)' }}>À régler : {(sale.totalAmount - sale.amountPaid).toLocaleString()} FCFA</p>
-                                </div>
-                              </div>
-                            )}
+                             </div>
+                             {sale.notes && (
+                               <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: '#f8fafc', borderRadius: '8px', borderLeft: '4px solid #cbd5e1' }}>
+                                 <strong style={{ fontSize: '0.8rem', color: '#64748b', textTransform: 'uppercase' }}>Note / Justification :</strong>
+                                 <p style={{ margin: '4px 0 0 0', fontSize: '0.9rem', color: 'var(--text-main)' }}>{sale.notes}</p>
+                               </div>
+                             )}
+                              {(currentUser?.role === 'admin' || currentUser?.role === 'gestionnaire') && (
+                               <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end', gap: '3rem', borderTop: '1px dashed var(--border-light)', paddingTop: '1rem' }}>
+                                 <div style={{ textAlign: 'right', fontSize: '0.9rem' }}>
+                                   <p className="text-muted" style={{ margin: '2px 0' }}>Sous-total HT : {(sale.totalAmount - (sale.tvaAmount || 0) + (sale.discount || 0)).toLocaleString()} FCFA</p>
+                                   {sale.discount > 0 && <p className="text-muted" style={{ margin: '2px 0' }}>Remise : -{(sale.discount || 0).toLocaleString()} FCFA</p>}
+                                   <p className="text-muted" style={{ margin: '2px 0' }}>
+                                     TVA ({sale.totalAmount - sale.tvaAmount > 0 ? Math.round((sale.tvaAmount / (sale.totalAmount - sale.tvaAmount)) * 100) : 0}%) : {(sale.tvaAmount || 0).toLocaleString()} FCFA
+                                   </p>
+                                   <p style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '1.1rem', marginTop: '5px' }}>Total TTC : {sale.totalAmount.toLocaleString()} FCFA</p>
+                                 </div>
+                                 <div style={{ textAlign: 'right', borderLeft: '1px solid var(--border-light)', paddingLeft: '2rem' }}>
+                                   <p className="text-muted" style={{ margin: '2px 0' }}>Payé : {sale.amountPaid.toLocaleString()} FCFA</p>
+                                   <p style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '1.1rem' }}>À régler : {(sale.totalAmount - sale.amountPaid).toLocaleString()} FCFA</p>
+                                 </div>
+                               </div>
+                             )}
                           </div>
                         </td>
                       </tr>

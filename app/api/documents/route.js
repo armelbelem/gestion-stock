@@ -33,10 +33,23 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Aucun fichier fourni' }, { status: 400 });
     }
 
+    // Sécurité serveur : Limite à 5 Mo
+    if (file.size > 5 * 1024 * 1024) {
+      return NextResponse.json({ error: 'Le fichier dépasse la limite de 5 Mo' }, { status: 400 });
+    }
+
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    const fileExt = path.extname(file.name);
+    const fileExt = path.extname(file.name).toLowerCase();
+    const allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png', '.docx', '.xlsx', '.txt', '.zip'];
+    
+    if (!allowedExtensions.includes(fileExt)) {
+      return NextResponse.json({ 
+        error: `Type de fichier non autorisé (${fileExt}). Extensions acceptées : ${allowedExtensions.join(', ')}` 
+      }, { status: 400 });
+    }
+
     const fileName = `${uuidv4()}${fileExt}`;
     const relativePath = `/uploads/documents/${fileName}`;
     const absolutePath = path.join(process.cwd(), 'public', 'uploads', 'documents', fileName);

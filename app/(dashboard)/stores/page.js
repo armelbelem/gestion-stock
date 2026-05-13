@@ -94,8 +94,8 @@ export default function StoresPage() {
             <div className="modal-header"><h3>{formData.id ? 'Modifier' : 'Ajouter'}</h3><button className="modal-close" onClick={() => setIsModalOpen(false)}><X size={20} /></button></div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body">
-                <div className="form-group"><label className="form-label">Nom</label><input className="form-control" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} /></div>
-                <div className="form-group"><label className="form-label">Adresse</label><textarea className="form-control" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} /></div>
+                <div className="form-group"><label className="form-label">Nom</label><input className="form-control" required value={formData.name || ''} onChange={e => setFormData({...formData, name: e.target.value})} /></div>
+                <div className="form-group"><label className="form-label">Adresse</label><textarea className="form-control" value={formData.address || ''} onChange={e => setFormData({...formData, address: e.target.value})} /></div>
               </div>
               <div className="modal-footer"><button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(false)}>Annuler</button><button type="submit" className="btn btn-primary">Enregistrer</button></div>
             </form>

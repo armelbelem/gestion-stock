@@ -9,13 +9,19 @@ const dbConfig = process.env.DATABASE_URL || {
   port: process.env.MYSQLPORT || process.env.DB_PORT || 3306,
 };
 
-const pool = mysql.createPool(typeof dbConfig === 'string' ? dbConfig : {
-  ...dbConfig,
-  waitForConnections: true,
-  connectionLimit: 30,
-  queueLimit: 0,
-  dateStrings: true,
-  charset: 'utf8mb4'
-});
+// Utilisation d'un singleton pour le pool de connexions (évite les fuites en développement)
+let pool;
+
+if (!global._mysqlPool) {
+  global._mysqlPool = mysql.createPool(typeof dbConfig === 'string' ? dbConfig : {
+    ...dbConfig,
+    waitForConnections: true,
+    connectionLimit: 10, // Réduit pour plus de stabilité sur une petite config
+    queueLimit: 0,
+    dateStrings: true,
+    charset: 'utf8mb4'
+  });
+}
+pool = global._mysqlPool;
 
 export default pool;

@@ -2,8 +2,8 @@ import './globals.css';
 import { AuthProvider } from './providers';
 
 export const metadata = {
-  title: 'StockFlow - Gestion de Stock',
-  description: 'Système de gestion de stock professionnel',
+  title: 'NS Global Manager - Business Suite',
+  description: 'Système complet de gestion d\'entreprise (ERP)',
 };
 
 export default function RootLayout({ children }) {

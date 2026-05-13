@@ -53,7 +53,7 @@ export async function POST(request) {
     await connection.beginTransaction();
     const { clientId, supplierId, items, storeId: bodyStoreId } = await request.json();
     const orderId = uuidv4();
-    const storeId = auth.user.role === 'admin' ? (bodyStoreId !== undefined ? bodyStoreId : auth.user.storeId) : auth.user.storeId;
+    const storeId = (auth.user.role === 'admin' || auth.user.role === 'gestionnaire') ? (bodyStoreId !== undefined ? bodyStoreId : auth.user.storeId) : auth.user.storeId;
 
     const [fyRows] = await connection.query("SELECT * FROM fiscal_years WHERE status = 'active'");
     const activeYear = fyRows[0];

@@ -27,17 +27,8 @@ export async function POST(request) {
       WHERE fiscalYearId = ? AND status != 'annulée'
     `, [activeYear.id]);
 
-    const [extStats] = await db.query(`
-      SELECT 
-        SUM(oi.quantity * oi.sellPrice) as totalRev,
-        SUM(e.amountPaid) as totalPaid
-      FROM external_orders e
-      JOIN external_order_items oi ON e.id = oi.externalOrderId
-      WHERE e.fiscalYearId = ? AND e.status = 'termine'
-    `, [activeYear.id]);
-
-    const revenue = (Number(salesStats[0].totalRev) || 0) + (Number(extStats[0].totalRev) || 0);
-    const paid = (Number(salesStats[0].totalPaid) || 0) + (Number(extStats[0].totalPaid) || 0);
+    const revenue = (Number(salesStats[0].totalRev) || 0);
+    const paid = (Number(salesStats[0].totalPaid) || 0);
     const debt = revenue - paid;
 
     // 2. Mettre à jour la base de données

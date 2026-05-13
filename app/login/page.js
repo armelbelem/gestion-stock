@@ -22,7 +22,11 @@ export default function LoginPage() {
     try {
       const data = await storage.login(username, password);
       login(data);
-      router.push('/');
+      if (data.user.role === 'vendeur' || data.user.role === 'vendeurs') {
+        router.push('/sales');
+      } else {
+        router.push('/');
+      }
     } catch (err) {
       setError(err.message || 'Identifiants invalides');
     } finally {
@@ -47,7 +51,9 @@ export default function LoginPage() {
           }}>
             <Lock size={28} />
           </div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-main)' }}>StockFlow</h1>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-main)' }}>
+            <span style={{color: '#ef4444'}}>NS-AUTO</span> Global Manager
+          </h1>
           <p style={{ color: 'var(--text-muted)', marginTop: '0.25rem' }}>Accédez à votre gestion de stock</p>
         </div>
 

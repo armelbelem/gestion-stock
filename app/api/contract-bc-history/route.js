@@ -1,11 +1,16 @@
 import db from '../../lib/db';
-import { authenticateToken } from '../../lib/auth';
+import { authenticateToken, hasPermission, isManager } from '../../lib/auth';
 import { NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function GET(request) {
   const auth = authenticateToken(request);
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
+
+  // Seuls ceux autorisés à voir les prix peuvent voir l'historique détaillé des BC
+  if (!hasPermission(auth.user, 'stock', 'view_cost_price')) {
+    return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+  }
 
   const { searchParams } = new URL(request.url);
   const orderId = searchParams.get('orderId');
@@ -58,6 +63,10 @@ export async function DELETE(request) {
   const auth = authenticateToken(request);
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
+  if (!isManager(auth.user)) {
+    return NextResponse.json({ error: 'Action réservée aux gestionnaires' }, { status: 403 });
+  }
+
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');
 
@@ -74,6 +83,10 @@ export async function DELETE(request) {
 export async function PATCH(request) {
   const auth = authenticateToken(request);
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
+
+  if (!isManager(auth.user)) {
+    return NextResponse.json({ error: 'Action réservée aux gestionnaires' }, { status: 403 });
+  }
 
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');

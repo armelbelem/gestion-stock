@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import db from '../../lib/db';
-import { authenticateToken } from '../../lib/auth';
+import { authenticateToken, hasPermission } from '../../lib/auth';
 import { getStoreConstraint } from '../../lib/actions';
 
 export const dynamic = 'force-dynamic';
@@ -8,6 +8,9 @@ export const dynamic = 'force-dynamic';
 export async function GET(request) {
   const auth = authenticateToken(request);
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
+  if (!hasPermission(auth.user, 'finances', 'view')) {
+    return NextResponse.json({ error: 'Accès interdit : Permissions insuffisantes' }, { status: 403 });
+  }
   const user = auth.user;
 
   try {
@@ -89,9 +92,9 @@ export async function GET(request) {
     }
 
     return NextResponse.json({
-      totalRevenue: revenuePhysical + revenueVirtual,
+      totalRevenue: revenuePhysical, // Uniquement le CA Physique
       revenuePhysical,
-      revenueVirtual,
+      purchaseVirtual: revenueVirtual, // Renommé pour refléter qu'il s'agit d'achats
       totalStockValue,
       salesHistory: last7Days
     });

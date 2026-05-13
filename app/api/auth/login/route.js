@@ -3,13 +3,18 @@ import db from '../../../lib/db';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { logAction } from '../../../lib/actions';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_key_change_me_in_production';
+import { FINAL_JWT_SECRET, checkRateLimit, recordLoginAttempt } from '../../../lib/auth';
 
 export async function POST(request) {
   try {
     const { username, password } = await request.json();
     
+    // 1. Vérification du Rate Limit
+    const limit = checkRateLimit(username);
+    if (limit.blocked) {
+      return NextResponse.json({ error: limit.message }, { status: 429 });
+    }
+
     const [users] = await db.query(
       'SELECT u.*, s.name as storeName FROM users u LEFT JOIN stores s ON u.storeId = s.id WHERE u.username = ?', 
       [username]
@@ -18,15 +23,19 @@ export async function POST(request) {
     const user = users[0];
     
     if (!user || !bcrypt.compareSync(password, user.password)) {
+      recordLoginAttempt(username, false);
       return NextResponse.json({ error: 'Identifiants invalides' }, { status: 401 });
     }
+    
+    recordLoginAttempt(username, true);
     
     const token = jwt.sign({ 
       id: user.id, 
       username: user.username, 
       role: user.role,
-      storeId: user.storeId 
-    }, JWT_SECRET, { expiresIn: '24h' });
+      storeId: user.storeId,
+      permissions: typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions
+    }, FINAL_JWT_SECRET, { expiresIn: '24h' });
     
     await logAction(user.id, user.storeId, 'Connexion', { ip: 'API-NextJS' });
 
@@ -37,7 +46,8 @@ export async function POST(request) {
         username: user.username, 
         role: user.role, 
         storeId: user.storeId, 
-        storeName: user.storeName 
+        storeName: user.storeName,
+        permissions: typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions
       } 
     });
   } catch (err) {

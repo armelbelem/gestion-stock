@@ -8,7 +8,14 @@ import { usePathname } from 'next/navigation';
 import { exportToExcel } from '../../utils/excelExport';
 
 export default function ReportsPage() {
-  const [reportData, setReportData] = useState({ months: [], totalDebt: 0, totalRevenue: 0, totalPaid: 0 });
+  const [reportData, setReportData] = useState({ 
+    months: [], 
+    totalDebt: 0, 
+    totalRevenue: 0, 
+    totalPaid: 0, 
+    totalPurchases: 0, 
+    partnerPurchases: [] 
+  });
   const [dates, setDates] = useState({ start: '', end: '' });
   const [loading, setLoading] = useState(true);
   const [isPrinting, setIsPrinting] = useState(false);
@@ -50,7 +57,9 @@ export default function ReportsPage() {
         months: data.months || [], 
         totalDebt: data.totalDebt || 0, 
         totalRevenue: data.totalRevenue || 0,
-        totalPaid: data.totalPaid || 0 
+        totalPaid: data.totalPaid || 0,
+        totalPurchases: data.totalPurchases || 0,
+        partnerPurchases: data.partnerPurchases || []
       });
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
@@ -282,20 +291,40 @@ export default function ReportsPage() {
 
         {loading && !isPrinting ? <p>Analyse des données financières en cours...</p> : (
           <>
-            <div className="dashboard-grid">
+            <div className="dashboard-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
               <div className="stat-card">
-                <div className="stat-value" style={{ color: 'var(--primary)' }}>{reportData.totalRevenue.toLocaleString()} FCFA</div>
-                <div className="stat-label">Chiffre d'Affaires Total</div>
+                <div className="stat-value" style={{ color: 'var(--primary)' }}>{(reportData.totalRevenue || 0).toLocaleString()} FCFA</div>
+                <div className="stat-label">Chiffre d'Affaires</div>
               </div>
               <div className="stat-card">
-                <div className="stat-value" style={{ color: 'var(--success)' }}>{reportData.totalPaid.toLocaleString()} FCFA</div>
+                <div className="stat-value" style={{ color: 'var(--success)' }}>{(reportData.totalPaid || 0).toLocaleString()} FCFA</div>
                 <div className="stat-label">Total Encaissé</div>
               </div>
               <div className="stat-card">
-                <div className="stat-value" style={{ color: 'var(--danger)' }}>{reportData.totalDebt.toLocaleString()} FCFA</div>
+                <div className="stat-value" style={{ color: 'var(--danger)' }}>{(reportData.totalDebt || 0).toLocaleString()} FCFA</div>
                 <div className="stat-label">Dette Globale</div>
               </div>
+              <div className="stat-card">
+                <div className="stat-value" style={{ color: 'var(--info)' }}>{(reportData.totalPurchases || 0).toLocaleString()} FCFA</div>
+                <div className="stat-label">Achats Partenaires</div>
+              </div>
             </div>
+
+            {reportData.partnerPurchases && reportData.partnerPurchases.length > 0 && (
+              <div className="content-card" style={{ marginTop: '1.5rem', padding: '1.25rem' }}>
+                <h3 style={{ margin: '0 0 1rem 0', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Package size={18} /> Détail des Achats par Partenaire
+                </h3>
+                <div style={{ display: 'flex', gap: '2.5rem', flexWrap: 'wrap' }}>
+                  {reportData.partnerPurchases.map(p => (
+                    <div key={p.name} style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>{p.name}</span>
+                      <span style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--info)' }}>{p.total.toLocaleString()} <span style={{ fontSize: '0.7rem' }}>FCFA</span></span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="content-card" style={{ marginTop: '2rem' }}>
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2rem' }}><BarChart3 /> Performance Mensuelle (FCFA)</h3>

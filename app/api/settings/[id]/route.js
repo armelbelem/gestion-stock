@@ -1,19 +1,23 @@
 import { NextResponse } from 'next/server';
 import db from '../../../lib/db';
-import { authenticateToken } from '../../../lib/auth';
+import { authenticateToken, hasPermission } from '../../../lib/auth';
 import { logAction } from '../../../lib/actions';
 
 export async function PUT(request, { params }) {
   const auth = authenticateToken(request);
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
-  if (auth.user.role !== 'admin') return NextResponse.json({ error: 'Droits insuffisants' }, { status: 403 });
+  
+  if (!hasPermission(auth.user, 'admin', 'settings')) {
+    return NextResponse.json({ error: 'Droits insuffisants' }, { status: 403 });
+  }
 
   const body = await request.json();
   const { 
     companyName, address, phone, email, nif, rccm, logo, currency, footerMessage, receiptFormat,
     supervisorName, supervisorTitle, stampImage, signatureImage, tvaRate,
     website, bankInfo, taxSystem, secondaryAddress, blSupervisorName, blSupervisorTitle,
-    blStampImage, blSignatureImage, bcTitlePrefix, blTitlePrefix, bp, division
+    blStampImage, blSignatureImage, bcTitlePrefix, blTitlePrefix, bp, division,
+    footerLine1, footerLine2, footerLine3, footerLine4
   } = body;
 
   try {
@@ -28,13 +32,15 @@ export async function PUT(request, { params }) {
         blSupervisorName = ?, blSupervisorTitle = ?,
         blStampImage = ?, blSignatureImage = ?,
         bcTitlePrefix = ?, blTitlePrefix = ?,
-        bp = ?, division = ?
+        bp = ?, division = ?,
+        footerLine1 = ?, footerLine2 = ?, footerLine3 = ?, footerLine4 = ?
       WHERE id = 1
     `, [
       companyName, address, phone, email, nif, rccm, logo, currency, footerMessage, receiptFormat,
       supervisorName, supervisorTitle, stampImage, signatureImage, tvaRate,
       website, bankInfo, taxSystem, secondaryAddress, blSupervisorName, blSupervisorTitle,
-      blStampImage, blSignatureImage, bcTitlePrefix, blTitlePrefix, bp, division
+      blStampImage, blSignatureImage, bcTitlePrefix, blTitlePrefix, bp, division,
+      footerLine1, footerLine2, footerLine3, footerLine4
     ]);
 
     await logAction(auth.user.id, auth.user.storeId, 'Mise à jour paramètres', { companyName });

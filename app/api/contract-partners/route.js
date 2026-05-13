@@ -25,7 +25,9 @@ export async function POST(request) {
       name, logo, address, phone, email, bc_prefix, bl_prefix,
       supervisor_name, supervisor_title, stamp_image, signature_image,
       bl_supervisor_name, bl_supervisor_title, bl_stamp_image, bl_signature_image,
-      header_text, rccm, nif, my_client_code, bp
+      header_text, rccm, nif, my_client_code, bp,
+      bc_col_no, bc_col_site, bc_col_desc, bc_col_code, bc_col_ref, bc_col_qty, bc_col_price, bc_col_total,
+      bl_col_no, bl_col_site, bl_col_desc, bl_col_code, bl_col_ref, bl_col_qty
     } = body;
     
     if (!name) return NextResponse.json({ error: 'Nom requis' }, { status: 400 });
@@ -37,13 +39,17 @@ export async function POST(request) {
           id, name, logo, address, phone, email, bc_prefix, bl_prefix,
           supervisor_name, supervisor_title, stamp_image, signature_image,
           bl_supervisor_name, bl_supervisor_title, bl_stamp_image, bl_signature_image,
-          header_text, rccm, nif, my_client_code, bp
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          header_text, rccm, nif, my_client_code, bp,
+          bc_col_no, bc_col_site, bc_col_desc, bc_col_code, bc_col_ref, bc_col_qty, bc_col_price, bc_col_total,
+          bl_col_no, bl_col_site, bl_col_desc, bl_col_code, bl_col_ref, bl_col_qty
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           id, name, logo || null, address || null, phone || null, email || null, bc_prefix || 'BON DE COMMANDE', bl_prefix || 'BORDEREAU DE LIVRAISON',
           supervisor_name || null, supervisor_title || null, stamp_image || null, signature_image || null,
           bl_supervisor_name || null, bl_supervisor_title || null, bl_stamp_image || null, bl_signature_image || null,
-          header_text || null, rccm || null, nif || null, my_client_code || null, bp || null
+          header_text || null, rccm || null, nif || null, my_client_code || null, bp || null,
+          bc_col_no || null, bc_col_site || null, bc_col_desc || null, bc_col_code || null, bc_col_ref || null, bc_col_qty || null, bc_col_price || null, bc_col_total || null,
+          bl_col_no || null, bl_col_site || null, bl_col_desc || null, bl_col_code || null, bl_col_ref || null, bl_col_qty || null
         ]
     );
 

@@ -49,6 +49,11 @@ export default function ArchivesPage() {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        showAlert('error', 'Fichier trop lourd', "La taille maximale autorisée est de 5 Mo.");
+        e.target.value = null;
+        return;
+      }
       setUploadData({ ...uploadData, file, name: file.name.split('.')[0] });
     }
   };
@@ -275,7 +280,7 @@ export default function ArchivesPage() {
                     <div>
                       <Upload size={40} className="text-muted" style={{ marginBottom: '0.5rem' }} />
                       <p>Cliquez ou glissez un fichier ici</p>
-                      <span className="text-muted" style={{ fontSize: '0.8rem' }}>PDF, PNG, JPG supportés</span>
+                      <span className="text-muted" style={{ fontSize: '0.8rem' }}>PDF, PNG, JPG supportés (Max 5 Mo)</span>
                     </div>
                   )}
                 </div>
@@ -326,17 +331,54 @@ export default function ArchivesPage() {
 
       {previewDoc && (
         <div className="modal-overlay" onClick={() => setPreviewDoc(null)}>
-          <div className="modal-content" style={{ maxWidth: '90vw', height: '90vh', padding: 0, display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
-            <div className="modal-header" style={{ padding: '1rem' }}>
-              <h3 style={{ margin: 0 }}>{previewDoc.name}</h3>
-              <button className="modal-close" onClick={() => setPreviewDoc(null)}><X size={20} /></button>
+          <div className="modal-content" style={{ maxWidth: '95vw', width: '1200px', height: '90vh', padding: 0, display: 'flex', flexDirection: 'column', borderRadius: '16px', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header" style={{ padding: '1rem 1.5rem', backgroundColor: 'var(--card-bg)', borderBottom: '1px solid var(--border-light)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ padding: '8px', backgroundColor: 'var(--bg-faint)', borderRadius: '8px' }}>
+                  {getFileIcon(previewDoc.fileType)}
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem' }}>{previewDoc.name}</h3>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{previewDoc.fileType || 'Type inconnu'} • {formatSize(previewDoc.fileSize)}</span>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                <a href={previewDoc.filePath} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" style={{ padding: '6px 12px' }}>
+                  <Eye size={14} style={{ marginRight: '6px' }} /> Ouvrir en plein écran
+                </a>
+                <button className="modal-close" onClick={() => setPreviewDoc(null)} style={{ position: 'static', backgroundColor: 'var(--bg-faint)', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '50%' }}><X size={20} /></button>
+              </div>
             </div>
-            <div style={{ flex: 1, backgroundColor: '#f0f0f0', position: 'relative' }}>
-              {previewDoc.fileType.includes('pdf') ? (
-                <iframe src={previewDoc.filePath} style={{ width: '100%', height: '100%', border: 'none' }}></iframe>
+            <div style={{ flex: 1, backgroundColor: '#333', position: 'relative', overflow: 'hidden' }}>
+              {previewDoc.fileType?.includes('pdf') || previewDoc.filePath?.toLowerCase().endsWith('.pdf') ? (
+                <iframe 
+                  src={`${previewDoc.filePath}#toolbar=0`} 
+                  style={{ width: '100%', height: '100%', border: 'none' }}
+                  title="PDF Preview"
+                ></iframe>
+              ) : previewDoc.fileType?.includes('image') || /\.(jpg|jpeg|png|gif|webp)$/i.test(previewDoc.filePath) ? (
+                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>
+                  <img 
+                    src={previewDoc.filePath} 
+                    alt={previewDoc.name} 
+                    style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', boxShadow: '0 8px 32px rgba(0,0,0,0.4)', borderRadius: '4px' }} 
+                  />
+                </div>
               ) : (
-                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
-                  <img src={previewDoc.filePath} alt={previewDoc.name} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'white', textAlign: 'center', padding: '2rem' }}>
+                  <div style={{ padding: '2rem', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '20px', maxWidth: '400px' }}>
+                    <FileText size={64} style={{ marginBottom: '1.5rem', opacity: 0.5 }} />
+                    <h4 style={{ marginBottom: '0.5rem' }}>Aperçu non disponible</h4>
+                    <p style={{ opacity: 0.7, marginBottom: '1.5rem' }}>Ce type de fichier ({previewDoc.fileType || 'inconnu'}) ne peut pas être affiché directement. Veuillez le télécharger ou l'ouvrir dans un nouvel onglet.</p>
+                    <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+                      <a href={previewDoc.filePath} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
+                        Ouvrir le fichier
+                      </a>
+                      <a href={previewDoc.filePath} download={previewDoc.name} className="btn btn-secondary">
+                        Télécharger
+                      </a>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

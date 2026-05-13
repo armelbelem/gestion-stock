@@ -11,7 +11,7 @@ export default function SuppliersPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isReporting, setIsReporting] = useState(false);
   const [settings, setSettings] = useState(null);
-  const [formData, setFormData] = useState({ id: '', name: '', email: '', phone: '', address: '', rccm: '', nif: '', bp: '', myClientCode: '' });
+  const [formData, setFormData] = useState({ id: '', name: '', email: '', phone: '', rccm: '', nif: '', bp: '' });
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -39,7 +39,7 @@ export default function SuppliersPage() {
 
   const loadSuppliers = async () => {
     try {
-      const data = await storage.get('fournisseurs');
+      const data = await storage.get('fournisseurs?storeId=all');
       setSuppliers(data);
     } catch (err) {
       console.error("Error loading suppliers:", err);
@@ -51,9 +51,7 @@ export default function SuppliersPage() {
       { key: 'name', label: 'Nom' },
       { key: 'email', label: 'Email' },
       { key: 'phone', label: 'Téléphone' },
-      { key: 'address', label: 'Adresse' },
       { key: 'bp', label: 'BP' },
-      { key: 'myClientCode', label: 'Mon Code Client' },
       { key: 'rccm', label: 'RCCM' },
       { key: 'nif', label: 'NIF / IFU' }
     ];
@@ -78,7 +76,7 @@ export default function SuppliersPage() {
     if (supplier) {
       setFormData(supplier);
     } else {
-      setFormData({ id: '', name: '', email: '', phone: '', address: '', rccm: '', nif: '', bp: '', myClientCode: '' });
+      setFormData({ id: '', name: '', email: '', phone: '', rccm: '', nif: '', bp: '' });
     }
     setIsModalOpen(true);
   };
@@ -129,8 +127,7 @@ export default function SuppliersPage() {
     (supplier.phone && supplier.phone.toLowerCase().includes(searchTerm.toLowerCase())) ||
     (supplier.rccm && supplier.rccm.toLowerCase().includes(searchTerm.toLowerCase())) ||
     (supplier.nif && supplier.nif.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (supplier.bp && supplier.bp.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (supplier.myClientCode && supplier.myClientCode.toLowerCase().includes(searchTerm.toLowerCase()))
+    (supplier.bp && supplier.bp.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const totalPages = Math.ceil(filteredSuppliers.length / itemsPerPage);
@@ -154,9 +151,8 @@ export default function SuppliersPage() {
               <th style={{ textAlign: 'left', padding: '8px' }}>Nom</th>
               <th style={{ textAlign: 'left', padding: '8px' }}>Email</th>
               <th style={{ textAlign: 'left', padding: '8px' }}>Téléphone</th>
-              <th style={{ textAlign: 'left', padding: '8px' }}>RCCM</th>
+               <th style={{ textAlign: 'left', padding: '8px' }}>RCCM</th>
               <th style={{ textAlign: 'left', padding: '8px' }}>BP</th>
-              <th style={{ textAlign: 'left', padding: '8px' }}>Mon Code Client</th>
               <th style={{ textAlign: 'left', padding: '8px' }}>IFU</th>
             </tr>
           </thead>
@@ -168,7 +164,6 @@ export default function SuppliersPage() {
                 <td style={{ padding: '8px' }}>{supplier.phone || '-'}</td>
                 <td style={{ padding: '8px' }}>{supplier.rccm || '-'}</td>
                 <td style={{ padding: '8px' }}>{supplier.bp || '-'}</td>
-                <td style={{ padding: '8px' }}>{supplier.myClientCode || '-'}</td>
                 <td style={{ padding: '8px' }}>{supplier.nif || '-'}</td>
               </tr>
             ))}
@@ -225,7 +220,6 @@ export default function SuppliersPage() {
                 <th>Téléphone</th>
                 <th>RCCM</th>
                 <th>BP</th>
-                <th>Mon Code</th>
                 <th>IFU</th>
                 <th style={{ width: '150px' }}>Actions</th>
               </tr>
@@ -250,7 +244,6 @@ export default function SuppliersPage() {
                     <td>{supplier.phone || '-'}</td>
                     <td>{supplier.rccm || '-'}</td>
                     <td>{supplier.bp || '-'}</td>
-                    <td>{supplier.myClientCode || '-'}</td>
                     <td>{supplier.nif || '-'}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -295,15 +288,9 @@ export default function SuppliersPage() {
                   <label className="form-label">Téléphone</label>
                   <input type="text" className="form-control" value={formData.phone || ''} onChange={(e) => setFormData({...formData, phone: e.target.value})} />
                 </div>
-                <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                  <div className="form-group">
-                    <label className="form-label">Mon Code Client chez eux</label>
-                    <input type="text" className="form-control" placeholder="ex: CL-001" value={formData.myClientCode || ''} onChange={(e) => setFormData({...formData, myClientCode: e.target.value})} />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Boîte Postale (BP)</label>
-                    <input type="text" className="form-control" placeholder="ex: 01 BP 23 Ouaga 01" value={formData.bp || ''} onChange={(e) => setFormData({...formData, bp: e.target.value})} />
-                  </div>
+                <div className="form-group">
+                  <label className="form-label">Boîte Postale (BP)</label>
+                  <input type="text" className="form-control" placeholder="ex: 01 BP 23 Ouaga 01" value={formData.bp || ''} onChange={(e) => setFormData({...formData, bp: e.target.value})} />
                 </div>
 
                 <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
@@ -315,10 +302,6 @@ export default function SuppliersPage() {
                     <label className="form-label">NIF / IFU</label>
                     <input type="text" className="form-control" value={formData.nif || ''} onChange={(e) => setFormData({...formData, nif: e.target.value})} />
                   </div>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Adresse</label>
-                  <textarea className="form-control" rows="2" value={formData.address || ''} onChange={(e) => setFormData({...formData, address: e.target.value})} />
                 </div>
               </div>
               <div className="modal-footer">

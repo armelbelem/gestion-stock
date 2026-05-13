@@ -2,15 +2,38 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { 
   LayoutDashboard, Tags, Package, ArrowRightLeft, LogOut, 
   Users, ShoppingCart, Sun, Moon, UserCog, Coins, BarChart3, 
-  Truck, Menu, X, Wallet, AlertCircle, Calendar, Store, ShieldAlert, PackageOpen, Settings, Brain, TrendingDown, Globe, Archive
+  Truck, Menu, X, Wallet, AlertCircle, Calendar, Store, ShieldAlert, PackageOpen, Settings, Brain, TrendingDown, Globe, Archive, Search
 } from 'lucide-react';
 import { useAuth } from '../providers';
 import { storage } from '../lib/storage';
+import { hasPermission } from '../lib/auth';
 import AlertModal from '../components/AlertModal';
+import GlobalSearch from '../components/GlobalSearch';
+
+const routePermissions = [
+  { path: '/articles', category: 'stock', action: 'view' },
+  { path: '/mouvements', category: 'stock', action: 'move' },
+  { path: '/transfers', category: 'stock', action: 'move' },
+  { path: '/fournisseurs', category: 'procurement', action: 'view' },
+  { path: '/external-orders', category: 'procurement', action: 'view' },
+  { path: '/contract-gateway', category: 'procurement', action: 'view' },
+  { path: '/finances', category: 'finances', action: 'view' },
+  { path: '/payments', category: 'finances', action: 'view' },
+  { path: '/reports', category: 'finances', action: 'view' },
+  { path: '/intelligence', category: 'finances', action: 'view' },
+  { path: '/archives', category: 'admin', action: 'settings' },
+  { path: '/exercices', category: 'admin', action: 'settings' },
+  { path: '/stores', category: 'admin', action: 'settings' },
+  { path: '/clients', category: 'clients', action: 'view' },
+  { path: '/settings', category: 'admin', action: 'settings' },
+  { path: '/users', category: 'admin', action: 'users' },
+  { path: '/logs', category: 'admin', action: 'logs' },
+  { path: '/', category: 'finances', action: 'view' },
+];
 
 export default function ClientLayout({ children }) {
   const { user, logout } = useAuth();
@@ -86,6 +109,26 @@ export default function ClientLayout({ children }) {
     window.location.reload();
   };
 
+  const router = useRouter();
+
+  // Calcul synchrone de l'autorisation pour éviter le "flash" de contenu interdit
+  const isAuthorized = (() => {
+    if (!user) return true; // On attend que useAuth nous donne l'utilisateur
+    const route = routePermissions.find(rp => pathname === rp.path || (rp.path !== '/' && pathname.startsWith(rp.path)));
+    if (route) {
+      return hasPermission(user, route.category, route.action);
+    }
+    return true;
+  })();
+
+  // Effet pour la redirection effective
+  useEffect(() => {
+    if (user && !isAuthorized) {
+      console.warn(`Access denied for ${user.role} on ${pathname}. Redirecting...`);
+      router.push('/sales');
+    }
+  }, [isAuthorized, user, pathname, router]);
+
   useEffect(() => {
     setIsSidebarOpen(false);
   }, [pathname]);
@@ -119,6 +162,29 @@ export default function ClientLayout({ children }) {
     );
   };
 
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await fetch('/api/notifications', {
+        headers: { 'Authorization': `Bearer ${sessionStorage.getItem('token')}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setNotifications(data);
+      }
+    } catch (err) {
+      console.error("Error fetching notifications:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 60000); // Check every minute
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div className="app-container">
       <div 
@@ -128,42 +194,65 @@ export default function ClientLayout({ children }) {
 
       <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-header">
-          <h2>NS AutoFlow</h2>
+          <h2><span style={{color: '#ef4444'}}>NS-AUTO</span> Global Manager</h2>
           <button className="menu-toggle" onClick={() => setIsSidebarOpen(false)}>
             <X size={24} />
           </button>
         </div>
         <nav className="sidebar-nav">
-          {user?.role === 'admin' && (
+          {hasPermission(user, 'finances', 'view') && (
             <NavItem href="/" icon={LayoutDashboard} label="Tableau de Bord" badge={lowStockCount > 0} end />
           )}
 
-          <NavItem href="/articles" icon={Package} label="Articles" badge={lowStockCount} />
+          {hasPermission(user, 'stock', 'view') && (
+            <NavItem href="/articles" icon={Package} label="Articles" badge={lowStockCount} />
+          )}
 
-          {user?.role === 'admin' && (
+          {hasPermission(user, 'stock', 'move') && (
             <>
               <NavItem href="/mouvements" icon={ArrowRightLeft} label="Mouvements" />
               <NavItem href="/transfers" icon={ArrowRightLeft} label="Transferts" />
+            </>
+          )}
+
+          {(hasPermission(user, 'procurement', 'view') || hasPermission(user, 'stock', 'view_cost_price')) && (
+            <>
               <NavItem href="/fournisseurs" icon={Truck} label="Fournisseurs" />
               <NavItem href="/external-orders" icon={PackageOpen} label="Commandes Spéciales" />
               <NavItem href="/contract-gateway" icon={Globe} label="Achats Partenaires" />
+            </>
+          )}
+
+          {hasPermission(user, 'finances', 'view') && (
+            <>
               <NavItem href="/finances" icon={Coins} label="Finances" />
               <NavItem href="/payments" icon={Wallet} label="Règlements" />
               <NavItem href="/reports" icon={BarChart3} label="Rapports" />
               <NavItem href="/intelligence" icon={Brain} label="Intelligence" />
-              <NavItem href="/archives" icon={Archive} label="Archives" />
-              <NavItem href="/exercices" icon={Calendar} label="Exercices" />
             </>
           )}
-          <NavItem href="/clients" icon={Users} label="Clients" />
-          <NavItem href="/sales" icon={ShoppingCart} label="Ventes" />
-          {user?.role === 'admin' && (
+
+          {hasPermission(user, 'admin', 'settings') && (
             <>
+              <NavItem href="/archives" icon={Archive} label="Archives" />
+              <NavItem href="/exercices" icon={Calendar} label="Exercices" />
               <NavItem href="/stores" icon={Store} label="Magasins" />
-              <NavItem href="/settings" icon={Settings} label="Paramètres" />
-              <NavItem href="/users" icon={UserCog} label="Utilisateurs" />
-              <NavItem href="/logs" icon={ShieldAlert} label="Journal d'Activité" />
             </>
+          )}
+
+          {hasPermission(user, 'clients', 'view') && (
+            <NavItem href="/clients" icon={Users} label="Clients" />
+          )}
+          <NavItem href="/sales" icon={ShoppingCart} label="Ventes" />
+
+          {hasPermission(user, 'admin', 'settings') && (
+            <NavItem href="/settings" icon={Settings} label="Paramètres" />
+          )}
+          {hasPermission(user, 'admin', 'users') && (
+            <NavItem href="/users" icon={UserCog} label="Utilisateurs" />
+          )}
+          {hasPermission(user, 'admin', 'logs') && (
+            <NavItem href="/logs" icon={ShieldAlert} label="Journal d'Activité" />
           )}
         </nav>
       </aside>
@@ -174,7 +263,7 @@ export default function ClientLayout({ children }) {
             <button className="menu-toggle" onClick={() => setIsSidebarOpen(true)}>
               <Menu size={24} />
             </button>
-            <div className="header-title">Gestion de Stock</div>
+            <div className="header-title"><span style={{color: '#ef4444', fontWeight: '800'}}>NS-AUTO</span> Global Manager</div>
             {activeYear && (
               <div className="badge badge-primary" style={{ marginLeft: '1rem', fontSize: '0.8rem', padding: '4px 10px' }}>
                 <Calendar size={12} style={{ marginRight: '4px' }} />
@@ -182,7 +271,7 @@ export default function ClientLayout({ children }) {
               </div>
             )}
             
-            {user?.role === 'admin' && (
+            {(user?.role === 'admin' || user?.role === 'gestionnaire') && (
               <div className="store-selector" style={{ marginLeft: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Store size={18} className="text-muted" />
                 <select 
@@ -198,13 +287,87 @@ export default function ClientLayout({ children }) {
                 </select>
               </div>
             )}
+
+            {/* Global Search Button */}
+            <div 
+              className="search-trigger" 
+              onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { ctrlKey: true, key: 'k' }))}
+              style={{ 
+                marginLeft: '1.5rem', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '10px', 
+                backgroundColor: 'var(--bg-light)', 
+                padding: '6px 12px', 
+                borderRadius: '8px', 
+                cursor: 'pointer',
+                border: '1px solid var(--border-color)',
+                transition: 'all 0.2s ease',
+                color: 'var(--text-muted)'
+              }}
+            >
+              <Search size={16} />
+              <span style={{ fontSize: '0.85rem', fontWeight: '500' }}>Recherche rapide...</span>
+              <kbd style={{ 
+                backgroundColor: 'var(--surface)', 
+                border: '1px solid var(--border-color)', 
+                padding: '2px 6px', 
+                borderRadius: '4px', 
+                fontSize: '0.7rem', 
+                fontWeight: '700',
+                marginLeft: '10px'
+              }}>Ctrl K</kbd>
+            </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+            
+            {/* Notification Bell */}
+            <div className="notification-bell-wrapper">
+              <button 
+                className="btn btn-secondary" 
+                style={{ position: 'relative' }}
+                onClick={() => setShowNotifications(!showNotifications)}
+              >
+                <ShieldAlert size={18} color={notifications.length > 0 ? 'var(--danger)' : 'currentColor'} />
+                {notifications.length > 0 && <span className="badge-alert" style={{ top: '-5px', right: '-5px' }}>{notifications.length}</span>}
+              </button>
+
+              {showNotifications && (
+                <>
+                  <div className="modal-overlay" style={{ background: 'transparent' }} onClick={() => setShowNotifications(false)}></div>
+                  <div className="notification-dropdown">
+                    <div className="notification-header">
+                      <h4>Notifications ({notifications.length})</h4>
+                      <button className="btn btn-secondary btn-sm" onClick={fetchNotifications}><ArrowRightLeft size={14} /></button>
+                    </div>
+                    <div className="notification-list">
+                      {notifications.length === 0 ? (
+                        <div className="notification-empty">Aucune alerte pour le moment.</div>
+                      ) : (
+                        notifications.map(n => (
+                          <Link key={n.id} href={n.link} className="notification-item" onClick={() => setShowNotifications(false)}>
+                            <div className={`notification-icon ${n.type}`}>
+                              <AlertCircle size={18} />
+                            </div>
+                            <div className="notification-content">
+                              <div className="notification-title">{n.title}</div>
+                              <div className="notification-message">{n.message}</div>
+                              <div className="notification-time">{new Date(n.createdAt).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
+                            </div>
+                          </Link>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
             <button onClick={toggleTheme} className="btn btn-secondary">
               {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
             </button>
             <div className="user-profile">
-              <div className="avatar" style={{ backgroundColor: user?.role === 'admin' ? 'var(--primary)' : 'var(--success)' }}>
+              <div className="avatar" style={{ backgroundColor: (user?.role === 'admin' || user?.role === 'gestionnaire') ? 'var(--primary)' : 'var(--success)' }}>
                 {user ? user.username[0].toUpperCase() : 'A'}
               </div>
               <span className="desktop-only" style={{ fontWeight: 600 }}>{user ? user.username : 'Admin'}</span>
@@ -225,7 +388,13 @@ export default function ClientLayout({ children }) {
               </Link>
             </div>
           )}
-          {children}
+          
+          {isAuthorized ? children : (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '50vh', gap: '1rem' }}>
+              <div className="spinner"></div>
+              <p className="text-muted">Accès restreint, redirection en cours...</p>
+            </div>
+          )}
         </div>
       </main>
 
@@ -246,6 +415,8 @@ export default function ClientLayout({ children }) {
           </div>
         ))}
       </div>
+
+      <GlobalSearch />
     </div>
   );
 }

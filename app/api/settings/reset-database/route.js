@@ -40,7 +40,11 @@ export async function POST(request) {
     await connection.query('SET FOREIGN_KEY_CHECKS = 0');
     
     for (const table of tablesToClear) {
-      await connection.query(`TRUNCATE TABLE ${table}`);
+      try {
+        await connection.query(`TRUNCATE TABLE ${table}`);
+      } catch (tableErr) {
+        console.warn(`Table ${table} non trouvée ou impossible à vider, ignorée.`);
+      }
     }
     
     await connection.query('SET FOREIGN_KEY_CHECKS = 1');

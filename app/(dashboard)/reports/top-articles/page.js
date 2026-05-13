@@ -68,7 +68,7 @@ export default function TopArticlesReportPage() {
       { key: 'articleBarcode', label: 'Référence' },
       { key: 'articleName', label: 'Article' },
       { key: 'quantity', label: 'Quantité' },
-      { key: 'amount', label: 'Montant Total' }
+      { key: 'amount', label: 'Montant Total HT' }
     ];
     exportToExcel(exportData, headers, `top_articles_par_client_${dates.start}_${dates.end}`);
   };
@@ -199,7 +199,7 @@ export default function TopArticlesReportPage() {
                       <tr>
                         <th>Article</th>
                         <th style={{ textAlign: 'center' }}>Qté</th>
-                        <th style={{ textAlign: 'right' }}>Total</th>
+                        <th style={{ textAlign: 'right' }}>Total HT</th>
                       </tr>
                     </thead>
                     <tbody>

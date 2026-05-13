@@ -4,17 +4,33 @@ import React, { useState, useEffect } from 'react';
 import { storage } from '../../lib/storage';
 import { 
   Brain, BarChart3, TrendingUp, AlertTriangle, 
-  Info, Users, Package, Calendar, Store, ArrowDownRight, ArrowUpRight, TrendingDown
+  Info, Users, Package, Calendar, Store, ArrowDownRight, ArrowUpRight, TrendingDown,
+  Upload, Download
 } from 'lucide-react';
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, 
   Tooltip, Legend, ResponsiveContainer, AreaChart, Area, Cell
 } from 'recharts';
+import { exportToExcel } from '../../utils/excelExport';
 
 export default function IntelligencePage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [forecastData, setForecastData] = useState(null);
+  const [isGeneratingAll, setIsGeneratingAll] = useState(false);
+  const [stores, setStores] = useState([]);
+  const [forecastStoreId, setForecastStoreId] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const filteredForecastData = forecastData ? forecastData.filter(row => {
+    const term = searchTerm.toLowerCase();
+    return (
+      (row.name && row.name.toLowerCase().includes(term)) ||
+      (row.code && String(row.code).toLowerCase().includes(term)) ||
+      (row.reference && String(row.reference).toLowerCase().includes(term))
+    );
+  }) : null;
 
   useEffect(() => {
     loadIntelligenceData();
@@ -26,12 +42,78 @@ export default function IntelligencePage() {
       const storeId = localStorage.getItem('selectedStore') || '';
       const res = await storage.get(`reports/intelligence${storeId ? `?storeId=${storeId}` : ''}`);
       setData(res);
+      
+      try {
+        const storesData = await storage.get('stores');
+        setStores(storesData || []);
+      } catch (err) {
+        console.error("Erreur chargement magasins:", err);
+      }
     } catch (err) {
       console.error(err);
       setError("Erreur lors du chargement des analyses décisionnelles.");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleGenerateAll = async () => {
+    setIsGeneratingAll(true);
+    try {
+      const storeId = forecastStoreId || localStorage.getItem('selectedStore') || '';
+      
+      const res = await fetch('/api/reports/forecast', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ fetchAll: true, storeId })
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Erreur lors du calcul des prévisions");
+      }
+
+      const forecastResults = await res.json();
+      setForecastData(forecastResults);
+    } catch (err) {
+      console.error(err);
+      alert(err.message || "Erreur lors de la génération du rapport.");
+    } finally {
+      setIsGeneratingAll(false);
+    }
+  };
+
+
+  const handleExportForecast = () => {
+    if (!forecastData || forecastData.length === 0) return;
+    
+    const selectedStore = stores.find(s => String(s.id) === String(forecastStoreId));
+    const storeName = selectedStore ? selectedStore.name : 'Tous les magasins (Global)';
+
+    const headers = [
+      { key: 'code', label: 'Code Article' },
+      { key: 'name', label: "Nom de l'article" },
+      { key: 'reference', label: 'Référence' },
+      { key: 'unitPrice', label: 'Prix Unitaire' },
+      { key: 'currentStock', label: 'Stock Disponible' },
+      { key: 'qty1m', label: 'Conso. 1 Dernier Mois' },
+      { key: 'qty2m', label: 'Conso. 2 Derniers Mois' },
+      { key: 'qty3m', label: 'Conso. 3 Derniers Mois' },
+      { key: 'qty6m', label: 'Conso. 6 Derniers Mois' },
+      { key: 'qty1y', label: 'Conso. 1 An' },
+      { key: 'qty2y', label: 'Conso. 2 Ans' },
+      { key: 'forecast2m', label: 'Prévision (2 Prochains Mois)' },
+      { key: 'abcClass', label: 'Classe ABC' }
+    ];
+
+    exportToExcel(forecastData, headers, `Previsions_Reapprovisionnement_${new Date().toISOString().split('T')[0]}`, {
+      title: "Prévisions de Réapprovisionnement & Consommation",
+      companyName: `NS AUTO - Magasin : ${storeName}`,
+      period: "Basé sur l'historique des sorties"
+    });
   };
 
   if (loading) return <div className="page"><p>Analyse des données en cours...</p></div>;
@@ -237,6 +319,142 @@ export default function IntelligencePage() {
           <p style={{ textAlign: 'center', padding: '2rem', color: 'var(--success)' }}>
             Tous vos clients conservent un rythme de consommation stable.
           </p>
+        )}
+      </div>
+
+      {/* NOUVEAU BLOC: PRÉVISIONS SUR MESURE */}
+      <div className="content-card" style={{ marginTop: '2rem', borderTop: '4px solid var(--primary)' }}>
+        <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Package size={20} className="text-primary" /> Prévisions de Réapprovisionnement & Analyse de Consommation
+        </h3>
+        <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+          Générez un rapport pour l'ensemble du catalogue pour analyser la consommation passée et estimer les besoins pour les 2 prochains mois.
+        </p>
+
+        <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          
+          <div className="store-selector" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Store size={18} className="text-muted" />
+            <select 
+              className="form-control" 
+              style={{ width: '250px', height: '36px', padding: '0 10px' }}
+              value={forecastStoreId}
+              onChange={(e) => setForecastStoreId(e.target.value)}
+              disabled={isGeneratingAll}
+            >
+              <option value="">Tous les magasins (Global)</option>
+              {stores.map(s => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <button 
+            className="btn btn-primary" 
+            onClick={handleGenerateAll}
+            disabled={isGeneratingAll}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            {isGeneratingAll ? <span className="spinner"></span> : <BarChart3 size={18} />}
+            {isGeneratingAll ? 'Analyse globale en cours...' : 'Générer pour tout le catalogue'}
+          </button>
+
+          
+          {forecastData && (
+            <button className="btn btn-secondary" onClick={handleExportForecast} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Download size={18} /> Exporter le Rapport Final (.xlsx)
+            </button>
+          )}
+        </div>
+
+        {forecastData && forecastData.length > 0 && (
+          <>
+            <div style={{ marginBottom: '1rem' }}>
+              <input 
+                type="text" 
+                className="form-control" 
+                placeholder="Filtrer par nom, code ou référence..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{ maxWidth: '400px' }}
+              />
+            </div>
+            
+            <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1rem', fontSize: '0.8rem', padding: '0.5rem', backgroundColor: 'var(--bg-light)', borderRadius: '4px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ width: '12px', height: '12px', backgroundColor: 'var(--danger)', borderRadius: '2px' }}></div>
+                <strong>Classe A (Critique) :</strong> 80% du CA cumulé
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ width: '12px', height: '12px', backgroundColor: 'var(--primary)', borderRadius: '2px' }}></div>
+                <strong>Classe B (Important) :</strong> 15% suivants
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ width: '12px', height: '12px', backgroundColor: 'var(--text-muted)', borderRadius: '2px' }}></div>
+                <strong>Classe C (Secondaire) :</strong> Reste du catalogue
+              </div>
+            </div>
+
+            <div className="table-wrapper" style={{ maxHeight: '500px', overflowY: 'auto' }}>
+              <table className="table-sm">
+              <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--bg-main)', zIndex: 1 }}>
+                <tr>
+                  <th>Code article</th>
+                  <th>Nom de l'article</th>
+                  <th>Référence</th>
+                  <th>Prix unitaire</th>
+                  <th style={{ backgroundColor: 'var(--success-light)', color: 'var(--success)' }}>Stock Disp.</th>
+                  <th>Consommée (1 mois)</th>
+                  <th>Consommée (2 mois)</th>
+                  <th>Consommée (3 mois)</th>
+                  <th>Consommée (6 mois)</th>
+                  <th>Consommée (1 an)</th>
+                  <th>Consommée (2 ans)</th>
+                  <th style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary)' }}>Prévision (2 mois)</th>
+                  <th style={{ textAlign: 'center' }}>Classe</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredForecastData.map((row, idx) => (
+                  <tr key={idx} style={{ 
+                    borderLeft: row.abcClass === 'A' ? '4px solid var(--danger)' : row.abcClass === 'B' ? '4px solid var(--primary)' : 'none',
+                    backgroundColor: row.abcClass === 'A' ? 'rgba(220, 38, 38, 0.02)' : row.abcClass === 'B' ? 'rgba(37, 99, 235, 0.02)' : 'inherit'
+                  }}>
+                    <td style={{ fontWeight: row.abcClass === 'A' ? 'bold' : 'normal' }}>{row.code}</td>
+                    <td style={{ maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={row.name}>{row.name}</td>
+                    <td>{row.reference}</td>
+                    <td>{row.unitPrice?.toLocaleString()}</td>
+                    <td style={{ fontWeight: 'bold', color: 'var(--success)' }}>{row.currentStock}</td>
+                    <td>{row.qty1m}</td>
+                    <td>{row.qty2m}</td>
+                    <td>{row.qty3m}</td>
+                    <td>{row.qty6m}</td>
+                    <td>{row.qty1y}</td>
+                    <td>{row.qty2y}</td>
+                    <td style={{ fontWeight: 'bold', color: 'var(--primary)', backgroundColor: 'rgba(var(--primary-rgb), 0.05)' }}>
+                      {row.forecast2m}
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                       <span className={`badge badge-${row.abcClass === 'A' ? 'danger' : row.abcClass === 'B' ? 'primary' : 'secondary'}`} style={{ minWidth: '70px' }}>
+                         Classe {row.abcClass}
+                       </span>
+                     </td>
+                  </tr>
+                ))}
+                {filteredForecastData.length === 0 && (
+                  <tr>
+                    <td colSpan="13" style={{ textAlign: 'center', padding: '1.5rem', color: 'var(--text-muted)' }}>
+                      Aucun article trouvé pour la recherche "{searchTerm}"
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          </>
+        )}
+        {forecastData && forecastData.length === 0 && (
+           <div className="alert alert-warning">Aucun historique trouvé pour les articles importés.</div>
         )}
       </div>
     </div>

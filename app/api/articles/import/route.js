@@ -18,9 +18,21 @@ export async function POST(request) {
     let updatedCount = 0;
     let createdCount = 0;
 
+    const cleanNum = (val) => {
+      if (typeof val === 'number') return val;
+      if (!val) return 0;
+      // Supprimer espaces, remplacer virgule par point, supprimer symboles non numériques sauf le point
+      const cleaned = String(val).replace(/\s/g, '').replace(/,/g, '.').replace(/[^0-9.]/g, '');
+      return parseFloat(cleaned) || 0;
+    };
+
     for (const row of data) {
-      const { id, code, name, price, currentStock, minStock, barcode } = row;
+      let { id, code, name, price, currentStock, minStock, barcode } = row;
       if (!name) continue;
+
+      price = cleanNum(price);
+      currentStock = cleanNum(currentStock);
+      minStock = cleanNum(minStock);
       
       let articleId = id;
       if (!articleId && (code || name || barcode)) {
@@ -35,7 +47,7 @@ export async function POST(request) {
         // UPDATE
         await connection.query(
           'UPDATE articles SET price = ?, minStock = ?, barcode = ?, code = ?, name = ? WHERE id = ?',
-          [Number(price) || 0, Number(minStock) || 0, barcode || null, code || null, name, articleId]
+          [price, minStock, barcode || null, code || null, name, articleId]
         );
         
         // Update inventory for the SPECIFIC store
@@ -45,12 +57,12 @@ export async function POST(request) {
         if (invExists.length > 0) {
           await connection.query(
             'UPDATE inventory SET quantity = ? WHERE articleId = ? AND storeId = ?',
-            [Number(currentStock) || 0, articleId, storeId]
+            [currentStock, articleId, storeId]
           );
         } else {
           await connection.query(
             'INSERT INTO inventory (id, storeId, articleId, quantity, minStock) VALUES (?, ?, ?, ?, ?)',
-            [uuidv4(), storeId, articleId, Number(currentStock) || 0, Number(minStock) || 0]
+            [uuidv4(), storeId, articleId, currentStock, minStock]
           );
         }
         
@@ -59,12 +71,12 @@ export async function POST(request) {
         // CREATE NEW
         const [result] = await connection.query(
           'INSERT INTO articles (code, name, price, currentStock, minStock, barcode, storeId) VALUES (?, ?, ?, ?, ?, ?, ?)',
-          [code || null, name, Number(price) || 0, Number(currentStock) || 0, Number(minStock) || 0, barcode || null, storeId]
+          [code || null, name, price, currentStock, minStock, barcode || null, storeId]
         );
         const newId = result.insertId;
         await connection.query(
           'INSERT INTO inventory (id, storeId, articleId, quantity, minStock) VALUES (?, ?, ?, ?, ?)',
-          [uuidv4(), storeId, newId, Number(currentStock) || 0, Number(minStock) || 0]
+          [uuidv4(), storeId, newId, currentStock, minStock]
         );
         createdCount++;
       }

@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server';
 import db from '../../../lib/db';
-import { authenticateToken } from '../../../lib/auth';
+import { authenticateToken, hasPermission } from '../../../lib/auth';
 import { getStoreConstraint } from '../../../lib/actions';
 
 export async function GET(request) {
   const auth = authenticateToken(request);
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
+  if (!hasPermission(auth.user, 'finances', 'view')) {
+    return NextResponse.json({ error: 'Accès interdit : Permissions insuffisantes' }, { status: 403 });
+  }
   try {
     const { searchParams } = request.nextUrl;
     const storeId = getStoreConstraint(auth.user, searchParams.get('storeId'));
@@ -54,11 +57,16 @@ export async function GET(request) {
       const effectiveStart = startDate && startDate > monthStart ? startDate : monthStart;
       const effectiveEnd = (endDate && endDate < monthEnd ? endDate : monthEnd) + 'T23:59:59';
 
-      let revQuery = 'SELECT SUM(totalAmount) as total FROM sales WHERE (date BETWEEN ? AND ?) AND status != "annulée" AND fiscalYearId = ?';
+      let revQuery = 'SELECT SUM(totalAmount) as total FROM sales WHERE (date BETWEEN ? AND ?) AND status != "annulée" AND fiscalYearId = ? AND (storeId != "CFAO" OR storeId IS NULL)';
       let revParams = [effectiveStart, effectiveEnd, activeYear.id];
       if (storeId && storeId !== 'all' && storeId !== '') { 
-        revQuery += ' AND storeId = ?'; 
-        revParams.push(storeId); 
+        if (storeId === 'CFAO') {
+          revQuery = 'SELECT 0 as total';
+          revParams = [];
+        } else {
+          revQuery += ' AND storeId = ?'; 
+          revParams.push(storeId);
+        }
       }
       const [revRow] = await db.query(revQuery, revParams);
 
@@ -85,9 +93,9 @@ export async function GET(request) {
     let totalRevenue = 0;
     let totalPaid = 0;
 
-    // --- 1. SALES (Standard) ---
-    let salesRevQuery = 'SELECT SUM(totalAmount) as total FROM sales WHERE status != "annulée" AND fiscalYearId = ?';
-    let salesPaidQuery = 'SELECT SUM(amountPaid) as total FROM sales WHERE status != "annulée" AND fiscalYearId = ?';
+    // --- 1. SALES (Standard) - Exclure CFAO (Achats)
+    let salesRevQuery = 'SELECT SUM(totalAmount) as total FROM sales WHERE status != "annulée" AND fiscalYearId = ? AND (storeId != "CFAO" OR storeId IS NULL)';
+    let salesPaidQuery = 'SELECT SUM(amountPaid) as total FROM sales WHERE status != "annulée" AND fiscalYearId = ? AND (storeId != "CFAO" OR storeId IS NULL)';
     let salesRevParams = [activeYear.id];
     let salesPaidParams = [activeYear.id];
 
@@ -97,15 +105,23 @@ export async function GET(request) {
       salesPaidQuery += dRange; salesPaidParams.push(startDate, endDate + 'T23:59:59');
     }
     if (storeId && storeId !== 'all') {
-      salesRevQuery += ' AND storeId = ?'; salesRevParams.push(storeId);
-      salesPaidQuery += ' AND storeId = ?'; salesPaidParams.push(storeId);
+      if (storeId === 'CFAO') {
+        salesRevQuery = 'SELECT 0 as total';
+        salesPaidQuery = 'SELECT 0 as total';
+        salesRevParams = [];
+        salesPaidParams = [];
+      } else {
+        salesRevQuery += ' AND storeId = ?'; salesRevParams.push(storeId);
+        salesPaidQuery += ' AND storeId = ?'; salesPaidParams.push(storeId);
+      }
     }
     const [sRev] = await db.query(salesRevQuery, salesRevParams);
     const [sPaid] = await db.query(salesPaidQuery, salesPaidParams);
     totalRevenue += Number(sRev[0].total || 0);
     totalPaid += Number(sPaid[0].total || 0);
 
-    // --- 2. EXTERNAL ORDERS (Special) ---
+    // --- 2. EXTERNAL ORDERS (Special) - RETIRÉ DU RAPPORT GLOBAL (Demandé par l'utilisateur)
+    /*
     let extRevQuery = `
       SELECT SUM(i.quantity * i.sellPrice) as total 
       FROM external_order_items i 
@@ -130,24 +146,41 @@ export async function GET(request) {
     const [ePaid] = await db.query(extPaidQuery, extPaidParams);
     totalRevenue += Number(eRev[0].total || 0);
     totalPaid += Number(ePaid[0].total || 0);
+    */
 
-    // --- 3. CONTRACT ORDERS (Virtual Store) ---
-    let conRevQuery = 'SELECT SUM(totalAmount) as total FROM contract_orders WHERE status != "annule"';
-    let conPaidQuery = 'SELECT SUM(totalAmount) as total FROM contract_orders WHERE status = "termine"';
-    let conRevParams = [];
-    let conPaidParams = [];
-
+    // --- 3. ACHATS PARTENAIRES (Détail par partenaire)
+    let partnerPurchases = [];
+    
+    // a. Depuis contract_orders
+    let conPurchQuery = `
+      SELECT p.name, SUM(o.contractAmount * (1 + COALESCE(o.tva_rate, 0) / 100)) as total 
+      FROM contract_orders o
+      JOIN contract_partners p ON o.partner_id = p.id
+      WHERE o.status != "annule"
+    `;
+    let conPurchParams = [];
     if (startDate && endDate) {
-      const dRange = ' AND createdAt BETWEEN ? AND ?';
-      conRevQuery += dRange; conRevParams.push(startDate + ' 00:00:00', endDate + ' 23:59:59');
-      conPaidQuery += dRange; conPaidParams.push(startDate + ' 00:00:00', endDate + ' 23:59:59');
+      conPurchQuery += ' AND o.createdAt BETWEEN ? AND ?';
+      conPurchParams.push(startDate + ' 00:00:00', endDate + ' 23:59:59');
     }
-    const [cRev] = await db.query(conRevQuery, conRevParams);
-    const [cPaid] = await db.query(conPaidQuery, conPaidParams);
-    totalRevenue += Number(cRev[0].total || 0);
-    totalPaid += Number(cPaid[0].total || 0);
+    conPurchQuery += ' GROUP BY p.name';
+    const [cPurchRows] = await db.query(conPurchQuery, conPurchParams);
+    
+    // Consolidation (Source unique : contract_orders pour éviter les doublons avec les ventes)
+    const breakdown = {};
+    cPurchRows.forEach(r => breakdown[r.name] = (breakdown[r.name] || 0) + Number(r.total));
 
-    return NextResponse.json({ months, totalRevenue, totalPaid, totalDebt: totalRevenue - totalPaid });
+    partnerPurchases = Object.entries(breakdown).map(([name, total]) => ({ name, total }));
+    const totalPurchases = partnerPurchases.reduce((acc, curr) => acc + curr.total, 0);
+
+    return NextResponse.json({ 
+      months, 
+      totalRevenue, 
+      totalPaid, 
+      totalDebt: totalRevenue - totalPaid,
+      totalPurchases,
+      partnerPurchases
+    });
   } catch (err) { 
     console.error('[MONTHLY REPORT ERROR]', err);
     return NextResponse.json({ 

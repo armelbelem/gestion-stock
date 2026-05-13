@@ -24,7 +24,7 @@ export async function POST(request) {
   const body = await request.json();
   const { name, email, phone, address, clientCode, rccm, nif, bp } = body;
   const clientId = uuidv4();
-  const storeId = auth.user.role === 'admin' ? (body.storeId || auth.user.storeId) : auth.user.storeId;
+  const storeId = (auth.user.role === 'admin' || auth.user.role === 'gestionnaire') ? (body.storeId || auth.user.storeId) : auth.user.storeId;
   try {
     await db.query('INSERT INTO clients (id, name, email, phone, address, storeId, clientCode, rccm, nif, bp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', 
       [clientId, name, email || null, phone || null, address || null, storeId, clientCode || null, rccm || null, nif || null, bp || null]);

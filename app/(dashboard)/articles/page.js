@@ -7,6 +7,7 @@ import { exportToExcel } from '../../utils/excelExport';
 import { calculateStockOutPrediction } from '../../utils/stockPrediction';
 import AlertModal from '../../components/AlertModal';
 import { useAuth } from '../../providers';
+import { hasPermission } from '../../lib/auth';
 
 export default function ArticlesPage() {
   const [articles, setArticles] = useState([]);
@@ -231,22 +232,26 @@ export default function ArticlesPage() {
           <h1>Articles</h1>
           <p>Gestion des articles en stock</p>
         </div>
-        {user?.role === 'admin' && (
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
-            <button className="btn btn-secondary" onClick={() => setIsImportModalOpen(true)}>
-              <Plus size={18} /> Importer
-            </button>
-            <button className="btn btn-secondary" onClick={handleExport} title="Exporter Excel">
-              <Download size={18} /> Excel
-            </button>
-            <button className="btn btn-secondary" onClick={handlePrintReport} title="Imprimer / PDF">
-              <FileText size={18} /> PDF
-            </button>
+        <div className="header-actions">
+          {hasPermission(user, 'stock', 'edit') && (
+            <>
+              <button className="btn btn-secondary" onClick={() => setIsImportModalOpen(true)}>
+                <Plus size={18} /> Importer
+              </button>
+              <button className="btn btn-secondary" onClick={handleExport} title="Exporter Excel">
+                <Download size={18} /> Excel
+              </button>
+            </>
+          )}
+          <button className="btn btn-secondary" onClick={handlePrintReport} title="Imprimer / PDF">
+            <FileText size={18} /> PDF
+          </button>
+          {hasPermission(user, 'stock', 'create') && (
             <button className="btn btn-primary" onClick={() => handleOpenModal()} >
               <Plus size={16} /> Nouvel Article
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {isImportModalOpen && (
@@ -257,9 +262,19 @@ export default function ArticlesPage() {
               <button className="modal-close" onClick={() => setIsImportModalOpen(false)}><X size={20} /></button>
             </div>
             <div className="modal-body">
-              <div className="alert alert-info" style={{ marginBottom: '1.5rem', fontSize: '0.9rem' }}>
-                <p style={{ margin: 0 }}><strong>Format requis :</strong> .xlsx ou .xls</p>
-                <p style={{ margin: '5px 0 0 0' }}>Colonnes reconnues : Nom (réf.), Code, Prix, Stock, Seuil.</p>
+              <div className="alert alert-info" style={{ marginBottom: '1.5rem', fontSize: '0.85rem', borderLeft: '4px solid var(--info)', padding: '1rem' }}>
+                <div style={{ fontWeight: 800, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Info size={16} /> RÈGLES D'IMPORTATION (EXCEL)
+                </div>
+                <ul style={{ paddingLeft: '1.2rem', margin: 0, lineHeight: '1.6' }}>
+                  <li><strong>Nombres :</strong> Pas de séparateur de milliers (ex: <code>15000</code> et non <code>15 000</code>).</li>
+                  <li><strong>Virgules :</strong> Utilisez le point pour les décimales (ex: <code>12.5</code>).</li>
+                  <li><strong>Monnaie :</strong> Ne mettez pas "FCFA" dans les cases de prix.</li>
+                  <li><strong>Colonnes :</strong> Nom, Code, Prix, Stock, Seuil (en ligne 1).</li>
+                </ul>
+                <div style={{ marginTop: '0.75rem', fontSize: '0.8rem', fontStyle: 'italic', color: 'var(--success)', fontWeight: 600 }}>
+                  💡 Note : Si vous faites une erreur (ex: 15 000 ou 15,5), le système nettoiera automatiquement la donnée pour vous.
+                </div>
               </div>
 
               <div className="form-group">
@@ -364,11 +379,11 @@ export default function ArticlesPage() {
                 <th>Code</th>
                 <th>Nom</th>
                 <th>Code-barres</th>
-                {user?.role === 'admin' && <th>Prix</th>}
+                {hasPermission(user, 'sales', 'view_prices') && <th>Prix</th>}
                 <th>Stock Actuel</th>
                 <th>Seuil d'Alerte</th>
                 <th>Prédiction</th>
-                {user?.role === 'admin' && <th style={{ width: '150px' }}>Actions</th>}
+                {hasPermission(user, 'stock', 'edit') && <th style={{ width: '150px' }}>Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -390,7 +405,7 @@ export default function ArticlesPage() {
                         <td style={{ fontWeight: 500 }}>{article.code || '-'}</td>
                         <td style={{ fontWeight: 600 }}>{article.name}</td>
                         <td style={{ fontSize: '0.8rem', fontFamily: 'monospace' }}>{article.barcode || '-'}</td>
-                        {user?.role === 'admin' && <td>{article.price.toLocaleString()} FCFA</td>}
+                        {hasPermission(user, 'sales', 'view_prices') && <td>{article.price.toLocaleString()} FCFA</td>}
                         <td>
                           <span style={{ color: isLowStock ? 'var(--danger)' : 'var(--success)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
                             {article.currentStock}
@@ -405,11 +420,11 @@ export default function ArticlesPage() {
                             </span>
                           ) : '-'}
                         </td>
-                        {user?.role === 'admin' && (
+                        {(hasPermission(user, 'stock', 'edit') || hasPermission(user, 'stock', 'delete')) && (
                           <td>
                             <div style={{ display: 'flex', gap: '0.5rem' }}>
-                              <button className="btn btn-secondary" onClick={() => handleOpenModal(article)}><Edit2 size={16} /></button>
-                              <button className="btn btn-danger-outline" onClick={() => handleDelete(article.id)}><Trash2 size={16} /></button>
+                              {hasPermission(user, 'stock', 'edit') && <button className="btn btn-secondary" onClick={() => handleOpenModal(article)}><Edit2 size={16} /></button>}
+                              {hasPermission(user, 'stock', 'delete') && <button className="btn btn-danger-outline" onClick={() => handleDelete(article.id)}><Trash2 size={16} /></button>}
                             </div>
                           </td>
                         )}
@@ -463,7 +478,7 @@ export default function ArticlesPage() {
                     <input type="number" className="form-control" required value={formData.minStock} onChange={(e) => setFormData({...formData, minStock: e.target.value})} />
                   </div>
                 </div>
-                {user?.role === 'admin' && !formData.id && (
+                {(user?.role === 'admin' || user?.role === 'gestionnaire') && !formData.id && (
                   <div className="form-group">
                     <label className="form-label">Magasin</label>
                     <select className="form-control" required value={formData.storeId} onChange={(e) => setFormData({...formData, storeId: e.target.value})}>

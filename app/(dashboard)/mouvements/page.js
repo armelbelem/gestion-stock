@@ -104,6 +104,13 @@ export default function MouvementsPage() {
   };
 
   const handleOpenModal = (type) => {
+    const selectedStore = localStorage.getItem('selectedStore');
+    const isAdminOrManager = currentUser?.role === 'admin' || currentUser?.role === 'gestionnaire';
+
+    if (isAdminOrManager && (!selectedStore || selectedStore === 'all' || selectedStore === '')) {
+      return showAlert('error', 'Magasin requis', "Veuillez sélectionner un magasin spécifique dans le menu en haut avant d'effectuer cette opération.");
+    }
+
     setModalType(type);
     setFormData({
       articleId: articles.length > 0 ? articles[0].id : '',
@@ -124,8 +131,13 @@ export default function MouvementsPage() {
     if (modalType === 'OUT' && article.currentStock < quantity) return showAlert('error', 'Erreur', `Stock insuffisant (${article.currentStock} dispo).`);
 
     const selectedStore = localStorage.getItem('selectedStore');
-    const isAdmin = currentUser?.role === 'admin';
-    const storeId = isAdmin ? (selectedStore !== 'all' ? selectedStore : null) : currentUser?.storeId;
+    const isAdminOrManager = currentUser?.role === 'admin' || currentUser?.role === 'gestionnaire';
+    
+    if (isAdminOrManager && (!selectedStore || selectedStore === 'all' || selectedStore === '')) {
+      return showAlert('error', 'Magasin requis', "Veuillez sélectionner un magasin spécifique en haut de la page.");
+    }
+
+    const storeId = isAdminOrManager ? selectedStore : currentUser?.storeId;
 
     showConfirm('Confirmer ?', `Voulez-vous enregistrer cette ${modalType === 'IN' ? 'entrée' : 'sortie'} de ${quantity} "${article.name}" ?`, async () => {
       closeAlert();

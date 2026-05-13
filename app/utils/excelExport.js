@@ -32,7 +32,11 @@ export const exportToExcel = (data, headers, fileName, options = {}) => {
   // Ajouter une ligne de résumé si présente
   if (summary) {
     finalData.push([]); // Ligne vide avant le total
-    finalData.push(summary);
+    if (summary.length > 0 && Array.isArray(summary[0])) {
+      finalData.push(...summary);
+    } else {
+      finalData.push(summary);
+    }
   }
 
   // 3. Créer la feuille de calcul
@@ -45,9 +49,16 @@ export const exportToExcel = (data, headers, fileName, options = {}) => {
       const val = row[h.key]?.toString() || "";
       return Math.max(max, val.length);
     }, 0);
-    // Prendre en compte aussi la ligne de résumé pour la largeur
-    const summaryLen = summary ? (summary[i]?.toString()?.length || 0) : 0;
-    return { wch: Math.max(headerLen, maxDataLen, summaryLen) + 4 };
+    // Prendre en compte aussi les lignes de résumé pour la largeur
+    let maxSummaryLen = 0;
+    if (summary) {
+      if (Array.isArray(summary[0])) {
+        maxSummaryLen = Math.max(...summary.map(s => s[i]?.toString()?.length || 0));
+      } else {
+        maxSummaryLen = summary[i]?.toString()?.length || 0;
+      }
+    }
+    return { wch: Math.max(headerLen, maxDataLen, maxSummaryLen) + 4 };
   });
   worksheet['!cols'] = colWidths;
 

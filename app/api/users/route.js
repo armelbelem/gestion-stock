@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import db from '../../lib/db';
-import { authenticateToken } from '../../lib/auth';
+import { authenticateToken, hasPermission } from '../../lib/auth';
 import { logAction } from '../../lib/actions';
 import { v4 as uuidv4 } from 'uuid';
 import bcrypt from 'bcryptjs';
@@ -10,13 +10,13 @@ export async function GET(request) {
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
   
   // Seul l'admin peut voir la liste complète des utilisateurs
-  if (auth.user.role !== 'admin') {
+  if (!hasPermission(auth.user, 'admin', 'users')) {
     return NextResponse.json({ error: 'Accès interdit : Administrateur requis' }, { status: 403 });
   }
 
   try {
     const [users] = await db.query(`
-      SELECT u.id, u.username, u.role, u.storeId, s.name as storeName, u.createdAt 
+      SELECT u.id, u.username, u.role, u.permissions, u.storeId, s.name as storeName, u.createdAt 
       FROM users u LEFT JOIN stores s ON u.storeId = s.id
     `);
     return NextResponse.json(users);
@@ -28,7 +28,7 @@ export async function POST(request) {
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   // Seul l'admin peut créer de nouveaux utilisateurs
-  if (auth.user.role !== 'admin') {
+  if (!hasPermission(auth.user, 'admin', 'users')) {
     return NextResponse.json({ error: 'Accès interdit : Administrateur requis' }, { status: 403 });
   }
 

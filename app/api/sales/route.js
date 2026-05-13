@@ -62,7 +62,7 @@ export async function POST(request) {
     const body = await request.json();
     const { clientId, items, discount, amountPaid, paymentType, dueDate, notes, storeId: bodyStoreId, isProforma, tvaAmount, totalAmount: bodyTotalAmount } = body;
     const saleId = uuidv4();
-    const storeId = auth.user.role === 'admin' ? (bodyStoreId || auth.user.storeId) : auth.user.storeId;
+    const storeId = (auth.user.role === 'admin' || auth.user.role === 'gestionnaire') ? (bodyStoreId || auth.user.storeId) : auth.user.storeId;
     if (!storeId) throw new Error('Aucun magasin sélectionné pour cette vente.');
     
     const [fyRows] = await connection.query("SELECT * FROM fiscal_years WHERE status = 'active'");
@@ -70,9 +70,26 @@ export async function POST(request) {
     if (!activeYear) throw new Error("Action impossible : Aucun exercice fiscal n'est ouvert. Veuillez ouvrir un exercice pour enregistrer des ventes.");
 
     let calculatedTotal = 0;
+    const isSeller = auth.user.role === 'vendeur' || auth.user.role === 'vendeurs';
+
     for (const item of items) {
-      const quantity = parseInt(item.quantity);
-      const unitPrice = parseFloat(item.unitPrice);
+      const quantity = parseInt(item.quantity) || 0;
+      let unitPrice = parseFloat(item.unitPrice);
+      
+      // Sécurité : Si c'est un vendeur ou si le prix est invalide (ex: '***'), on récupère le vrai prix en base
+      if (isSeller || isNaN(unitPrice)) {
+        if (item.articleId) {
+          const [artRows] = await connection.query('SELECT price FROM articles WHERE id = ?', [item.articleId]);
+          unitPrice = artRows.length > 0 ? artRows[0].price : 0;
+        } else {
+          unitPrice = isNaN(unitPrice) ? 0 : unitPrice;
+        }
+      }
+      
+      if (quantity <= 0 && !isProforma) {
+        throw new Error(`La quantité pour l'article "${item.description || 'ID: ' + item.articleId}" doit être supérieure à 0.`);
+      }
+      
       calculatedTotal += quantity * unitPrice;
       
       if (item.articleId) {
@@ -85,7 +102,7 @@ export async function POST(request) {
             [uuidv4(), item.articleId, 'OUT', quantity, new Date().toISOString(), storeId, activeYear?.id || null]);
         }
       } else {
-        if (auth.user.role !== 'admin') throw new Error('Action refusée : Seul un administrateur peut saisir des articles hors catalogue.');
+        if (auth.user.role !== 'admin' && auth.user.role !== 'gestionnaire') throw new Error('Action refusée : Seul un administrateur ou gestionnaire peut saisir des articles hors catalogue.');
       }
       
       await connection.query('INSERT INTO sale_items (id, saleId, articleId, quantity, unitPrice, description) VALUES (?, ?, ?, ?, ?, ?)', 
@@ -93,12 +110,31 @@ export async function POST(request) {
     }
     
     // On utilise le total calculé coté serveur ou celui envoyé par le body s'il contient déjà la TVA
-    const finalTotal = bodyTotalAmount !== undefined ? bodyTotalAmount : (calculatedTotal - (discount || 0));
-    const status = isProforma ? 'proforma' : (amountPaid >= finalTotal ? 'payé' : (amountPaid > 0 ? 'partiel' : 'en_attente'));
+    let safeDiscount = parseFloat(discount) || 0;
+    let safeTvaAmount = parseFloat(tvaAmount);
+    let safeAmountPaid = parseFloat(amountPaid) || 0;
+
+    // Si c'est un vendeur, on recalcule tout car le front n'a pas les prix réels
+    if (isSeller) {
+      safeDiscount = 0; // Pas de remise autorisée pour les vendeurs par défaut
+      const [settingsRows] = await connection.query('SELECT tvaRate FROM settings LIMIT 1');
+      const tvaRate = settingsRows.length > 0 ? (settingsRows[0].tvaRate || 0) : 18;
+      safeTvaAmount = Math.round(calculatedTotal * (tvaRate / 100));
+    }
+
+    if (isNaN(safeTvaAmount)) safeTvaAmount = 0;
+    
+    let finalTotal = parseFloat(bodyTotalAmount);
+    if (isSeller || isNaN(finalTotal)) {
+      finalTotal = calculatedTotal - safeDiscount + safeTvaAmount;
+    }
+    if (isNaN(finalTotal)) finalTotal = 0;
+
+    const status = isProforma ? 'proforma' : (safeAmountPaid >= finalTotal ? 'payé' : (safeAmountPaid > 0 ? 'partiel' : 'en_attente'));
     
     await connection.query(
       'INSERT INTO sales (id, clientId, userId, totalAmount, discount, tvaAmount, amountPaid, paymentType, status, dueDate, notes, date, storeId, fiscalYearId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [saleId, clientId, auth.user.id, finalTotal, discount || 0, tvaAmount || 0, amountPaid || 0, paymentType || 'complet', status, dueDate || null, notes || null, new Date().toISOString(), storeId, activeYear?.id || null]
+      [saleId, clientId, auth.user.id, finalTotal, safeDiscount, safeTvaAmount, safeAmountPaid, paymentType || 'complet', status, dueDate || null, notes || null, new Date().toISOString(), storeId, activeYear?.id || null]
     );
     if (!isProforma && amountPaid > 0) {
       await connection.query('INSERT INTO payments (id, saleId, amount, date, storeId, fiscalYearId) VALUES (?, ?, ?, ?, ?, ?)', 

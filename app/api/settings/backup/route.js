@@ -18,7 +18,13 @@ export async function GET(request) {
 
     for (const table of tables) {
       try {
-        const [rows] = await db.query(`SELECT * FROM ${table}`);
+        let rows;
+        if (table === 'users') {
+          // Sécurité : Ne jamais exporter les hashs de mots de passe
+          [rows] = await db.query('SELECT id, username, role, storeId, permissions, createdAt FROM users');
+        } else {
+          [rows] = await db.query(`SELECT * FROM ${table}`);
+        }
         backup[table] = rows;
       } catch (tableErr) {
         console.error(`Error backing up table ${table}:`, tableErr);

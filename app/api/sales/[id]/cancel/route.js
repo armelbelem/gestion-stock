@@ -15,7 +15,7 @@ export async function POST(request, { params }) {
   try {
     await connection.beginTransaction();
     
-    const [sales] = await connection.query('SELECT * FROM sales WHERE id = ?', [saleId]);
+    const [sales] = await connection.query('SELECT * FROM sales WHERE id = ? FOR UPDATE', [saleId]);
     console.log('[CANCEL_SALE] Found sales count:', sales.length);
     
     if (sales.length === 0) {

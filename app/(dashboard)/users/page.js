@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { storage } from '../../lib/storage';
-import { UserPlus, Trash2, Shield, User, Key, CheckCircle, X, Edit2 } from 'lucide-react';
+import { UserPlus, Trash2, User, Edit2, X } from 'lucide-react';
 import { useAuth } from '../../providers';
 import AlertModal from '../../components/AlertModal';
 
@@ -67,7 +67,7 @@ export default function UsersPage() {
     setEditingId(u.id);
     setFormData({
       username: u.username,
-      password: '', // On laisse vide pour ne pas changer si non saisi
+      password: '', 
       role: u.role,
       storeId: u.storeId
     });
@@ -149,6 +149,7 @@ export default function UsersPage() {
           </div>
         </div>
       )}
+
       <AlertModal isOpen={alertModal.open} type={alertModal.type} title={alertModal.title} message={alertModal.message} onClose={closeAlert} onConfirm={alertModal.onConfirm} />
     </div>
   );

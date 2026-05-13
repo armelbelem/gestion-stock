@@ -23,6 +23,7 @@ export default function ClientsPage() {
   const showAlert = (type, title, message) => setAlertModal({ open: true, type, title, message, onConfirm: null });
   const showConfirm = (title, message, onConfirm) => setAlertModal({ open: true, type: 'confirm', title, message, onConfirm });
 
+
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm]);
@@ -41,7 +42,7 @@ export default function ClientsPage() {
 
   const loadClients = async () => {
     try {
-      const data = await storage.get('clients');
+      const data = await storage.get('clients?storeId=all');
       setClients(data);
     } catch (err) {
       console.error("Error loading clients:", err);

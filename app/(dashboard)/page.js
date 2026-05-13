@@ -12,9 +12,12 @@ import {
   PieChart, Pie, Cell, Legend
 } from 'recharts';
 
+import { useRouter } from 'next/navigation';
+
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [stats, setStats] = useState({
     totalArticles: 0,
     totalCategories: 0,
@@ -35,6 +38,12 @@ export default function DashboardPage() {
   const [showWelcome, setShowWelcome] = useState(false);
   const [hasActiveYear, setHasActiveYear] = useState(true);
   const user = storage.getUser();
+
+  useEffect(() => {
+    if (user?.role === 'vendeur' || user?.role === 'vendeurs') {
+      router.push('/sales');
+    }
+  }, [user, router]);
 
   useEffect(() => {
     const checkFY = async () => {
@@ -118,7 +127,7 @@ export default function DashboardPage() {
         mouvementsCount: mouvements.filter(m => new Date(m.date) >= startOfMonth).length,
         totalSales: apiStats.totalRevenue || 0,
         revenuePhysical: apiStats.revenuePhysical || 0,
-        revenueVirtual: apiStats.revenueVirtual || 0,
+        purchaseVirtual: apiStats.purchaseVirtual || 0,
         lowStockArticles: lowStock,
         unpaidSales: unpaid,
         totalStockValue: apiStats.totalStockValue || 0,
@@ -232,22 +241,13 @@ export default function DashboardPage() {
         
         <div className="stat-card">
           <div className="stat-icon" style={{ backgroundColor: '#ECFDF5', color: '#10B981' }}><TrendingUp size={24} /></div>
-          <div className="stat-info"><div className="stat-value" style={{ color: '#10B981' }}>{(stats.revenuePhysical || 0).toLocaleString()} <span style={{ fontSize: '0.8rem' }}>FCFA</span></div><div className="stat-label">CA Physique (NS Auto)</div></div>
+          <div className="stat-info"><div className="stat-value" style={{ color: '#10B981' }}>{(stats.revenuePhysical || 0).toLocaleString()} <span style={{ fontSize: '0.8rem' }}>FCFA</span></div><div className="stat-label">Chiffre d'Affaires</div></div>
         </div>
 
-        <div className="stat-card">
-          <div className="stat-icon" style={{ backgroundColor: '#F0F9FF', color: '#0EA5E9' }}><Globe size={24} /></div>
-          <div className="stat-info"><div className="stat-value" style={{ color: '#0EA5E9' }}>{(stats.revenueVirtual || 0).toLocaleString()} <span style={{ fontSize: '0.8rem' }}>FCFA</span></div><div className="stat-label">CA Virtuel (CFAO)</div></div>
-        </div>
 
         <div className="stat-card">
           <div className="stat-icon" style={{ backgroundColor: '#FEF3C7', color: '#D97706' }}><Coins size={24} /></div>
-          <div className="stat-info"><div className="stat-value" style={{ color: '#D97706' }}>{stats.totalSales.toLocaleString()} <span style={{ fontSize: '0.8rem' }}>FCFA</span></div><div className="stat-label">Chiffre d'Affaires Global</div></div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon" style={{ backgroundColor: '#E0F2FE', color: '#0369A1' }}><Coins size={24} /></div>
-          <div className="stat-info"><div className="stat-value" style={{ color: '#0369A1' }}>{stats.totalStockValue.toLocaleString()} <span style={{ fontSize: '0.8rem' }}>FCFA</span></div><div className="stat-label">Valeur du Stock</div></div>
+          <div className="stat-info"><div className="stat-value" style={{ color: '#D97706' }}>{stats.totalStockValue.toLocaleString()} <span style={{ fontSize: '0.8rem' }}>FCFA</span></div><div className="stat-label">Valeur du Stock</div></div>
         </div>
 
         <div className="stat-card">

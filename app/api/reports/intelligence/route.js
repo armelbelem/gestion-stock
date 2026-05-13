@@ -74,25 +74,39 @@ export async function GET(request) {
        .sort((a, b) => b.dropPercentage - a.dropPercentage);
 
     // 4. PRÉVISION DE RUPTURE (Burn Rate) pour le Top 20 des articles
+    let burnParams = [];
+    if (storeId) burnParams.push(storeId); // Pour la sous-requête inventory
+    if (storeId) burnParams.push(storeId); // Pour la jointure sales
+
     let burnRateQuery = `
       SELECT 
-        a.id, a.name, a.currentStock, a.minStock,
+        a.id, a.name, 
+        COALESCE(agg.totalQty, 0) as currentStock,
+        a.minStock,
         COALESCE(SUM(si.quantity), 0) / 30 as dailyVelocity
       FROM articles a
+      LEFT JOIN (
+          SELECT articleId, SUM(quantity) as totalQty 
+          FROM inventory 
+          ${storeId ? 'WHERE storeId = ?' : ''}
+          GROUP BY articleId
+      ) agg ON a.id = agg.articleId
       LEFT JOIN sale_items si ON a.id = si.articleId
-      LEFT JOIN sales s ON si.saleId = s.id AND s.status != 'annulée' AND s.date >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-      ${storeId ? 'WHERE (s.storeId = ? OR s.storeId IS NULL)' : ''}
-      GROUP BY a.id
+      LEFT JOIN sales s ON si.saleId = s.id 
+        AND s.status != 'annulée' 
+        AND s.date >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        ${storeId ? 'AND (s.storeId = ? OR s.storeId IS NULL)' : ''}
+      GROUP BY a.id, agg.totalQty, a.name, a.minStock
       ORDER BY dailyVelocity DESC
       LIMIT 20
     `;
-    const [burnRateRaw] = await db.query(burnRateQuery, storeId ? [storeId] : []);
+    const [burnRateRaw] = await db.query(burnRateQuery, burnParams);
     
     const stockOutPredictions = burnRateRaw
       .filter(a => a.dailyVelocity > 0) // Uniquement ceux qui se vendent
       .map(a => ({
         ...a,
-        daysRemaining: Math.floor(a.currentStock / a.dailyVelocity)
+        daysRemaining: Math.floor(Number(a.currentStock) / Number(a.dailyVelocity))
       }))
       .sort((a, b) => a.daysRemaining - b.daysRemaining);
 

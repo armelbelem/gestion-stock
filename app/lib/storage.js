@@ -9,11 +9,15 @@ export const storage = {
       if (selectedStore && !url.searchParams.has('storeId')) {
         url.searchParams.append('storeId', selectedStore);
       }
+      
+      // Sécurité Anti-Cache : Ajout d'un timestamp unique
+      url.searchParams.append('_t', Date.now());
 
       const response = await fetch(url.toString(), {
         headers: {
           'Authorization': token ? `Bearer ${token}` : '',
-        }
+        },
+        cache: 'no-store' // Force le navigateur à ne pas utiliser de cache
       });
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
@@ -83,6 +87,29 @@ export const storage = {
       return text ? JSON.parse(text) : { success: true };
     } catch (error) {
       console.error(`Error updating ${key}:`, error);
+      throw error;
+    }
+  },
+
+  patch: async (path, value) => {
+    try {
+      const token = sessionStorage.getItem('token');
+      const response = await fetch(`${API_URL}/${path}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify(value),
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        const errorData = text ? JSON.parse(text) : {};
+        throw new Error(errorData.error || `Erreur serveur (${response.status})`);
+      }
+      return true;
+    } catch (error) {
+      console.error(`Error patching ${path}:`, error);
       throw error;
     }
   },

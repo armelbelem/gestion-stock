@@ -13,7 +13,9 @@ export async function PUT(request, { params }) {
     name, logo, address, phone, email, bc_prefix, bl_prefix,
     supervisor_name, supervisor_title, stamp_image, signature_image,
     bl_supervisor_name, bl_supervisor_title, bl_stamp_image, bl_signature_image,
-    header_text, rccm, nif, my_client_code, bp
+    header_text, rccm, nif, my_client_code, bp,
+    bc_col_no, bc_col_site, bc_col_desc, bc_col_code, bc_col_ref, bc_col_qty, bc_col_price, bc_col_total,
+    bl_col_no, bl_col_site, bl_col_desc, bl_col_code, bl_col_ref, bl_col_qty
   } = body;
 
   try {
@@ -22,13 +24,17 @@ export async function PUT(request, { params }) {
         name = ?, logo = ?, address = ?, phone = ?, email = ?, bc_prefix = ?, bl_prefix = ?,
         supervisor_name = ?, supervisor_title = ?, stamp_image = ?, signature_image = ?,
         bl_supervisor_name = ?, bl_supervisor_title = ?, bl_stamp_image = ?, bl_signature_image = ?,
-        header_text = ?, rccm = ?, nif = ?, my_client_code = ?, bp = ?
+        header_text = ?, rccm = ?, nif = ?, my_client_code = ?, bp = ?,
+        bc_col_no = ?, bc_col_site = ?, bc_col_desc = ?, bc_col_code = ?, bc_col_ref = ?, bc_col_qty = ?, bc_col_price = ?, bc_col_total = ?,
+        bl_col_no = ?, bl_col_site = ?, bl_col_desc = ?, bl_col_code = ?, bl_col_ref = ?, bl_col_qty = ?
       WHERE id = ?`,
       [
         name, logo, address, phone, email, bc_prefix, bl_prefix,
         supervisor_name, supervisor_title, stamp_image, signature_image,
         bl_supervisor_name, bl_supervisor_title, bl_stamp_image, bl_signature_image,
         header_text, rccm, nif, my_client_code, bp,
+        bc_col_no, bc_col_site, bc_col_desc, bc_col_code, bc_col_ref, bc_col_qty, bc_col_price, bc_col_total,
+        bl_col_no, bl_col_site, bl_col_desc, bl_col_code, bl_col_ref, bl_col_qty,
         id
       ]
     );

@@ -8,7 +8,7 @@ export async function PUT(request, { params }) {
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   // Seul l'admin ou un gérant peut modifier un article (prix, nom, etc.)
-  if (auth.user.role !== 'admin' && auth.user.role !== 'manager') {
+  if (auth.user.role !== 'admin' && auth.user.role !== 'gestionnaire') {
     return NextResponse.json({ error: 'Accès interdit : Administrateur ou Gérant requis pour modifier les articles' }, { status: 403 });
   }
 
@@ -59,8 +59,8 @@ export async function DELETE(request, { params }) {
     try {
       await connection.beginTransaction();
 
-      // Si l'utilisateur est ADMIN et qu'aucun magasin n'est spécifié (vue globale), on fait une suppression globale
-      if (auth.user.role === 'admin' && !storeId) {
+      // Si l'utilisateur est ADMIN ou GESTIONNAIRE et qu'aucun magasin n'est spécifié (vue globale), on fait une suppression globale
+      if ((auth.user.role === 'admin' || auth.user.role === 'gestionnaire') && !storeId) {
         console.log(`[DELETE] ADMIN : Suppression GLOBALE de l'article ${articleId}`);
         await connection.query('DELETE FROM inventory WHERE articleId = ?', [articleId]);
         await connection.query('DELETE FROM mouvements WHERE articleId = ?', [articleId]);

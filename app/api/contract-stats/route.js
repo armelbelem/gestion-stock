@@ -1,73 +1,92 @@
 import db from '../../lib/db';
-import { authenticateToken } from '../../lib/auth';
+import { authenticateToken, hasPermission } from '../../lib/auth';
 import { NextResponse } from 'next/server';
 
 export async function GET(request) {
   const auth = authenticateToken(request);
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
+  // Sécurité serveur : Seuls ceux qui ont droit de voir les coûts peuvent voir les stats financières globales
+  if (!hasPermission(auth.user, 'stock', 'view_cost_price')) {
+    return NextResponse.json({ error: "Accès refusé aux statistiques financières" }, { status: 403 });
+  }
+
   const { searchParams } = new URL(request.url);
   const startDate = searchParams.get('startDate');
   const endDate = searchParams.get('endDate');
+  const partnerId = searchParams.get('partnerId');
 
   let dateFilter = '';
+  let partnerFilter = '';
   let params = [];
+  
   if (startDate && endDate) {
-    dateFilter = ' AND o.createdAt BETWEEN ? AND ? ';
-    params = [startDate + ' 00:00:00', endDate + ' 23:59:59'];
+    dateFilter = ' AND DATE(o.createdAt) BETWEEN ? AND ? ';
+    params.push(startDate, endDate);
   }
 
+  if (partnerId) {
+    partnerFilter = ' AND o.partner_id = ? ';
+  }
+
+  // Helper function to get combined params for each query
+  const getQueryParams = () => {
+    const qParams = [...params];
+    if (partnerId) qParams.push(partnerId);
+    return qParams;
+  };
+
   try {
-    // 1. Total par partenaire
+    // 1. Total par partenaire (TTC utilisant le taux archivé dans chaque dossier)
     const [partnerTotals] = await db.query(`
       SELECT 
         p.name as partnerName,
-        SUM(o.contractAmount) as totalAmount,
+        SUM(o.contractAmount * (1 + o.tva_rate / 100)) as totalAmount,
         COUNT(o.id) as orderCount
       FROM contract_partners p
-      LEFT JOIN contract_orders o ON p.id = o.partner_id ${dateFilter}
+      LEFT JOIN contract_orders o ON p.id = o.partner_id ${dateFilter} ${partnerFilter}
       GROUP BY p.id, p.name
-    `, params);
+    `, getQueryParams());
 
-    // 2. Évolution mensuelle par partenaire
+    // 2. Évolution mensuelle par partenaire (TTC)
     const [monthlyEvolution] = await db.query(`
       SELECT 
         p.name as partnerName,
         DATE_FORMAT(o.createdAt, '%Y-%m') as month,
-        SUM(o.contractAmount) as totalAmount
+        SUM(o.contractAmount * (1 + o.tva_rate / 100)) as totalAmount
       FROM contract_partners p
       JOIN contract_orders o ON p.id = o.partner_id
-      WHERE 1=1 ${dateFilter}
+      WHERE 1=1 ${dateFilter} ${partnerFilter}
       GROUP BY p.id, p.name, month
       ORDER BY month ASC
-    `, params);
+    `, getQueryParams());
 
-    // 3. Articles les plus commandés par partenaire
+    // 3. Articles les plus commandés par partenaire (TTC)
     const [topArticles] = await db.query(`
       SELECT 
         p.name as partnerName,
         oi.description,
         SUM(oi.quantity) as totalQuantity,
-        SUM(oi.quantity * oi.purchasePrice) as totalValue
+        SUM(oi.quantity * oi.purchasePrice * (1 + o.tva_rate / 100)) as totalValue
       FROM contract_partners p
       JOIN contract_orders o ON p.id = o.partner_id
-      JOIN contract_order_items oi ON o.id = oi.order_id
-      WHERE 1=1 ${dateFilter}
+      JOIN contract_order_items oi ON o.id = oi.orderId
+      WHERE 1=1 ${dateFilter} ${partnerFilter}
       GROUP BY p.id, p.name, oi.description
       ORDER BY p.name, totalQuantity DESC
-    `, params);
+    `, getQueryParams());
 
-    // 4. Répartition par client final
+    // 4. Répartition par client final (TTC)
     const [clientDistribution] = await db.query(`
       SELECT 
         c.name as clientName,
-        SUM(o.contractAmount) as totalAmount
+        SUM(o.contractAmount * (1 + o.tva_rate / 100)) as totalAmount
       FROM clients c
-      JOIN contract_orders o ON c.id = o.client_id
-      WHERE 1=1 ${dateFilter}
+      JOIN contract_orders o ON c.id = o.clientId
+      WHERE 1=1 ${dateFilter} ${partnerFilter}
       GROUP BY c.id, c.name
       ORDER BY totalAmount DESC
-    `, params);
+    `, getQueryParams());
 
     // 5. Temps moyen de traitement par partenaire (en heures)
     const [avgProcessingTime] = await db.query(`
@@ -77,9 +96,14 @@ export async function GET(request) {
       FROM contract_partners p
       JOIN contract_orders o ON p.id = o.partner_id
       JOIN contract_order_history h ON o.id = h.orderId
-      WHERE h.newStatus = 'termine' ${dateFilter}
+      WHERE h.newStatus = 'termine' ${dateFilter} ${partnerFilter}
       GROUP BY p.id, p.name
-    `, params);
+    `, getQueryParams());
+
+    console.log('Stats params:', getQueryParams());
+    console.log('partnerTotals rows:', partnerTotals.length, partnerTotals);
+    console.log('monthlyEvolution rows:', monthlyEvolution.length);
+    console.log('topArticles rows:', topArticles.length);
 
     return NextResponse.json({
       partnerTotals,

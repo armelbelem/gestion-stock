@@ -13,6 +13,7 @@ export async function GET(request) {
   const startDate = searchParams.get('startDate');
   const endDate = searchParams.get('endDate');
   const storeId = getStoreConstraint(auth.user, searchParams.get('storeId'));
+  const includeContracts = searchParams.get('includeContracts') === 'true';
 
   if (!clientId || !startDate || !endDate) {
     return NextResponse.json({ error: "Client, date de début et date de fin requis" }, { status: 400 });
@@ -24,7 +25,7 @@ export async function GET(request) {
     const query = `
       SELECT 
         a.code, 
-        COALESCE(a.name, 'Article Inconnu') as name, 
+        COALESCE(a.name, si.description, 'Article Inconnu') as name, 
         si.unitPrice, 
         SUM(si.quantity) as totalQuantity, 
         SUM(si.quantity * si.unitPrice) as totalAmount
@@ -36,8 +37,9 @@ export async function GET(request) {
         AND s.date <= ? 
         AND s.status != 'annulée'
         ${storeId ? 'AND s.storeId = ?' : ''}
-      GROUP BY a.id, si.unitPrice
-      ORDER BY a.name ASC
+        ${!includeContracts ? "AND s.storeId != 0 AND s.storeId != 'CFAO'" : ''}
+      GROUP BY a.code, COALESCE(a.name, si.description, 'Article Inconnu'), si.unitPrice
+      ORDER BY name ASC
     `;
 
     // Utilisation de formats compatibles ISO pour la comparaison
@@ -54,9 +56,21 @@ export async function GET(request) {
       FROM sales 
       WHERE clientId = ? AND date >= ? AND date <= ? AND status != 'annulée'
       ${storeId ? 'AND storeId = ?' : ''}
+      ${!includeContracts ? "AND storeId != 0 AND storeId != 'CFAO'" : ''}
     `;
     const [discountRows] = await db.query(discountQuery, params);
     const totalDiscount = Number(discountRows[0]?.totalDiscount || 0);
+
+    // Récupérer le total de la TVA sur la période
+    const tvaQuery = `
+      SELECT SUM(tvaAmount) as totalTva 
+      FROM sales 
+      WHERE clientId = ? AND date >= ? AND date <= ? AND status != 'annulée'
+      ${storeId ? 'AND storeId = ?' : ''}
+      ${!includeContracts ? "AND storeId != 0 AND storeId != 'CFAO'" : ''}
+    `;
+    const [tvaRows] = await db.query(tvaQuery, params);
+    const totalTva = Number(tvaRows[0]?.totalTva || 0);
 
     // Calcul des totaux généraux
     const summary = rows.reduce((acc, row) => {
@@ -66,7 +80,8 @@ export async function GET(request) {
     }, { totalQuantity: 0, totalGrossAmount: 0 });
 
     summary.totalDiscount = totalDiscount;
-    summary.totalAmount = summary.totalGrossAmount - totalDiscount;
+    summary.totalTva = totalTva;
+    summary.totalAmount = (summary.totalGrossAmount - totalDiscount) + totalTva;
 
     return NextResponse.json({
       items: rows,

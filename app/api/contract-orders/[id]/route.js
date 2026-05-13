@@ -52,7 +52,7 @@ export async function PUT(request, { params }) {
 
   const { id } = await params;
   const body = await request.json();
-  const { status, contractAmount, totalAmount, notes } = body;
+  const { status, contractAmount, totalAmount, notes, deliveryDate } = body;
   
     let connection;
     try {
@@ -66,6 +66,7 @@ export async function PUT(request, { params }) {
       const finalStatus = status !== undefined ? status : current.status;
       const finalNotes = notes !== undefined ? notes : current.notes;
       const finalAttachment = body.attachment !== undefined ? body.attachment : current.attachment;
+      const finalDeliveryDate = deliveryDate !== undefined ? deliveryDate : current.delivery_date;
       
       let finalContractAmount = current.contractAmount;
       let finalTotalAmount = current.totalAmount;
@@ -102,8 +103,8 @@ export async function PUT(request, { params }) {
       const margin = (finalTotalAmount || 0) - (finalContractAmount || 0);
 
       await connection.query(
-        'UPDATE contract_orders SET status = ?, contractAmount = ?, totalAmount = ?, margin = ?, notes = ?, attachment = ? WHERE id = ?',
-        [finalStatus, finalContractAmount, finalTotalAmount, margin, finalNotes, finalAttachment, id]
+        'UPDATE contract_orders SET status = ?, contractAmount = ?, totalAmount = ?, margin = ?, notes = ?, attachment = ?, delivery_date = ? WHERE id = ?',
+        [finalStatus, finalContractAmount, finalTotalAmount, margin, finalNotes, finalAttachment, finalDeliveryDate, id]
       );
 
       // 1c. Enregistrer le changement de statut dans l'historique si nécessaire
@@ -125,6 +126,9 @@ export async function PUT(request, { params }) {
         const activeYearId = fyRows[0]?.id;
 
         const saleId = `C-${id.substring(0, 8)}`;
+        const tvaRate = Number(order.tva_rate || 18);
+        const tvaAmount = Math.round(order.totalAmount * (tvaRate / 100));
+        const totalTTC = order.totalAmount + tvaAmount;
         
         // Créer la vente avec tous les champs nécessaires
         await connection.query(
@@ -133,10 +137,10 @@ export async function PUT(request, { params }) {
             saleId, 
             order.clientId, 
             auth.user.id, 
-            order.totalAmount, 
+            totalTTC, 
             0, // discount
-            0, // tvaAmount
-            order.totalAmount, // amountPaid
+            tvaAmount, 
+            totalTTC, // amountPaid
             'complet', // paymentType
             'payé', // status
             null, // dueDate

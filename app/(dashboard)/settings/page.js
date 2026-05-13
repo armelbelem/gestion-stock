@@ -20,7 +20,9 @@ export default function SettingsPage() {
     blStampImage: '', blSignatureImage: '',
     bcTitlePrefix: '', blTitlePrefix: '',
     bcNumberFormat: 'BC-{ID}-{DATE}', blNumberFormat: 'BL-{ID}-{DATE}',
-    bp: '', division: ''
+    bp: '', division: '',
+    footerLine1: '', footerLine2: '', footerLine3: '', footerLine4: '',
+    roundAmounts: true
   });
   const [cleanupPeriod, setCleanupPeriod] = useState('30');
   const [loading, setLoading] = useState(true);
@@ -478,6 +480,21 @@ export default function SettingsPage() {
               </select>
             </div>
 
+            <div className="form-group" style={{ display: 'flex', alignItems: 'center', marginTop: '1rem', padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', margin: 0, width: '100%' }}>
+                <input 
+                  type="checkbox" 
+                  checked={settings.roundAmounts !== false} 
+                  onChange={e => setSettings({...settings, roundAmounts: e.target.checked})} 
+                  style={{ width: '20px', height: '20px', accentColor: 'var(--primary)' }}
+                />
+                <div>
+                  <span style={{ fontWeight: 'bold', display: 'block', fontSize: '0.95rem' }}>Supprimer automatiquement les décimales des montants</span>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Exemple : 2500.88 CFA sera affiché 2500 CFA sur les impressions</span>
+                </div>
+              </label>
+            </div>
+
             <div className="form-group">
               <label className="form-label">Message de pied de page (Reçus Thermiques)</label>
               <textarea className="form-control" rows="2" placeholder="Merci de votre confiance..." value={settings.footerMessage || ''} onChange={e => setSettings({...settings, footerMessage: e.target.value})}></textarea>
@@ -503,8 +520,8 @@ export default function SettingsPage() {
                 type="text" 
                 className="form-control" 
                 placeholder="ex: NS AUTO - RCCM ... - IFU ... - RNI - Direction des Moyennes Entreprises" 
-                value={settings.taxSystem || ''} 
-                onChange={e => setSettings({...settings, taxSystem: e.target.value})} 
+                value={settings.footerLine1 || ''} 
+                onChange={e => setSettings({...settings, footerLine1: e.target.value})} 
               />
             </div>
 
@@ -514,8 +531,8 @@ export default function SettingsPage() {
                 type="text" 
                 className="form-control" 
                 placeholder="ex: 01 BP 1245 Bobo Dioulasso 01 - Secteur 05 - Tél: +226 ..." 
-                value={settings.secondaryAddress || ''} 
-                onChange={e => setSettings({...settings, secondaryAddress: e.target.value})} 
+                value={settings.footerLine2 || ''} 
+                onChange={e => setSettings({...settings, footerLine2: e.target.value})} 
               />
             </div>
 
@@ -525,8 +542,8 @@ export default function SettingsPage() {
                 type="text" 
                 className="form-control" 
                 placeholder="ex: E-mail : contact@nsauto.com - Site web : www.nsauto.com" 
-                value={settings.footerMessage || ''} 
-                onChange={e => setSettings({...settings, footerMessage: e.target.value})} 
+                value={settings.footerLine3 || ''} 
+                onChange={e => setSettings({...settings, footerLine3: e.target.value})} 
               />
             </div>
 
@@ -536,8 +553,8 @@ export default function SettingsPage() {
                 type="text" 
                 className="form-control" 
                 placeholder="ex: IB bank 001193300101 / ECOBANK N°281753286301 - 74" 
-                value={settings.bankInfo || ''} 
-                onChange={e => setSettings({...settings, bankInfo: e.target.value})} 
+                value={settings.footerLine4 || ''} 
+                onChange={e => setSettings({...settings, footerLine4: e.target.value})} 
               />
             </div>
 
@@ -958,6 +975,83 @@ export default function SettingsPage() {
                 <div className="form-group">
                   <label className="form-label">Titre Signataire BL</label>
                   <input type="text" name="bl_supervisor_title" className="form-control" defaultValue={editingPartner?.bl_supervisor_title || ''} />
+                </div>
+
+                {/* Personnalisation des colonnes */}
+                <div style={{ gridColumn: '1 / -1', borderTop: '1px solid #eee', paddingTop: '1.5rem', marginTop: '1rem' }}>
+                  <h4 style={{ fontSize: '0.95rem', color: '#2563eb', marginBottom: '1.5rem', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Libellés des Colonnes (Personnalisation)</h4>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+                    {/* Colonnes BC */}
+                    <div>
+                      <h5 style={{ fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '1rem', color: '#1e40af', backgroundColor: '#eff6ff', padding: '6px 10px', borderRadius: '4px', borderLeft: '3px solid #1e40af' }}>Colonnes Bon de Commande (BC)</h5>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                        <div className="form-group">
+                          <label className="form-label" style={{ fontSize: '0.7rem' }}>Col 1 (N°)</label>
+                          <input type="text" name="bc_col_no" className="form-control form-control-sm" defaultValue={editingPartner?.bc_col_no || 'N°'} />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label" style={{ fontSize: '0.7rem' }}>Col 2 (Site)</label>
+                          <input type="text" name="bc_col_site" className="form-control form-control-sm" defaultValue={editingPartner?.bc_col_site || 'Site'} />
+                        </div>
+                        <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                          <label className="form-label" style={{ fontSize: '0.7rem' }}>Col 3 (Désignation)</label>
+                          <input type="text" name="bc_col_desc" className="form-control form-control-sm" defaultValue={editingPartner?.bc_col_desc || 'Désignation / Article'} />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label" style={{ fontSize: '0.7rem' }}>Col 4 (Code)</label>
+                          <input type="text" name="bc_col_code" className="form-control form-control-sm" defaultValue={editingPartner?.bc_col_code || 'Code'} />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label" style={{ fontSize: '0.7rem' }}>Col 5 (Référence)</label>
+                          <input type="text" name="bc_col_ref" className="form-control form-control-sm" defaultValue={editingPartner?.bc_col_ref || 'Ref. CFAO'} />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label" style={{ fontSize: '0.7rem' }}>Col 6 (Qté)</label>
+                          <input type="text" name="bc_col_qty" className="form-control form-control-sm" defaultValue={editingPartner?.bc_col_qty || 'Qté'} />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label" style={{ fontSize: '0.7rem' }}>Col 7 (P. HTVA)</label>
+                          <input type="text" name="bc_col_price" className="form-control form-control-sm" defaultValue={editingPartner?.bc_col_price || 'Prix HTVA (F. CFA)'} />
+                        </div>
+                        <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                          <label className="form-label" style={{ fontSize: '0.7rem' }}>Col 8 (Total HTVA)</label>
+                          <input type="text" name="bc_col_total" className="form-control form-control-sm" defaultValue={editingPartner?.bc_col_total || 'Total HTVA (F. CFA)'} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Colonnes BL */}
+                    <div>
+                      <h5 style={{ fontSize: '0.85rem', fontWeight: 'bold', marginBottom: '1rem', color: '#b91c1c', backgroundColor: '#fef2f2', padding: '6px 10px', borderRadius: '4px', borderLeft: '3px solid #b91c1c' }}>Colonnes Bordereau (BL)</h5>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                        <div className="form-group">
+                          <label className="form-label" style={{ fontSize: '0.7rem' }}>Col 1 (N°)</label>
+                          <input type="text" name="bl_col_no" className="form-control form-control-sm" defaultValue={editingPartner?.bl_col_no || 'N°'} />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label" style={{ fontSize: '0.7rem' }}>Col 2 (Site)</label>
+                          <input type="text" name="bl_col_site" className="form-control form-control-sm" defaultValue={editingPartner?.bl_col_site || 'Site'} />
+                        </div>
+                        <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                          <label className="form-label" style={{ fontSize: '0.7rem' }}>Col 3 (Désignation)</label>
+                          <input type="text" name="bl_col_desc" className="form-control form-control-sm" defaultValue={editingPartner?.bl_col_desc || 'Désignation / Article'} />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label" style={{ fontSize: '0.7rem' }}>Col 4 (Code)</label>
+                          <input type="text" name="bl_col_code" className="form-control form-control-sm" defaultValue={editingPartner?.bl_col_code || 'Code'} />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label" style={{ fontSize: '0.7rem' }}>Col 5 (Référence)</label>
+                          <input type="text" name="bl_col_ref" className="form-control form-control-sm" defaultValue={editingPartner?.bl_col_ref || 'Réf. CFAO'} />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label" style={{ fontSize: '0.7rem' }}>Col 6 (Qté)</label>
+                          <input type="text" name="bl_col_qty" className="form-control form-control-sm" defaultValue={editingPartner?.bl_col_qty || 'Qté'} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Logos & Signatures */}

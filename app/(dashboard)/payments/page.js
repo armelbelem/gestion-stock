@@ -58,7 +58,7 @@ export default function PaymentsPage() {
   };
 
   const filteredHistory = payments.filter(p => p.saleRef?.toLowerCase().includes(searchTerm.toLowerCase()) || p.clientName?.toLowerCase().includes(searchTerm.toLowerCase()));
-  const filteredOutstanding = outstandingSales.filter(s => s.clientName?.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filteredOutstanding = outstandingSales.filter(s => s.status !== 'Annulée' && s.clientName?.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
     <div className="page">

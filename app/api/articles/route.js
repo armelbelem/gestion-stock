@@ -41,10 +41,19 @@ export async function GET(request) {
 
     const [articles] = await db.query(query, params);
     
-    const cleanedArticles = articles.map(art => ({
-      ...art,
-      storeDetails: art.storeDetails || []
-    }));
+    const cleanedArticles = articles.map(art => {
+      const cleaned = {
+        ...art,
+        storeDetails: art.storeDetails || []
+      };
+      
+      // Sécurité : Masquer le prix pour les vendeurs
+      if (auth.user.role === 'vendeur' || auth.user.role === 'vendeurs') {
+        cleaned.price = '***';
+      }
+      
+      return cleaned;
+    });
 
     return NextResponse.json(cleanedArticles);
   } catch (err) { 
@@ -58,7 +67,7 @@ export async function POST(request) {
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   // Seul l'admin ou un gérant peut créer des articles
-  if (auth.user.role !== 'admin' && auth.user.role !== 'manager') {
+  if (auth.user.role !== 'admin' && auth.user.role !== 'gestionnaire') {
     return NextResponse.json({ error: 'Accès interdit : Administrateur ou Gérant requis pour créer des articles' }, { status: 403 });
   }
 
@@ -66,7 +75,7 @@ export async function POST(request) {
 
   let storeId = bodyStoreId || auth.user.storeId;
 
-  if (!storeId && auth.user.role === 'admin') {
+  if (!storeId && (auth.user.role === 'admin' || auth.user.role === 'gestionnaire')) {
     const [stores] = await db.query('SELECT id FROM stores LIMIT 1');
     if (stores.length > 0) storeId = stores[0].id;
   }

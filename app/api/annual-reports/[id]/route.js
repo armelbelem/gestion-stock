@@ -14,24 +14,17 @@ export async function GET(request, { params }) {
     const fy = fyRows[0];
     if (!fy) return NextResponse.json({ error: "Exercice non trouvé" }, { status: 404 });
 
-    // 2. Calculer les statistiques globales (Ventes + Commandes Spéciales)
+    // 2. Calculer les statistiques globales (Ventes uniquement)
     const [salesStats] = await db.query(`
       SELECT SUM(totalAmount) as totalRev, SUM(amountPaid) as totalPaid
       FROM sales WHERE fiscalYearId = ? AND status != 'annulée'
     `, [id]);
 
-    const [extStats] = await db.query(`
-      SELECT SUM(oi.quantity * oi.sellPrice) as totalRev, SUM(e.amountPaid) as totalPaid
-      FROM external_orders e
-      JOIN external_order_items oi ON e.id = oi.externalOrderId
-      WHERE e.fiscalYearId = ? AND e.status = 'termine'
-    `, [id]);
-
-    const revenue = (Number(salesStats[0].totalRev) || 0) + (Number(extStats[0].totalRev) || 0);
-    const paid = (Number(salesStats[0].totalPaid) || 0) + (Number(extStats[0].totalPaid) || 0);
+    const revenue = (Number(salesStats[0].totalRev) || 0);
+    const paid = (Number(salesStats[0].totalPaid) || 0);
     const debt = revenue - paid;
 
-    // 3. Statistiques par client (fusionnées)
+    // 3. Statistiques par client
     const [clientSales] = await db.query(`
       SELECT COALESCE(c.name, 'Client Anonyme') as clientName, SUM(s.totalAmount) as amount, SUM(qi.totalQty) as items
       FROM sales s
@@ -41,23 +34,11 @@ export async function GET(request, { params }) {
       GROUP BY s.clientId, c.name
     `, [id]);
 
-    const [clientExt] = await db.query(`
-      SELECT COALESCE(c.name, 'Client Anonyme') as clientName, SUM(oi.quantity * oi.sellPrice) as amount, SUM(oi.quantity) as items
-      FROM external_orders e
-      JOIN external_order_items oi ON e.id = oi.externalOrderId
-      LEFT JOIN clients c ON e.clientId = c.id
-      WHERE e.fiscalYearId = ? AND e.status = 'termine'
-      GROUP BY e.clientId, c.name
-    `, [id]);
-
-    // Fusionner les deux listes de clients en JS
-    const clientMap = {};
-    [...clientSales, ...clientExt].forEach(c => {
-      if (!clientMap[c.clientName]) clientMap[c.clientName] = { clientName: c.clientName, totalAmount: 0, totalItems: 0 };
-      clientMap[c.clientName].totalAmount += Number(c.amount) || 0;
-      clientMap[c.clientName].totalItems += Number(c.items) || 0;
-    });
-    const clientStats = Object.values(clientMap).sort((a, b) => b.totalAmount - a.totalAmount);
+    const clientStats = clientSales.map(c => ({
+      clientName: c.clientName,
+      totalAmount: Number(c.amount) || 0,
+      totalItems: Number(c.items) || 0
+    })).sort((a, b) => b.totalAmount - a.totalAmount);
 
     // 4. Nombre total d'articles vendus
     const totalItems = clientStats.reduce((sum, c) => sum + c.totalItems, 0);

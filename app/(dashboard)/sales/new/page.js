@@ -27,6 +27,7 @@ export default function NewSalePage() {
   const [discount, setDiscount] = useState(0);
   const [tvaRate, setTvaRate] = useState(18); // Par défaut 18%
   const [settings, setSettings] = useState(null);
+  const [notes, setNotes] = useState('');
 
   const [alertModal, setAlertModal] = useState({ open: false, type: 'info', title: '', message: '', onConfirm: null });
   const closeAlert = () => setAlertModal(prev => ({ ...prev, open: false, onConfirm: null }));
@@ -60,7 +61,7 @@ export default function NewSalePage() {
   };
 
   const addItem = (isManual = false) => {
-    setSaleItems([...saleItems, {
+    setSaleItems(prev => [...prev, {
       id: Math.random().toString(36).substr(2, 9),
       articleId: '',
       description: '',
@@ -190,15 +191,18 @@ export default function NewSalePage() {
     if (!hasActiveYear) return showAlert('error', 'Action bloquée', "Aucun exercice fiscal n'est ouvert. Veuillez ouvrir un exercice dans les réglages avant de pouvoir effectuer une vente.");
     if (!selectedClientId) return showAlert('error', 'Erreur', "Sélectionnez un client");
     const selectedStore = localStorage.getItem('selectedStore');
-    const isAdmin = currentUser?.role === 'admin';
-    if (isAdmin && (!selectedStore || selectedStore === 'all')) return showAlert('error', 'Action impossible', "Sélectionnez un magasin spécifique.");
+    const isAdminOrManager = currentUser?.role === 'admin' || currentUser?.role === 'gestionnaire';
+    if (isAdminOrManager && (!selectedStore || selectedStore === 'all')) return showAlert('error', 'Action impossible', "Sélectionnez un magasin spécifique.");
     if (saleItems.length === 0) return showAlert('error', 'Erreur', "Panier vide");
     
     const invalidItem = saleItems.find(item => !item.articleId && !item.description);
     if (invalidItem) return showAlert('error', 'Erreur', "Veuillez remplir la désignation pour tous les articles manuels ou sélectionner un produit du catalogue.");
 
+    const invalidQty = saleItems.find(item => !item.quantity || Number(item.quantity) <= 0);
+    if (invalidQty && !isProforma) return showAlert('error', 'Erreur', "Toutes les quantités doivent être supérieures à 0.");
+
     const totalAmount = calculateTotal();
-    const storeId = isAdmin ? selectedStore : currentUser?.storeId;
+    const storeId = isAdminOrManager ? selectedStore : currentUser?.storeId;
 
     showConfirm(isProforma ? 'Enregistrer le Proforma ?' : 'Valider la vente ?', 
                 isProforma ? 'Ce document ne déduira pas le stock.' : 'Confirmez-vous l\'enregistrement de cette transaction ?', 
@@ -220,7 +224,8 @@ export default function NewSalePage() {
           tvaAmount: tvaAmount,
           totalAmount: totalAmount,
           storeId,
-          isProforma: !!isProforma
+          isProforma: !!isProforma,
+          notes: notes
         });
         setSuccessData({ 
           ...response, 
@@ -285,8 +290,17 @@ export default function NewSalePage() {
                     />
                     <Search size={24} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--success)' }} />
                   </div>
-                  {currentUser?.role === 'admin' && (
-                    <button type="button" className="btn btn-secondary" style={{ height: '50px', whiteSpace: 'nowrap' }} onClick={() => addItem(true)}>
+                  {(currentUser?.role === 'admin' || currentUser?.role === 'gestionnaire') && (
+                    <button type="button" className="btn btn-secondary" style={{ height: '50px', whiteSpace: 'nowrap' }} onClick={() => {
+                      showConfirm(
+                        'Ajout Manuel',
+                        'Souhaitez-vous réellement ajouter un produit manuellement pour cette vente ?',
+                        () => {
+                          addItem(true);
+                          closeAlert();
+                        }
+                      );
+                    }}>
                       <Plus size={18} /> Ajout Manuel
                     </button>
                   )}
@@ -435,9 +449,20 @@ export default function NewSalePage() {
                   {currentUser?.role !== 'vendeur' && (
                     <div className="form-group"><label className="form-label">Versement</label><input type="number" className="form-control" value={initialPayment} onChange={(e) => setInitialPayment(Number(e.target.value) || 0)} disabled={paymentType === 'credit'} /></div>
                   )}
+                  <div className="form-group" style={{ marginTop: '1rem' }}>
+                    <label className="form-label" style={{ fontSize: '0.85rem', fontWeight: 600 }}>Notes / Justificatif</label>
+                    <textarea 
+                      className="form-control" 
+                      rows="3" 
+                      placeholder="Observations sur cette vente..." 
+                      value={notes} 
+                      onChange={(e) => setNotes(e.target.value)}
+                      style={{ fontSize: '0.85rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}
+                    ></textarea>
+                  </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  {currentUser?.role === 'admin' && (
+                  {(currentUser?.role === 'admin' || currentUser?.role === 'gestionnaire') && (
                     <button type="button" onClick={() => handleSubmit({ preventDefault: () => {}, isProforma: true })} className="btn btn-secondary btn-lg" disabled={isSubmitting || saleItems.length === 0} style={{ backgroundColor: '#fff7ed', color: '#9a3412', borderColor: '#fdba74' }}>
                       {isSubmitting ? '...' : 'Générer Proforma'}
                     </button>
