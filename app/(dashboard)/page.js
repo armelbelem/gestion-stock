@@ -13,6 +13,7 @@ import {
 } from 'recharts';
 
 import { useRouter } from 'next/navigation';
+import { useAuth } from '../providers';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
@@ -37,7 +38,8 @@ export default function DashboardPage() {
   const itemsPerPageTopArticles = 6;
   const [showWelcome, setShowWelcome] = useState(false);
   const [hasActiveYear, setHasActiveYear] = useState(true);
-  const user = storage.getUser();
+  const [settings, setSettings] = useState(null);
+  const { user } = useAuth();
 
   useEffect(() => {
     if (user?.role === 'vendeur' || user?.role === 'vendeurs') {
@@ -63,6 +65,14 @@ export default function DashboardPage() {
       sessionStorage.setItem('welcomeShown', 'true');
       setTimeout(() => setShowWelcome(false), 10500);
     }
+    
+    const loadSettings = async () => {
+      try {
+        const data = await storage.get('settings');
+        setSettings(data);
+      } catch (e) { console.error(e); }
+    };
+    loadSettings();
   }, [user]);
 
   useEffect(() => {
@@ -157,10 +167,16 @@ export default function DashboardPage() {
       {showWelcome && (
         <div className="welcome-overlay">
           <div className="welcome-card">
-            <span className="welcome-icon">👋</span>
-            <h1 className="welcome-title">Bienvenue, {user?.name || 'Cher utilisateur'} !</h1>
+            {settings?.logo ? (
+              <img src={settings.logo} alt="Logo" className="welcome-logo" />
+            ) : (
+              <div className="welcome-icon">👋</div>
+            )}
+            <h1 className="welcome-title" style={{ color: 'var(--text-main)', marginBottom: '0.5rem' }}>
+              Bienvenue chez <span style={{color: '#991b1b'}}>NS AUTO</span> SARL !
+            </h1>
             <p className="welcome-text">
-              Ravi de vous revoir. <br />
+              Ravi de vous revoir, <strong>{user?.name || user?.username || 'armel'}</strong>. <br />
               Excellente journée de travail !
             </p>
 

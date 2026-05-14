@@ -11,8 +11,22 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [publicSettings, setPublicSettings] = useState(null);
   const router = useRouter();
   const { login } = useAuth();
+  
+  React.useEffect(() => {
+    const fetchBranding = async () => {
+      try {
+        const response = await fetch('/api/public/settings');
+        if (response.ok) {
+          const data = await response.json();
+          setPublicSettings(data);
+        }
+      } catch (e) { console.error(e); }
+    };
+    fetchBranding();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -38,23 +52,34 @@ export default function LoginPage() {
     <div className="login-container">
       <div className="login-card">
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{
-            width: '60px',
-            height: '60px',
-            backgroundColor: 'var(--primary-light)',
-            color: 'var(--primary)',
-            borderRadius: '12px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            margin: '0 auto 1.25rem auto'
-          }}>
-            <Lock size={28} />
-          </div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-main)' }}>
-            <span style={{color: '#ef4444'}}>NS-AUTO</span> Global Manager
+          {publicSettings?.logo ? (
+            <img src={publicSettings.logo} alt="Logo" style={{ maxWidth: '140px', marginBottom: '1.5rem', display: 'inline-block' }} />
+          ) : (
+            <div style={{
+              width: '60px',
+              height: '60px',
+              backgroundColor: 'var(--primary-light)',
+              color: 'var(--primary)',
+              borderRadius: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1.25rem auto'
+            }}>
+              <Lock size={28} />
+            </div>
+          )}
+          
+          <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em', textTransform: 'uppercase' }}>
+            {publicSettings?.companyName ? (
+              <>
+                <span style={{color: '#991b1b'}}>{publicSettings.companyName.split(' ').slice(0, 2).join(' ')}</span> {publicSettings.companyName.split(' ').slice(2).join(' ')}
+              </>
+            ) : (
+              <span style={{color: '#991b1b'}}>NS AUTO</span>
+            )}
           </h1>
-          <p style={{ color: 'var(--text-muted)', marginTop: '0.25rem' }}>Accédez à votre gestion de stock</p>
+          <p style={{ color: 'var(--text-muted)', marginTop: '0.25rem' }}>Accédez à votre logiciel</p>
         </div>
 
         {error && (

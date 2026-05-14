@@ -45,6 +45,7 @@ export default function ClientLayout({ children }) {
   const [toasts, setToasts] = useState([]);
   const [stores, setStores] = useState([]);
   const [selectedStore, setSelectedStore] = useState('');
+  const [settings, setSettings] = useState(null);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') || 'light';
@@ -79,7 +80,7 @@ export default function ClientLayout({ children }) {
     checkStock();
     const interval = setInterval(checkStock, 30000); 
     return () => clearInterval(interval);
-  }, [pathname, lowStockCount]);
+  }, [pathname]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -92,6 +93,9 @@ export default function ClientLayout({ children }) {
           const data = await storage.get('stores');
           setStores(data);
         }
+
+        const settingsData = await storage.get('settings');
+        setSettings(settingsData);
       } catch (err) {
         console.error("Error fetching initial layout data:", err);
       }
@@ -193,10 +197,15 @@ export default function ClientLayout({ children }) {
       ></div>
 
       <aside className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
-        <div className="sidebar-header">
-          <h2><span style={{color: '#ef4444'}}>NS-AUTO</span> Global Manager</h2>
-          <button className="menu-toggle" onClick={() => setIsSidebarOpen(false)}>
-            <X size={24} />
+        <div className="sidebar-header" style={{ height: 'auto', padding: '1.5rem 1rem', display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center' }}>
+          {settings?.logo && (
+            <img src={settings.logo} alt="Logo" style={{ maxHeight: '50px', maxWidth: '100%', objectFit: 'contain' }} />
+          )}
+          <h2 style={{ fontSize: '1.2rem', textAlign: 'center', color: '#991b1b', fontWeight: '800' }}>
+            NS AUTO
+          </h2>
+          <button className="menu-toggle" onClick={() => setIsSidebarOpen(false)} style={{ position: 'absolute', right: '10px', top: '10px' }}>
+            <X size={20} />
           </button>
         </div>
         <nav className="sidebar-nav">
@@ -263,7 +272,9 @@ export default function ClientLayout({ children }) {
             <button className="menu-toggle" onClick={() => setIsSidebarOpen(true)}>
               <Menu size={24} />
             </button>
-            <div className="header-title"><span style={{color: '#ef4444', fontWeight: '800'}}>NS-AUTO</span> Global Manager</div>
+            <div className="header-title">
+              <span style={{color: '#991b1b', fontWeight: '800'}}>NS AUTO</span> <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 'normal' }}>Global Manager</span>
+            </div>
             {activeYear && (
               <div className="badge badge-primary" style={{ marginLeft: '1rem', fontSize: '0.8rem', padding: '4px 10px' }}>
                 <Calendar size={12} style={{ marginRight: '4px' }} />

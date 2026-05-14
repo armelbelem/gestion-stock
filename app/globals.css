@@ -85,11 +85,9 @@ body {
 .sidebar-header h2 {
   font-size: 1.5rem;
   font-weight: 700;
-  color: var(--primary);
-  background: linear-gradient(135deg, var(--primary), #8b5cf6);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: #991b1b !important;
+  background: none !important;
+  -webkit-text-fill-color: initial !important;
 }
 
 .sidebar-nav {
@@ -1205,6 +1203,14 @@ input[type=number] {
   animation: fadeInUpWelcome 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+.welcome-logo {
+  max-width: 200px;
+  height: auto;
+  margin-bottom: 1.5rem;
+  display: inline-block;
+  object-fit: contain;
+}
+
 .welcome-icon {
   font-size: 4.5rem;
   margin-bottom: 1.5rem;
@@ -1216,9 +1222,7 @@ input[type=number] {
 .welcome-title {
   font-size: 2.4rem;
   font-weight: 900;
-  background: linear-gradient(135deg, #2563eb, #6366f1);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--text-main);
   margin-bottom: 0.75rem;
   letter-spacing: -0.02em;
 }

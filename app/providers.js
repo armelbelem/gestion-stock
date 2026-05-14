@@ -7,6 +7,7 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [welcomeShownInThisSession, setWelcomeShownInThisSession] = useState(false);
 
   useEffect(() => {
     const savedUser = sessionStorage.getItem('user');
@@ -14,17 +15,21 @@ export function AuthProvider({ children }) {
     if (savedUser && token) {
       setUser(JSON.parse(savedUser));
     }
-    setLoading(false);
+    setTimeout(() => {
+      setLoading(false);
+    }, 800);
   }, []);
 
   const login = (userData) => {
     setUser(userData.user);
+    sessionStorage.removeItem('welcomeShown'); // Ensure welcome shows on next dashboard visit
   };
 
   const logout = () => {
     setUser(null);
     sessionStorage.removeItem('token');
     sessionStorage.removeItem('user');
+    sessionStorage.removeItem('welcomeShown');
     window.location.href = '/login';
   };
 
