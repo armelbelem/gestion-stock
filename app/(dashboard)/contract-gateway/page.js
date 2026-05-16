@@ -276,18 +276,18 @@ export default function ContractGatewayPage() {
         [`Référence ${selectedPartner?.name || 'Partenaire'}`]: item.code || '-',
         'Désignation': item.description,
         'Quantité': item.quantity,
-        'Prix Achat (FCFA)': item.purchasePrice,
-        'Total Achat (FCFA)': item.purchasePrice * item.quantity
+        'Prix Achat (FCFA)': formatPrice(item.purchasePrice),
+        'Total Achat (FCFA)': formatPrice(item.purchasePrice * item.quantity)
       }));
 
       // Ajouter la ligne de total général
-      const totalGlobal = data.reduce((sum, row) => sum + row['Total Achat (FCFA)'], 0);
+      const totalGlobal = fullOrder.items.reduce((sum, it) => sum + (it.purchasePrice * it.quantity), 0);
       data.push({
         [`Référence ${selectedPartner?.name || 'Partenaire'}`]: 'TOTAL GÉNÉRAL',
         'Désignation': '',
         'Quantité': '',
         'Prix Achat (FCFA)': '',
-        'Total Achat (FCFA)': totalGlobal
+        'Total Achat (FCFA)': formatPrice(totalGlobal)
       });
 
       const ws = XLSX.utils.json_to_sheet(data);
@@ -306,7 +306,7 @@ export default function ContractGatewayPage() {
       'Code': item.code,
       [`Référence ${selectedPartner?.name || 'Partenaire'}`]: item.refCfao,
       'Désignation': item.name,
-      'Prix Achat Contrat (FCFA)': item.purchasePrice
+      'Prix Achat Contrat (FCFA)': formatPrice(item.purchasePrice)
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
@@ -331,9 +331,9 @@ export default function ContractGatewayPage() {
         row['Partenaire'] = o.partnerName || 'N/A';
       }
 
-      row['Montant Achat HT'] = purchaseHT;
+      row['Montant Achat HT'] = formatPrice(purchaseHT);
       row['TVA (%)'] = tvaRate;
-      row['Montant Achat TTC'] = purchaseTTC;
+      row['Montant Achat TTC'] = formatPrice(purchaseTTC);
       row['Date Création'] = new Date(o.createdAt).toLocaleDateString();
 
       return row;
@@ -362,9 +362,9 @@ export default function ContractGatewayPage() {
     const dataRows = reportItems.map(item => [
       item.refCfao || item.code || '-',
       item.description,
-      item.unitPrice,
+      formatPrice(item.unitPrice),
       item.totalQuantity,
-      item.totalHT
+      formatPrice(item.totalHT)
     ]);
 
     // Summary rows
@@ -375,9 +375,9 @@ export default function ContractGatewayPage() {
 
     const summaryRows = [
       [],
-      ['', 'TOTAL BRUT (HT)', '', '', totalHT],
-      ['', `MONTANT TVA (${tvaRate}%)`, '', '', totalTVA],
-      ['', 'TOTAL NET (TTC)', '', '', totalTTC]
+      ['', 'TOTAL BRUT (HT)', '', '', formatPrice(totalHT)],
+      ['', `MONTANT TVA (${tvaRate}%)`, '', '', formatPrice(totalTVA)],
+      ['', 'TOTAL NET (TTC)', '', '', formatPrice(totalTTC)]
     ];
 
     // Combine all
@@ -1932,7 +1932,7 @@ export default function ContractGatewayPage() {
             <div className="stat-card" style={{ borderLeft: '5px solid var(--primary)', position: 'relative', overflow: 'hidden' }}>
               <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>💼 Achats en cours</div>
               <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--primary)' }}>
-                {orders.filter(o => o.status !== 'termine').reduce((sum, o) => sum + (o.contractAmount * (1 + (o.tva_rate || 0) / 100)), 0).toLocaleString()}
+                {formatPrice(orders.filter(o => o.status !== 'termine').reduce((sum, o) => sum + (o.contractAmount * (1 + (o.tva_rate || 0) / 100)), 0))}
                 <span style={{ fontSize: '0.9rem', opacity: 0.8 }}> FCFA (TTC)</span>
               </div>
             </div>
@@ -1940,7 +1940,7 @@ export default function ContractGatewayPage() {
               <div className="stat-card" style={{ borderLeft: '5px solid var(--success)', position: 'relative', overflow: 'hidden' }}>
                 <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>💰 Achats Clôturés</div>
                 <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--success)' }}>
-                  {orders.filter(o => o.status === 'termine').reduce((sum, o) => sum + (o.contractAmount * (1 + (o.tva_rate || 0) / 100)), 0).toLocaleString()}
+                  {formatPrice(orders.filter(o => o.status === 'termine').reduce((sum, o) => sum + (o.contractAmount * (1 + (o.tva_rate || 0) / 100)), 0))}
                   <span style={{ fontSize: '0.9rem', opacity: 0.8 }}> FCFA (TTC)</span>
                 </div>
               </div>
@@ -2020,7 +2020,7 @@ export default function ContractGatewayPage() {
                         </td>
                         <td>
                           <div style={{ fontWeight: 800, color: 'var(--text-main)' }}>
-                            {((order.contractAmount || 0) * (1 + (order.tva_rate || 0) / 100)).toLocaleString()} <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>FCFA</span>
+                            {formatPrice((order.contractAmount || 0) * (1 + (order.tva_rate || 0) / 100))} <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>FCFA</span>
                           </div>
                         </td>
                         <td style={{ textAlign: 'right' }}>
@@ -2327,7 +2327,7 @@ export default function ContractGatewayPage() {
                             <span className="badge badge-secondary">Global</span>
                           )}
                         </td>
-                        {hasPermission(user, 'stock', 'view_cost_price') && <td style={{ fontWeight: 600 }}>{(item.purchasePrice || 0).toLocaleString()} FCFA</td>}
+                        {hasPermission(user, 'stock', 'view_cost_price') && <td style={{ fontWeight: 600 }}>{formatPrice(item.purchasePrice || 0)} FCFA</td>}
                         <td style={{ textAlign: 'right' }}>
                           <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
                             <button className="btn btn-secondary btn-sm" onClick={() => { setCatalogItem(item); setIsCatalogModalOpen(true); }}><Edit size={16} /></button>
