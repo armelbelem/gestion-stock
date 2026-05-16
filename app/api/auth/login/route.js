@@ -39,8 +39,7 @@ export async function POST(request) {
     
     await logAction(user.id, user.storeId, 'Connexion', { ip: 'API-NextJS' });
 
-    return NextResponse.json({ 
-      token, 
+    const response = NextResponse.json({ 
       user: { 
         id: user.id, 
         username: user.username, 
@@ -50,6 +49,16 @@ export async function POST(request) {
         permissions: typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions
       } 
     });
+
+    response.cookies.set('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 60 * 60 * 24, // 1 jour
+      path: '/',
+    });
+
+    return response;
   } catch (err) {
     console.error('Login error:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });

@@ -14,8 +14,12 @@ if (!JWT_SECRET) {
 export const FINAL_JWT_SECRET = JWT_SECRET || 'dev_secret_key_change_me_in_production';
 
 export function authenticateToken(request) {
-  const authHeader = request.headers.get('authorization');
-  let token = authHeader && authHeader.split(' ')[1];
+  let token = request.cookies.get('token')?.value;
+  
+  if (!token) {
+    const authHeader = request.headers.get('authorization');
+    token = authHeader && authHeader.split(' ')[1];
+  }
   
   if (!token) {
     // Essayer de récupérer le token depuis les query params (pour les téléchargements directs)

@@ -20,6 +20,16 @@ export default function ClientReportPage() {
   const [alertModal, setAlertModal] = useState({ open: false, type: 'info', title: '', message: '', onConfirm: null });
   const pathname = usePathname();
 
+  const formatPrice = (val) => {
+    if (val === undefined || val === null) return '0';
+    const num = Number(val) || 0;
+    if (settings?.roundAmounts !== 0 && settings?.roundAmounts !== false) {
+      return Math.trunc(num).toLocaleString();
+    }
+    return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+
   useEffect(() => {
     const loadClients = async () => {
       const c = await storage.get('clients');
@@ -67,8 +77,14 @@ export default function ClientReportPage() {
       { key: 'totalQuantity', label: 'Quantité Vendue' },
       { key: 'totalAmount', label: 'Montant Total' }
     ];
+    const formattedItems = data.items.map(item => ({
+      ...item,
+      unitPrice: formatPrice(item.unitPrice),
+      totalAmount: formatPrice(item.totalAmount)
+    }));
+
     exportToExcel(
-      data.items, 
+      formattedItems, 
       headers, 
       `Bilan_${selectedClient?.name}_du_${startDate}_au_${endDate}`,
       {
@@ -76,9 +92,9 @@ export default function ClientReportPage() {
         companyName: settings?.companyName || "NS AUTO",
         period: `Du ${new Date(startDate).toLocaleDateString()} au ${new Date(endDate).toLocaleDateString()}`,
         summary: [
-          ['', 'TOTAL BRUT (HT)', '', data.summary.totalQuantity, `${data.summary.totalGrossAmount.toLocaleString()} FCFA`],
-          ['', `MONTANT TVA (${Math.round((data.summary.totalTva / (data.summary.totalGrossAmount - data.summary.totalDiscount)) * 100)}%)`, '', '', `${(data.summary.totalTva || 0).toLocaleString()} FCFA`],
-          ['', 'TOTAL NET (TTC)', '', '', `${data.summary.totalAmount.toLocaleString()} FCFA`]
+          ['', 'TOTAL BRUT (HT)', '', data.summary.totalQuantity, `${formatPrice(data.summary.totalGrossAmount)} FCFA`],
+          ['', `MONTANT TVA (${Math.round((data.summary.totalTva / (data.summary.totalGrossAmount - data.summary.totalDiscount)) * 100)}%)`, '', '', `${formatPrice(data.summary.totalTva)} FCFA`],
+          ['', 'TOTAL NET (TTC)', '', '', `${formatPrice(data.summary.totalAmount)} FCFA`]
         ]
       }
     );
@@ -168,9 +184,9 @@ export default function ClientReportPage() {
               <tr key={idx}>
                 <td style={{ padding: '10px', border: '1px solid #000' }}>{item.code || '-'}</td>
                 <td style={{ padding: '10px', border: '1px solid #000' }}>{item.name}</td>
-                <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>{Number(item.unitPrice).toLocaleString()}</td>
+                <td style={{ padding: '10px', border: '1px solid #000' }}>{formatPrice(item.unitPrice)}</td>
                 <td style={{ textAlign: 'center', padding: '10px', border: '1px solid #000' }}>{item.totalQuantity}</td>
-                <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000', fontWeight: 'bold' }}>{Number(item.totalAmount).toLocaleString()}</td>
+                <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000', fontWeight: 'bold' }}>{formatPrice(item.totalAmount)}</td>
               </tr>
             ))}
           </tbody>
@@ -178,12 +194,12 @@ export default function ClientReportPage() {
             <tr style={{ backgroundColor: '#f0f0f0', fontWeight: 'bold' }}>
               <td colSpan="3" style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>TOTAL BRUT</td>
               <td style={{ textAlign: 'center', padding: '10px', border: '1px solid #000' }}>{data.summary.totalQuantity}</td>
-              <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>{data.summary.totalGrossAmount.toLocaleString()} FCFA</td>
+              <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>{formatPrice(data.summary.totalGrossAmount)} FCFA</td>
             </tr>
             {data.summary.totalDiscount > 0 && (
               <tr style={{ fontWeight: 'bold' }}>
                 <td colSpan="4" style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>TOTAL REMISES</td>
-                <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>-{data.summary.totalDiscount.toLocaleString()} FCFA</td>
+                <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>-{formatPrice(data.summary.totalDiscount)} FCFA</td>
               </tr>
             )}
             {data.summary.totalTva > 0 && (
@@ -191,12 +207,12 @@ export default function ClientReportPage() {
                 <td colSpan="4" style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>
                   MONTANT TVA ({Math.round((data.summary.totalTva / (data.summary.totalGrossAmount - data.summary.totalDiscount)) * 100)}%)
                 </td>
-                <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>{data.summary.totalTva.toLocaleString()} FCFA</td>
+                <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>{formatPrice(data.summary.totalTva)} FCFA</td>
               </tr>
             )}
             <tr style={{ backgroundColor: '#e0e0e0', fontWeight: 'bold' }}>
               <td colSpan="4" style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>TOTAL NET À RÉGLER</td>
-              <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000', fontSize: '18px' }}>{data.summary.totalAmount.toLocaleString()} FCFA</td>
+              <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000', fontSize: '18px' }}>{formatPrice(data.summary.totalAmount)} FCFA</td>
             </tr>
           </tfoot>
         </table>
@@ -298,9 +314,9 @@ export default function ClientReportPage() {
                   <tr key={idx}>
                     <td style={{ fontWeight: 500 }}>{item.code || '-'}</td>
                     <td>{item.name}</td>
-                    <td style={{ textAlign: 'right' }}>{Number(item.unitPrice).toLocaleString()}</td>
+                    <td style={{ textAlign: 'right' }}>{formatPrice(item.unitPrice)}</td>
                     <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{item.totalQuantity}</td>
-                    <td style={{ textAlign: 'right', fontWeight: 600 }}>{Number(item.totalAmount).toLocaleString()} FCFA</td>
+                    <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatPrice(item.totalAmount)} FCFA</td>
                   </tr>
                 ))}
               </tbody>
@@ -308,12 +324,12 @@ export default function ClientReportPage() {
                 <tr>
                   <td colSpan="3" style={{ textAlign: 'right' }}>TOTAL BRUT</td>
                   <td style={{ textAlign: 'center' }}>{data.summary.totalQuantity}</td>
-                  <td style={{ textAlign: 'right' }}>{data.summary.totalGrossAmount.toLocaleString()} FCFA</td>
+                  <td style={{ textAlign: 'right' }}>{formatPrice(data.summary.totalGrossAmount)} FCFA</td>
                 </tr>
                 {data.summary.totalDiscount > 0 && (
                   <tr>
                     <td colSpan="4" style={{ textAlign: 'right', color: 'var(--danger)' }}>REMISES ACCORDÉES</td>
-                    <td style={{ textAlign: 'right', color: 'var(--danger)' }}>-{data.summary.totalDiscount.toLocaleString()} FCFA</td>
+                    <td style={{ textAlign: 'right', color: 'var(--danger)' }}>-{formatPrice(data.summary.totalDiscount)} FCFA</td>
                   </tr>
                 )}
                 {data.summary.totalTva > 0 && (
@@ -321,12 +337,12 @@ export default function ClientReportPage() {
                     <td colSpan="4" style={{ textAlign: 'right', color: 'var(--primary)' }}>
                       MONTANT TVA ({Math.round((data.summary.totalTva / (data.summary.totalGrossAmount - data.summary.totalDiscount)) * 100)}%)
                     </td>
-                    <td style={{ textAlign: 'right', color: 'var(--primary)' }}>{data.summary.totalTva.toLocaleString()} FCFA</td>
+                    <td style={{ textAlign: 'right', color: 'var(--primary)' }}>{formatPrice(data.summary.totalTva)} FCFA</td>
                   </tr>
                 )}
                 <tr style={{ fontSize: '1.2rem', borderTop: '2px solid var(--primary)' }}>
                   <td colSpan="4" style={{ textAlign: 'right' }}>TOTAL NET</td>
-                  <td style={{ textAlign: 'right', color: 'var(--primary)' }}>{data.summary.totalAmount.toLocaleString()} FCFA</td>
+                  <td style={{ textAlign: 'right', color: 'var(--primary)' }}>{formatPrice(data.summary.totalAmount)} FCFA</td>
                 </tr>
               </tfoot>
             </table>

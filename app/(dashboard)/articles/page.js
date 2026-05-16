@@ -31,6 +31,16 @@ export default function ArticlesPage() {
     storeId: ''
   });
 
+  const formatPrice = (val) => {
+    if (val === undefined || val === null) return '0';
+    const num = Number(val) || 0;
+    if (settings?.roundAmounts !== 0 && settings?.roundAmounts !== false) {
+      return Math.trunc(num).toLocaleString();
+    }
+    return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -211,7 +221,7 @@ export default function ArticlesPage() {
               <tr key={article.id} style={{ borderBottom: '1px solid #eee' }}>
                 <td style={{ padding: '8px' }}>{article.code || '-'}</td>
                 <td style={{ padding: '8px', fontWeight: 500 }}>{article.name}</td>
-                <td style={{ textAlign: 'right', padding: '8px' }}>{article.price.toLocaleString()} FCFA</td>
+                <td style={{ textAlign: 'right', padding: '8px' }}>{formatPrice(article.price)} FCFA</td>
                 <td style={{ textAlign: 'center', padding: '8px', fontWeight: 'bold' }}>{article.currentStock}</td>
                 <td style={{ textAlign: 'center', padding: '8px' }}>{article.minStock}</td>
               </tr>
@@ -405,7 +415,7 @@ export default function ArticlesPage() {
                         <td style={{ fontWeight: 500 }}>{article.code || '-'}</td>
                         <td style={{ fontWeight: 600 }}>{article.name}</td>
                         <td style={{ fontSize: '0.8rem', fontFamily: 'monospace' }}>{article.barcode || '-'}</td>
-                        {hasPermission(user, 'sales', 'view_prices') && <td>{article.price.toLocaleString()} FCFA</td>}
+                        {hasPermission(user, 'sales', 'view_prices') && <td>{formatPrice(article.price)} FCFA</td>}
                         <td>
                           <span style={{ color: isLowStock ? 'var(--danger)' : 'var(--success)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
                             {article.currentStock}

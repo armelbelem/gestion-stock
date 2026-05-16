@@ -59,6 +59,16 @@ export default function ContractGatewayPage() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('dossiers');
   const [orders, setOrders] = useState([]);
+
+  const formatPrice = (val) => {
+    if (val === undefined || val === null) return '0';
+    const num = Number(val) || 0;
+    if (settings?.roundAmounts !== 0 && settings?.roundAmounts !== false) {
+      return Math.trunc(num).toLocaleString();
+    }
+    return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
   const [specialDocs, setSpecialDocs] = useState([]);
   const [catalog, setCatalog] = useState([]);
   const [clients, setClients] = useState([]);
@@ -1248,9 +1258,14 @@ export default function ContractGatewayPage() {
     const amountTTC = amountHT + amountTVA;
 
     const formatPrice = (val) => {
+      if (val === undefined || val === null) return '0';
       const num = Number(val) || 0;
-      return (settings?.roundAmounts !== false) ? Math.trunc(num) : num;
+      if (settings?.roundAmounts !== 0 && settings?.roundAmounts !== false) {
+        return Math.trunc(num).toLocaleString();
+      }
+      return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     };
+
 
     // Robust styles for print borders
     const printBorder = '1.5pt solid #000 !important';
@@ -1451,8 +1466,8 @@ export default function ContractGatewayPage() {
                   <td style={{ ...cellStyle, textAlign: 'center' }}>{item.quantity}</td>
                   {hasPermission(user, 'stock', 'view_cost_price') && (
                     <>
-                      <td style={{ ...cellStyle, textAlign: 'right' }}>{formatPrice(isPurchaseDoc ? item.purchasePrice : item.sellPrice).toLocaleString()}</td>
-                      <td style={{ ...cellStyle, textAlign: 'right', fontWeight: 'bold' }}>{formatPrice((isPurchaseDoc ? item.purchasePrice : item.sellPrice) * item.quantity).toLocaleString()}</td>
+                      <td style={{ ...cellStyle, textAlign: 'right' }}>{formatPrice(isPurchaseDoc ? item.purchasePrice : item.sellPrice)}</td>
+                      <td style={{ ...cellStyle, textAlign: 'right', fontWeight: 'bold' }}>{formatPrice((isPurchaseDoc ? item.purchasePrice : item.sellPrice) * item.quantity)}</td>
                     </>
                   )}
                 </tr>
@@ -1463,15 +1478,15 @@ export default function ContractGatewayPage() {
                 <>
                   <tr>
                     <td colSpan={hasPermission(user, 'stock', 'view_cost_price') ? "7" : "5"} style={{ textAlign: 'right', fontWeight: 'bold', padding: '2px 6px', fontSize: '8.5px' }}>MONTANT HTVA</td>
-                    <td style={{ textAlign: 'right', fontWeight: 'bold', padding: '2px 6px', fontSize: '8.5px' }}>{formatPrice(amountHT).toLocaleString()}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 'bold', padding: '2px 6px', fontSize: '8.5px' }}>{formatPrice(amountHT)}</td>
                   </tr>
                   <tr>
                     <td colSpan={hasPermission(user, 'stock', 'view_cost_price') ? "7" : "5"} style={{ textAlign: 'right', fontWeight: 'bold', padding: '2px 6px', fontSize: '8.5px' }}>MONTANT TVA {tvaValue}%</td>
-                    <td style={{ textAlign: 'right', fontWeight: 'bold', padding: '2px 6px', fontSize: '8.5px' }}>{formatPrice(amountTVA).toLocaleString()}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 'bold', padding: '2px 6px', fontSize: '8.5px' }}>{formatPrice(amountTVA)}</td>
                   </tr>
                   <tr style={{ backgroundColor: '#d1d5db' }}>
                     <td colSpan={hasPermission(user, 'stock', 'view_cost_price') ? "7" : "5"} style={{ textAlign: 'right', fontWeight: 'bold', padding: '3px 8px', fontSize: '9px' }}>TOTAL NET A PAYER</td>
-                    <td style={{ textAlign: 'right', fontWeight: 'bold', padding: '3px 8px', fontSize: '9px' }}>{formatPrice(amountTTC).toLocaleString()}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 'bold', padding: '3px 8px', fontSize: '9px' }}>{formatPrice(amountTTC)}</td>
                   </tr>
                 </>
               )}
@@ -2356,7 +2371,7 @@ export default function ContractGatewayPage() {
                       <div>
                         <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '0.5rem' }}>Dépenses {p.partnerName}</div>
                         <div style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--text-main)' }}>
-                          {(p.totalAmount || 0).toLocaleString()} <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>FCFA</span>
+                          {formatPrice(p.totalAmount || 0)} <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>FCFA</span>
                         </div>
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>{p.orderCount} dossiers enregistrés</div>
                       </div>
@@ -2413,7 +2428,7 @@ export default function ContractGatewayPage() {
                           <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${(value / 1000000).toFixed(1)}M`} />
                           <Tooltip
                             contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
-                            formatter={(val) => [`${val?.toLocaleString()} FCFA`, 'Total']}
+                            formatter={(val) => [`${formatPrice(val)} FCFA`, 'Total']}
                           />
                           <Area type="monotone" dataKey="totalAmount" stroke="var(--primary)" strokeWidth={3} fillOpacity={1} fill="url(#colorTotal)" isAnimationActive={false} />
                         </AreaChart>
@@ -2432,7 +2447,7 @@ export default function ContractGatewayPage() {
                             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{art.partnerName} • {art.totalQuantity} unités</div>
                           </div>
                           <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--primary)', textAlign: 'right' }}>
-                            {art.totalValue?.toLocaleString()} <span style={{ fontSize: '0.7rem' }}>FCFA</span>
+                            {formatPrice(art.totalValue)} <span style={{ fontSize: '0.7rem' }}>FCFA</span>
                           </div>
                         </div>
                       ))}
@@ -2489,7 +2504,7 @@ export default function ContractGatewayPage() {
                             ))}
                           </Pie>
                           <Tooltip
-                            formatter={(val) => [`${val.toLocaleString()} FCFA`, 'Volume']}
+                            formatter={(val) => [`${formatPrice(val)} FCFA`, 'Volume']}
                           />
                           <Legend />
                         </PieChart>
@@ -2593,9 +2608,9 @@ export default function ContractGatewayPage() {
                             <div style={{ fontWeight: 600 }}>{item.description}</div>
                             {reportPartnerId === 'all' && <div style={{ fontSize: '0.75rem', color: 'var(--primary)' }}>{item.partnerName}</div>}
                           </td>
-                          <td style={{ textAlign: 'right' }}>{item.unitPrice?.toLocaleString()}</td>
+                          <td style={{ textAlign: 'right' }}>{formatPrice(item.unitPrice)}</td>
                           <td style={{ textAlign: 'center', fontWeight: 700 }}>{item.totalQuantity}</td>
-                          <td style={{ textAlign: 'right', fontWeight: 600 }}>{item.totalHT?.toLocaleString()}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatPrice(item.totalHT)}</td>
                         </tr>
                       ))
                     )}
@@ -2605,20 +2620,20 @@ export default function ContractGatewayPage() {
                       <tr>
                         <td colSpan="3" style={{ textAlign: 'right', padding: '12px', fontWeight: 'bold', textTransform: 'uppercase' }}>TOTAL BRUT (HT)</td>
                         <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{reportItems.reduce((sum, it) => sum + Number(it.totalQuantity), 0)}</td>
-                        <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{reportItems.reduce((sum, it) => sum + Number(it.totalHT || 0), 0).toLocaleString()}</td>
+                        <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{formatPrice(reportItems.reduce((sum, it) => sum + Number(it.totalHT || 0), 0))}</td>
                       </tr>
                       <tr>
                         <td colSpan="4" style={{ textAlign: 'right', padding: '8px', fontWeight: 600, color: 'var(--primary)' }}>
                           MONTANT TVA ({reportItems[0]?.tvaRate || settings?.tvaRate || 18}%)
                         </td>
                         <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--primary)' }}>
-                          {reportItems.reduce((sum, it) => sum + Number(it.tvaAmount || 0), 0).toLocaleString()}
+                          {formatPrice(reportItems.reduce((sum, it) => sum + Number(it.tvaAmount || 0), 0))}
                         </td>
                       </tr>
                       <tr style={{ backgroundColor: '#eff6ff' }}>
                         <td colSpan="4" style={{ textAlign: 'right', padding: '12px', fontWeight: '800', fontSize: '1rem' }}>TOTAL NET (TTC)</td>
                         <td style={{ textAlign: 'right', fontWeight: '900', fontSize: '1.1rem', color: 'var(--text-main)' }}>
-                          {reportItems.reduce((sum, it) => sum + Number(it.totalTTC || 0), 0).toLocaleString()} FCFA
+                          {formatPrice(reportItems.reduce((sum, it) => sum + Number(it.totalTTC || 0), 0))} FCFA
                         </td>
                       </tr>
                     </tfoot>
@@ -2832,7 +2847,7 @@ export default function ContractGatewayPage() {
                       {suggestions.map(a => (
                         <div key={a.id} className="suggestion-item" onClick={() => addItemFromCatalog(a)} style={{ padding: '8px 12px' }}>
                           <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{a.name}</div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Réf: {a.code} {hasPermission(user, 'stock', 'view_cost_price') && `| P.A: ${(a.purchasePrice || 0).toLocaleString()} FCFA`}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Réf: {a.code} {hasPermission(user, 'stock', 'view_cost_price') && `| P.A: ${formatPrice(a.purchasePrice || 0)} FCFA`}</div>
                         </div>
                       ))}
                     </div>
@@ -2868,9 +2883,9 @@ export default function ContractGatewayPage() {
                         {hasPermission(user, 'stock', 'view_cost_price') && (
                           <>
                             <td><input type="number" className="form-control" style={{ height: '30px', padding: '4px 8px', fontSize: '0.85rem' }} value={item.purchasePrice} onChange={e => { const val = e.target.value; setNewOrder(prev => { const ni = [...prev.items]; ni[idx].purchasePrice = val; return { ...prev, items: ni }; }); }} /></td>
-                            <td style={{ fontWeight: 600, textAlign: 'right', fontSize: '0.85rem' }}>{(item.quantity * item.purchasePrice).toLocaleString()}</td>
+                            <td style={{ fontWeight: 600, textAlign: 'right', fontSize: '0.85rem' }}>{formatPrice(item.quantity * item.purchasePrice)}</td>
                             <td style={{ fontWeight: 700, textAlign: 'right', color: 'var(--primary)', fontSize: '0.85rem' }}>
-                              {(item.quantity * item.purchasePrice * (1 + (newOrder.tvaRate ?? settings?.tvaRate ?? 18) / 100)).toLocaleString()}
+                              {formatPrice(item.quantity * item.purchasePrice * (1 + (newOrder.tvaRate ?? settings?.tvaRate ?? 18) / 100))}
                             </td>
                           </>
                         )}
@@ -2900,16 +2915,16 @@ export default function ContractGatewayPage() {
                   <div style={{ backgroundColor: 'var(--bg-light)', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '0.85rem' }}>
                       <span style={{ color: 'var(--text-muted)' }}>Sous-total HT :</span>
-                      <span style={{ fontWeight: 600 }}>{newOrder.items.reduce((sum, item) => sum + (item.quantity * item.purchasePrice), 0).toLocaleString()}</span>
+                      <span style={{ fontWeight: 600 }}>{formatPrice(newOrder.items.reduce((sum, item) => sum + (item.quantity * item.purchasePrice), 0))}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '0.85rem', color: 'var(--primary)' }}>
                       <span style={{ fontWeight: 500 }}>TVA ({newOrder.tvaRate ?? settings?.tvaRate ?? 18}%) :</span>
-                      <span style={{ fontWeight: 600 }}>{newOrder.items.reduce((sum, item) => sum + (item.quantity * item.purchasePrice * (newOrder.tvaRate ?? settings?.tvaRate ?? 18) / 100), 0).toLocaleString()}</span>
+                      <span style={{ fontWeight: 600 }}>{formatPrice(newOrder.items.reduce((sum, item) => sum + (item.quantity * item.purchasePrice * (newOrder.tvaRate ?? settings?.tvaRate ?? 18) / 100), 0))}</span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '6px', marginTop: '4px' }}>
                       <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>TOTAL TTC :</span>
                       <span style={{ fontWeight: 900, color: 'var(--primary)', fontSize: '1.1rem' }}>
-                        {newOrder.items.reduce((sum, item) => sum + (item.quantity * item.purchasePrice * (1 + (newOrder.tvaRate ?? settings?.tvaRate ?? 18) / 100)), 0).toLocaleString()} FCFA
+                        {formatPrice(newOrder.items.reduce((sum, item) => sum + (item.quantity * item.purchasePrice * (1 + (newOrder.tvaRate ?? settings?.tvaRate ?? 18) / 100)), 0))} FCFA
                       </span>
                     </div>
                   </div>
@@ -2987,14 +3002,14 @@ export default function ContractGatewayPage() {
                             <td style={{ textAlign: 'center', fontWeight: 700 }}>{item.quantity}</td>
                             {hasPermission(user, 'stock', 'view_cost_price') && (
                               <>
-                                <td style={{ textAlign: 'right' }}>{(item.purchasePrice || 0).toLocaleString()}</td>
+                                <td style={{ textAlign: 'right' }}>{formatPrice(item.purchasePrice || 0)}</td>
                                 <td style={{ textAlign: 'center' }}>
                                   <span style={{ fontSize: '0.7rem', padding: '1px 4px', borderRadius: '4px', backgroundColor: 'var(--bg-color)', color: 'var(--primary)', fontWeight: 600 }}>
                                     {selectedOrder.tva_rate || 0}%
                                   </span>
                                 </td>
                                 <td style={{ textAlign: 'right', fontWeight: 700 }}>
-                                  {(item.quantity * item.purchasePrice * (1 + (selectedOrder.tva_rate || 0) / 100)).toLocaleString()}
+                                  {formatPrice(item.quantity * item.purchasePrice * (1 + (selectedOrder.tva_rate || 0) / 100))}
                                 </td>
                               </>
                             )}
@@ -3007,9 +3022,9 @@ export default function ContractGatewayPage() {
                   {hasPermission(user, 'stock', 'view_cost_price') && (
                     <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
                       <div style={{ background: 'linear-gradient(135deg, var(--primary), #4f46e5)', color: 'white', padding: '0.75rem 1.25rem', borderRadius: '10px', textAlign: 'right', boxShadow: '0 4px 12px rgba(59, 130, 246, 0.2)' }}>
-                        <div style={{ fontSize: '0.8rem', opacity: 0.9 }}>HT: {selectedOrder.contractAmount?.toLocaleString()} | TVA: {((selectedOrder.contractAmount || 0) * (selectedOrder.tva_rate || 0) / 100).toLocaleString()}</div>
+                        <div style={{ fontSize: '0.8rem', opacity: 0.9 }}>HT: {formatPrice(selectedOrder.contractAmount)} | TVA: {formatPrice((selectedOrder.contractAmount || 0) * (selectedOrder.tva_rate || 0) / 100)}</div>
                         <div style={{ fontSize: '1.1rem', fontWeight: 900, marginTop: '4px', borderTop: '1px solid rgba(255,255,255,0.2)', paddingTop: '4px' }}>
-                          TOTAL TTC : {((selectedOrder.contractAmount || 0) * (1 + (selectedOrder.tva_rate || 0) / 100)).toLocaleString()} FCFA
+                          TOTAL TTC : {formatPrice((selectedOrder.contractAmount || 0) * (1 + (selectedOrder.tva_rate || 0) / 100))} FCFA
                         </div>
                       </div>
                     </div>

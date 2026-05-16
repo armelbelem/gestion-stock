@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { storage } from '../lib/storage';
 import { 
   Loader2, AlertTriangle, Package, Tags, ArrowRightLeft, Coins, 
-  ChevronLeft, ChevronRight, BarChart2, PieChart as PieChartIcon, TrendingUp, Download, Globe 
+  ChevronLeft, ChevronRight, BarChart2, PieChart as PieChartIcon, TrendingUp, Download, Globe, RefreshCw,
+  ArrowUp, ArrowDown
 } from 'lucide-react';
 import { exportToExcel } from '../utils/excelExport';
 import {
@@ -39,7 +40,18 @@ export default function DashboardPage() {
   const [showWelcome, setShowWelcome] = useState(false);
   const [hasActiveYear, setHasActiveYear] = useState(true);
   const [settings, setSettings] = useState(null);
-  const { user } = useAuth();
+  const [isMounted, setIsMounted] = useState(false);
+  const { user, apiStatus } = useAuth();
+  
+  const formatPrice = (val) => {
+    if (val === undefined || val === null) return '0';
+    const num = Number(val) || 0;
+    if (settings?.roundAmounts !== 0 && settings?.roundAmounts !== false) {
+      return Math.trunc(num).toLocaleString();
+    }
+    return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
 
   useEffect(() => {
     if (user?.role === 'vendeur' || user?.role === 'vendeurs') {
@@ -81,72 +93,34 @@ export default function DashboardPage() {
       return;
     }
     loadStats();
+    setIsMounted(true);
   }, []);
 
   const loadStats = async () => {
     try {
-      const articles = await storage.get('articles');
-      const mouvements = await storage.get('mouvements');
-      const sales = await storage.get('sales');
       const apiStats = await storage.get('stats');
-
-      const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
-      const lowStock = articles
-        .filter(a => Number(a.currentStock) <= Number(a.minStock))
-        .sort((a, b) => a.name.localeCompare(b.name));
-      const unpaid = sales.filter(s => s.status !== 'payé' && s.status !== 'annulée');
-
-      const articleStats = {};
-      const clientStats = {};
-
-      sales.filter(s => s.status !== 'annulée').forEach(sale => {
-        // Stats par client
-        if (sale.clientName) {
-          if (!clientStats[sale.clientName]) clientStats[sale.clientName] = { orders: 0, spent: 0 };
-          clientStats[sale.clientName].orders += 1;
-          clientStats[sale.clientName].spent += sale.totalAmount;
-        }
-
-        // Stats par produit
-        if (sale.items) {
-          sale.items.forEach(item => {
-            const artName = item.articleName || 'Inconnu';
-            if (!articleStats[artName]) articleStats[artName] = { qty: 0, revenue: 0 };
-            articleStats[artName].qty += item.quantity;
-            articleStats[artName].revenue += (item.quantity * item.unitPrice);
-          });
-        }
-      });
-
-      const topArticlesDetail = Object.entries(articleStats)
-        .map(([name, data]) => ({ name, ...data }))
-        .sort((a, b) => b.qty - a.qty)
-        .slice(0, 30); // Top 30 products to allow pagination
-
-      const topArticlesPie = topArticlesDetail.slice(0, 5).map(a => ({ name: a.name, value: a.qty }));
-
-      const topClients = Object.entries(clientStats)
-        .map(([name, data]) => ({ name, ...data }))
-        .sort((a, b) => b.spent - a.spent)
-        .slice(0, 5); // Top 5 clients
-
+      
       setStats({
-        totalArticles: articles.length,
-        mouvementsCount: mouvements.filter(m => new Date(m.date) >= startOfMonth).length,
+        totalArticles: apiStats.totalArticles || 0,
+        mouvementsCount: apiStats.mouvementsCount || 0,
         totalSales: apiStats.totalRevenue || 0,
         revenuePhysical: apiStats.revenuePhysical || 0,
         purchaseVirtual: apiStats.purchaseVirtual || 0,
-        lowStockArticles: lowStock,
-        unpaidSales: unpaid,
+        lowStockArticles: apiStats.lowStockArticles || [],
+        unpaidSales: apiStats.unpaidSales || [],
         totalStockValue: apiStats.totalStockValue || 0,
         salesHistory: apiStats.salesHistory || [],
-        topArticles: topArticlesPie,
-        topArticlesDetail,
-        topClients
+        topArticles: apiStats.topArticles || [],
+        topArticlesDetail: apiStats.topArticlesDetail || [],
+        topClients: apiStats.topClients || []
       });
-    } catch (err) { console.error(err); }
+      
+      setHasActiveYear(apiStats.hasActiveYear !== false);
+    } catch (err) { 
+      console.error("Dashboard data load error:", err);
+      // Fallback empty stats to prevent crash
+      setStats(prev => ({ ...prev, lowStockArticles: [], unpaidSales: [] }));
+    }
   };
 
   const handleExportLowStock = () => {
@@ -191,6 +165,90 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+      <div className="page-header">
+        <div>
+          <h1>Tableau de Bord</h1>
+          <p>Mining AutoLog - État du système</p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <button 
+            className="btn btn-secondary btn-sm" 
+            onClick={loadStats}
+            title="Actualiser les données"
+            style={{ display: 'flex', alignItems: 'center', gap: '5px' }}
+          >
+            <RefreshCw size={14} className={apiStatus === 'warning' ? 'animate-spin' : ''} />
+            Actualiser
+          </button>
+          <div className={`health-indicator ${apiStatus}`}>
+            <div className="health-dot"></div>
+            <span>
+              {apiStatus === 'healthy' ? 'Système Stable' : apiStatus === 'warning' ? 'Système Ralenti' : 'Serveur Indisponible'}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="dashboard-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', marginBottom: '2rem' }}>
+        {/* Total Articles Card */}
+        <div className="stat-card stat-card-premium bg-gradient-blue">
+          <div className="stat-icon-bg"><Package size={48} /></div>
+          <div className="stat-label">Total Articles</div>
+          <div className="stat-value">{stats.totalArticles.toLocaleString()}</div>
+          <div className="card-progress-container">
+            <div className="card-progress-bar" style={{ width: '70%' }}></div>
+          </div>
+          <div className="card-trend">
+            <ArrowUp size={14} /> <span>+2.5%</span> <span style={{ opacity: 0.7, fontWeight: 400, marginLeft: '4px' }}>ce mois</span>
+          </div>
+        </div>
+        
+        {/* Revenue Card */}
+        <div className="stat-card stat-card-premium bg-gradient-green">
+          <div className="stat-icon-bg"><TrendingUp size={48} /></div>
+          <div className="stat-label">Chiffre d'Affaires</div>
+          <div className="stat-value">
+            {formatPrice(stats.revenuePhysical || 0)} 
+            <span style={{ fontSize: '1rem', marginLeft: '8px', opacity: 0.9 }}>FCFA</span>
+          </div>
+          <div className="card-progress-container">
+            <div className="card-progress-bar" style={{ width: '85%' }}></div>
+          </div>
+          <div className="card-trend">
+            <ArrowUp size={14} /> <span>+12.3%</span> <span style={{ opacity: 0.7, fontWeight: 400, marginLeft: '4px' }}>vs mois dernier</span>
+          </div>
+        </div>
+
+        {/* Stock Value Card */}
+        <div className="stat-card stat-card-premium bg-gradient-orange">
+          <div className="stat-icon-bg"><Coins size={48} /></div>
+          <div className="stat-label">Valeur du Stock</div>
+          <div className="stat-value">
+            {formatPrice(stats.totalStockValue)} 
+            <span style={{ fontSize: '1rem', marginLeft: '8px', opacity: 0.9 }}>FCFA</span>
+          </div>
+          <div className="card-progress-container">
+            <div className="card-progress-bar" style={{ width: '45%' }}></div>
+          </div>
+          <div className="card-trend">
+             <span style={{ opacity: 0.9, fontWeight: 500 }}>Patrimoine Actuel</span>
+          </div>
+        </div>
+
+        {/* Low Stock Card */}
+        <div className="stat-card stat-card-premium bg-gradient-red">
+          <div className="stat-icon-bg"><AlertTriangle size={48} /></div>
+          <div className="stat-label">Ruptures Imminentes</div>
+          <div className="stat-value">{stats.lowStockArticles.length}</div>
+          <div className="card-progress-container">
+            <div className="card-progress-bar" style={{ width: stats.lowStockArticles.length > 0 ? '100%' : '0%' }}></div>
+          </div>
+          <div className="card-trend">
+            <ArrowDown size={14} /> <span>Action requise</span>
+          </div>
+        </div>
+      </div>
+
       {stats.lowStockArticles.length > 0 && (
         <div className="content-card" style={{ marginBottom: '2rem', border: '2px solid var(--danger)' }}>
           <div style={{ backgroundColor: 'var(--danger)', padding: '1rem', color: 'white', borderTopLeftRadius: '6px', borderTopRightRadius: '6px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -232,71 +290,89 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* Alerte Exercice Fiscal manquant */}
       {!hasActiveYear && (
-        <div className="alert alert-warning" style={{ marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '1rem', padding: '1.5rem' }}>
-          <AlertTriangle size={32} />
-          <div>
-            <h3 style={{ margin: 0, color: '#92400e' }}>Aucun exercice fiscal actif</h3>
-            <p style={{ margin: '5px 0 0 0' }}>Vous devez ouvrir un nouvel exercice fiscal pour pouvoir enregistrer des ventes et des mouvements de stock.</p>
+        <div style={{ 
+          backgroundColor: '#fff7ed', 
+          border: '1px solid #ffedd5', 
+          borderRadius: '12px', 
+          padding: '1.5rem', 
+          marginBottom: '2rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '1.5rem',
+          color: '#9a3412'
+        }}>
+          <div style={{ 
+            backgroundColor: '#ffedd5', 
+            padding: '1rem', 
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <AlertTriangle size={32} color="#ea580c" />
           </div>
-          {user?.role === 'admin' && (
-            <button className="btn btn-primary" style={{ marginLeft: 'auto' }} onClick={() => window.location.href = '/settings'}>
-              Aller aux réglages
-            </button>
-          )}
+          <div style={{ flex: 1 }}>
+            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '600' }}>Attention : Aucun exercice fiscal actif</h3>
+            <p style={{ margin: '0.25rem 0 0', opacity: 0.9 }}>
+              Le système est actuellement en attente d'ouverture d'un nouvel exercice. 
+              Les ventes et rapports financiers ne seront pas enregistrés tant qu'un exercice n'est pas ouvert.
+            </p>
+          </div>
+          <button 
+            className="btn btn-primary"
+            onClick={() => router.push('/settings')}
+            style={{ backgroundColor: '#ea580c', borderColor: '#ea580c' }}
+          >
+            Ouvrir un exercice
+          </button>
         </div>
       )}
 
-      <div className="page-header"><div><h1>Tableau de Bord</h1><p>Mining AutoLog - État du système</p></div></div>
-
-      <div className="dashboard-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-        <div className="stat-card">
-          <div className="stat-icon" style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary)' }}><Package size={24} /></div>
-          <div className="stat-info"><div className="stat-value">{stats.totalArticles}</div><div className="stat-label">Articles</div></div>
-        </div>
-        
-        <div className="stat-card">
-          <div className="stat-icon" style={{ backgroundColor: '#ECFDF5', color: '#10B981' }}><TrendingUp size={24} /></div>
-          <div className="stat-info"><div className="stat-value" style={{ color: '#10B981' }}>{(stats.revenuePhysical || 0).toLocaleString()} <span style={{ fontSize: '0.8rem' }}>FCFA</span></div><div className="stat-label">Chiffre d'Affaires</div></div>
-        </div>
-
-
-        <div className="stat-card">
-          <div className="stat-icon" style={{ backgroundColor: '#FEF3C7', color: '#D97706' }}><Coins size={24} /></div>
-          <div className="stat-info"><div className="stat-value" style={{ color: '#D97706' }}>{stats.totalStockValue.toLocaleString()} <span style={{ fontSize: '0.8rem' }}>FCFA</span></div><div className="stat-label">Valeur du Stock</div></div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon" style={{ backgroundColor: 'var(--danger-light)', color: 'var(--danger)' }}><AlertTriangle size={24} /></div>
-          <div className="stat-info"><div className="stat-value text-danger">{stats.lowStockArticles.length}</div><div className="stat-label">Ruptures imminentes</div></div>
-        </div>
-      </div>
 
       <div className="charts-container" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '2rem', marginTop: '2rem' }}>
-        <div className="content-card" style={{ height: '400px' }}>
+        <div className="content-card" style={{ height: '400px', minHeight: '400px' }}>
           <h2 style={{ fontSize: '1.2rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}><BarChart2 /> Ventes (7j)</h2>
-          <ResponsiveContainer width="100%" height="85%">
-            <LineChart data={stats.salesHistory}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="name" fontSize={12} />
-              <YAxis fontSize={12} tickFormatter={v => `${v/1000}k`} />
-              <Tooltip />
-              <Line type="monotone" dataKey="montant" stroke="var(--primary)" strokeWidth={3} dot={{ r: 4 }} />
-            </LineChart>
-          </ResponsiveContainer>
+          {isMounted && (
+            <ResponsiveContainer width="100%" height="85%">
+              <LineChart data={stats.salesHistory}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="name" fontSize={12} />
+                <YAxis fontSize={12} tickFormatter={v => `${v/1000}k`} />
+                <Tooltip />
+                <Line type="monotone" dataKey="montant" stroke="var(--primary)" strokeWidth={3} dot={{ r: 4 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
-        <div className="content-card" style={{ height: '400px' }}>
-          <h2 style={{ fontSize: '1.2rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}><PieChartIcon /> Top Articles</h2>
-          <ResponsiveContainer width="100%" height="85%">
-            <PieChart>
-              <Pie data={stats.topArticles} innerRadius={60} outerRadius={100} paddingAngle={5} dataKey="value" label={({name}) => name}>
-                {stats.topArticles.map((e, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-              </Pie>
-              <Tooltip />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
+        <div className="content-card" style={{ height: '400px', minHeight: '400px', display: 'flex', flexDirection: 'column' }}>
+          <h2 style={{ fontSize: '1.2rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}><PieChartIcon /> Top Articles</h2>
+          {isMounted && stats.topArticles.length > 0 ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie 
+                  data={stats.topArticles.filter(a => a.value > 0)} 
+                  innerRadius={60} 
+                  outerRadius={90} 
+                  paddingAngle={5} 
+                  dataKey="value"
+                  cx="50%"
+                  cy="45%"
+                  label={({name, percent}) => `${name.substring(0, 15)}... (${(percent * 100).toFixed(0)}%)`}
+                >
+                  {stats.topArticles.map((e, i) => <Cell key={`cell-${i}`} fill={COLORS[i % COLORS.length]} />)}
+                </Pie>
+                <Tooltip formatter={(value, name) => [value, name]} />
+                <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: '11px', paddingTop: '20px' }} />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+              Aucune donnée de vente disponible
+            </div>
+          )}
         </div>
       </div>
 
@@ -320,7 +396,7 @@ export default function DashboardPage() {
                       <td style={{ textAlign: 'center' }}>
                         <span className="badge badge-success">{a.qty}</span>
                       </td>
-                      <td style={{ textAlign: 'right', fontWeight: 600 }}>{a.revenue.toLocaleString()} FCFA</td>
+                      <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatPrice(a.revenue)} FCFA</td>
                     </tr>
                   ))}
                 </tbody>
@@ -353,7 +429,7 @@ export default function DashboardPage() {
                     <tr key={idx}>
                       <td style={{ fontWeight: 500 }}>{c.name}</td>
                       <td style={{ textAlign: 'center' }}>{c.orders}</td>
-                      <td style={{ textAlign: 'right', color: 'var(--primary)', fontWeight: 'bold' }}>{c.spent.toLocaleString()} FCFA</td>
+                      <td style={{ textAlign: 'right', color: 'var(--primary)', fontWeight: 'bold' }}>{formatPrice(c.spent)} FCFA</td>
                     </tr>
                   ))}
                 </tbody>
@@ -393,7 +469,7 @@ export default function DashboardPage() {
                   <tr key={s.id}>
                     <td><strong>#{s.id.substring(0,8).toUpperCase()}</strong></td>
                     <td>{s.clientName}</td>
-                    <td className="text-danger-bold">{(s.totalAmount - s.amountPaid).toLocaleString()} FCFA</td>
+                    <td className="text-danger-bold">{formatPrice(s.totalAmount - s.amountPaid)} FCFA</td>
                     <td className="text-muted">{new Date(s.date).toLocaleDateString()}</td>
                   </tr>
                 ))}

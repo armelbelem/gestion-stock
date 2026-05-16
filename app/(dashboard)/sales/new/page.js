@@ -29,6 +29,16 @@ export default function NewSalePage() {
   const [settings, setSettings] = useState(null);
   const [notes, setNotes] = useState('');
 
+  const formatPrice = (val) => {
+    if (val === undefined || val === null) return '0';
+    const num = Number(val) || 0;
+    if (settings?.roundAmounts !== 0 && settings?.roundAmounts !== false) {
+      return Math.trunc(num).toLocaleString();
+    }
+    return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+
   const [alertModal, setAlertModal] = useState({ open: false, type: 'info', title: '', message: '', onConfirm: null });
   const closeAlert = () => setAlertModal(prev => ({ ...prev, open: false, onConfirm: null }));
   const showAlert = (type, title, message) => setAlertModal({ open: true, type, title, message, onConfirm: null });
@@ -110,7 +120,7 @@ export default function NewSalePage() {
   useEffect(() => {
     const subtotal = calculateTotal();
     const afterDiscount = subtotal - discount;
-    const tvaAmount = Math.round(afterDiscount * (tvaRate / 100));
+    const tvaAmount = afterDiscount * (tvaRate / 100);
     const netTotal = afterDiscount + tvaAmount;
 
     if (paymentType === 'complet') {
@@ -212,7 +222,7 @@ export default function NewSalePage() {
       try {
         const subtotal = calculateTotal();
         const afterDiscount = subtotal - Number(discount);
-        const tvaAmount = Math.round(afterDiscount * (tvaRate / 100));
+        const tvaAmount = afterDiscount * (tvaRate / 100);
         const totalAmount = afterDiscount + tvaAmount;
 
         const response = await storage.create('sales', {
@@ -329,7 +339,7 @@ export default function NewSalePage() {
                           <div style={{ fontWeight: 600 }}>{a.name}</div>
                           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Ref: {a.code || '-'} | Stock: {a.currentStock}</div>
                         </div>
-                        <div style={{ fontWeight: 600, color: 'var(--primary)' }}>{a.price.toLocaleString()} FCFA</div>
+                        <div style={{ fontWeight: 600, color: 'var(--primary)' }}>{formatPrice(a.price)} FCFA</div>
                       </div>
                     ))}
                   </div>
@@ -390,7 +400,7 @@ export default function NewSalePage() {
                         {currentUser?.role !== 'vendeur' && (
                           <>
                             <td><input type="number" className="form-control" value={item.unitPrice} onChange={(e) => updateItem(item.id, 'unitPrice', e.target.value === '' ? '' : parseFloat(e.target.value))} /></td>
-                            <td style={{ fontWeight: 600 }}>{(item.quantity * item.unitPrice).toLocaleString()}</td>
+                            <td style={{ fontWeight: 600 }}>{formatPrice(item.quantity * item.unitPrice)}</td>
                           </>
                         )}
                         <td><button type="button" onClick={() => removeItem(item.id)} className="text-danger"><Trash2 size={18} /></button></td>
@@ -403,14 +413,14 @@ export default function NewSalePage() {
           </div>
 
           <div style={{ flex: '1 1 300px' }}>
-            <div className="content-card" style={{ position: 'sticky', top: '2rem' }}>
+            <div className="content-card">
               <h3>Résumé</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
                 {currentUser?.role !== 'vendeur' && (
                   <>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span className="text-muted">Sous-total HT</span>
-                      <span>{calculateTotal().toLocaleString()} FCFA</span>
+                      <span>{formatPrice(calculateTotal())} FCFA</span>
                     </div>
                     <div className="form-group" style={{ margin: '0.5rem 0' }}>
                       <label className="form-label" style={{ fontSize: '0.8rem' }}>Remise</label>
@@ -428,13 +438,13 @@ export default function NewSalePage() {
                           onChange={(e) => setTvaRate(Number(e.target.value) || 0)} 
                         />
                       </div>
-                      <span>{(Math.round((calculateTotal() - discount) * (tvaRate / 100))).toLocaleString()} FCFA</span>
+                      <span>{((calculateTotal() - discount) * (tvaRate / 100)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FCFA</span>
                     </div>
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1rem', paddingTop: '1rem', borderTop: '2px solid var(--border)' }}>
                       <strong>Total Net TTC</strong>
                       <strong style={{ color: 'var(--primary)', fontSize: '1.5rem' }}>
-                        {(Math.round((calculateTotal() - discount) * (1 + tvaRate / 100))).toLocaleString()} FCFA
+                        {formatPrice((calculateTotal() - discount) * (1 + tvaRate / 100))} FCFA
                       </strong>
                     </div>
                   </>

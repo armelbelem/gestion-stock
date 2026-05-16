@@ -36,7 +36,7 @@ const routePermissions = [
 ];
 
 export default function ClientLayout({ children }) {
-  const { user, logout } = useAuth();
+  const { user, logout, apiStatus } = useAuth();
   const pathname = usePathname();
   const [theme, setTheme] = useState('light');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -171,9 +171,7 @@ export default function ClientLayout({ children }) {
 
   const fetchNotifications = async () => {
     try {
-      const res = await fetch('/api/notifications', {
-        headers: { 'Authorization': `Bearer ${sessionStorage.getItem('token')}` }
-      });
+      const res = await fetch('/api/notifications');
       if (res.ok) {
         const data = await res.json();
         setNotifications(data);
@@ -299,38 +297,15 @@ export default function ClientLayout({ children }) {
               </div>
             )}
 
-            {/* Global Search Button */}
-            <div 
-              className="search-trigger" 
-              onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { ctrlKey: true, key: 'k' }))}
-              style={{ 
-                marginLeft: '1.5rem', 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '10px', 
-                backgroundColor: 'var(--bg-light)', 
-                padding: '6px 12px', 
-                borderRadius: '8px', 
-                cursor: 'pointer',
-                border: '1px solid var(--border-color)',
-                transition: 'all 0.2s ease',
-                color: 'var(--text-muted)'
-              }}
-            >
-              <Search size={16} />
-              <span style={{ fontSize: '0.85rem', fontWeight: '500' }}>Recherche rapide...</span>
-              <kbd style={{ 
-                backgroundColor: 'var(--surface)', 
-                border: '1px solid var(--border-color)', 
-                padding: '2px 6px', 
-                borderRadius: '4px', 
-                fontSize: '0.7rem', 
-                fontWeight: '700',
-                marginLeft: '10px'
-              }}>Ctrl K</kbd>
-            </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+            
+            <div className={`health-indicator desktop-only ${apiStatus}`} style={{ marginRight: '0.5rem' }}>
+              <div className="health-dot"></div>
+              <span style={{ fontSize: '0.7rem' }}>
+                {apiStatus === 'healthy' ? 'En ligne' : apiStatus === 'warning' ? 'Lent' : 'Déconnecté'}
+              </span>
+            </div>
             
             {/* Notification Bell */}
             <div className="notification-bell-wrapper">

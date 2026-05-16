@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { storage } from '../../lib/storage';
-import { BarChart3, Download, TrendingUp, TrendingDown, Package, Coins, User, Printer, Clock, FileText } from 'lucide-react';
+import { BarChart3, Download, TrendingUp, TrendingDown, Package, Coins, User, Printer, Clock, FileText, ArrowUp, ArrowDown } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { exportToExcel } from '../../utils/excelExport';
@@ -22,6 +22,16 @@ export default function ReportsPage() {
   const [printData, setPrintData] = useState(null);
   const [settings, setSettings] = useState(null);
   const pathname = usePathname();
+  
+  const formatPrice = (val) => {
+    if (val === undefined || val === null) return '0';
+    const num = Number(val) || 0;
+    if (settings?.roundAmounts !== 0 && settings?.roundAmounts !== false) {
+      return Math.trunc(num).toLocaleString();
+    }
+    return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
 
   useEffect(() => {
     const now = new Date();
@@ -93,7 +103,9 @@ export default function ReportsPage() {
     const dataToExport = reportData.months.map(d => ({
       ...d,
       monthName: getMonthName(d.month),
-      debt: d.revenue - d.cash,
+      revenue: formatPrice(d.revenue),
+      cash: formatPrice(d.cash),
+      debt: formatPrice(d.revenue - d.cash),
       rate: d.revenue > 0 ? ((d.cash / d.revenue) * 100).toFixed(1) : "0"
     }));
 
@@ -141,7 +153,9 @@ export default function ReportsPage() {
       const rows = data.sales.map(s => ({
         ...s,
         date: new Date(s.date).toLocaleDateString('fr-FR'),
-        clientName: s.clientName || 'Client Divers'
+        clientName: s.clientName || 'Client Divers',
+        totalAmount: formatPrice(s.totalAmount),
+        amountPaid: formatPrice(s.amountPaid)
       }));
 
       exportToExcel(rows, headers, `ventes_${month}`, {
@@ -176,16 +190,16 @@ export default function ReportsPage() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '30px', padding: '15px', backgroundColor: '#f0f0f0', border: '1px solid #ccc' }}>
           <div style={{ textAlign: 'center' }}>
             <p style={{ margin: 0, fontSize: '12px' }}>CHIFFRE D'AFFAIRES</p>
-            <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>{Number(printData.revenue || 0).toLocaleString()} FCFA</p>
+            <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>{formatPrice(printData.revenue || 0)} FCFA</p>
           </div>
           <div style={{ textAlign: 'center' }}>
             <p style={{ margin: 0, fontSize: '12px' }}>TOTAL ENCAISSÉ</p>
-            <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#2ecc71' }}>{Number(printData.cash || 0).toLocaleString()} FCFA</p>
+            <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: '#2ecc71' }}>{formatPrice(printData.cash || 0)} FCFA</p>
           </div>
           <div style={{ textAlign: 'center' }}>
             <p style={{ margin: 0, fontSize: '12px' }}>BALANCE</p>
             <p style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', color: (printData.revenue - printData.cash) > 0 ? '#e74c3c' : '#000' }}>
-              {(printData.revenue - printData.cash).toLocaleString()} FCFA
+              {formatPrice(printData.revenue - printData.cash)} FCFA
             </p>
           </div>
         </div>
@@ -205,7 +219,7 @@ export default function ReportsPage() {
               <tr key={idx}>
                 <td style={{ padding: '5px', border: '1px solid #ccc' }}>{new Date(sale.date).toLocaleDateString('fr-FR')}</td>
                 <td style={{ padding: '5px', border: '1px solid #ccc' }}>{sale.clientName || 'Client Divers'}</td>
-                <td style={{ textAlign: 'right', padding: '5px', border: '1px solid #ccc' }}>{Number(sale.totalAmount).toLocaleString()}</td>
+                <td style={{ textAlign: 'right', padding: '5px', border: '1px solid #ccc' }}>{formatPrice(sale.totalAmount)}</td>
                 <td style={{ textAlign: 'center', padding: '5px', border: '1px solid #ccc' }}>{sale.status}</td>
               </tr>
             ))}
@@ -291,22 +305,53 @@ export default function ReportsPage() {
 
         {loading && !isPrinting ? <p>Analyse des données financières en cours...</p> : (
           <>
-            <div className="dashboard-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-              <div className="stat-card">
-                <div className="stat-value" style={{ color: 'var(--primary)' }}>{(reportData.totalRevenue || 0).toLocaleString()} FCFA</div>
+            <div className="dashboard-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
+              <div className="stat-card stat-card-premium bg-gradient-blue">
+                <div className="stat-icon-bg"><TrendingUp size={48} /></div>
                 <div className="stat-label">Chiffre d'Affaires</div>
+                <div className="stat-value">{formatPrice(reportData.totalRevenue || 0)} FCFA</div>
+                <div className="card-progress-container">
+                  <div className="card-progress-bar" style={{ width: '100%' }}></div>
+                </div>
+                <div className="card-trend">
+                  <span>Période sélectionnée</span>
+                </div>
               </div>
-              <div className="stat-card">
-                <div className="stat-value" style={{ color: 'var(--success)' }}>{(reportData.totalPaid || 0).toLocaleString()} FCFA</div>
+              
+              <div className="stat-card stat-card-premium bg-gradient-green">
+                <div className="stat-icon-bg"><Coins size={48} /></div>
                 <div className="stat-label">Total Encaissé</div>
+                <div className="stat-value">{formatPrice(reportData.totalPaid || 0)} FCFA</div>
+                <div className="card-progress-container">
+                  <div className="card-progress-bar" style={{ width: reportData.totalRevenue > 0 ? `${(reportData.totalPaid / reportData.totalRevenue) * 100}%` : '0%' }}></div>
+                </div>
+                <div className="card-trend">
+                  <ArrowUp size={14} /> <span>Taux: {reportData.totalRevenue > 0 ? ((reportData.totalPaid / reportData.totalRevenue) * 100).toFixed(1) : 0}%</span>
+                </div>
               </div>
-              <div className="stat-card">
-                <div className="stat-value" style={{ color: 'var(--danger)' }}>{(reportData.totalDebt || 0).toLocaleString()} FCFA</div>
+
+              <div className="stat-card stat-card-premium bg-gradient-red">
+                <div className="stat-icon-bg"><TrendingDown size={48} /></div>
                 <div className="stat-label">Dette Globale</div>
+                <div className="stat-value">{formatPrice(reportData.totalDebt || 0)} FCFA</div>
+                <div className="card-progress-container">
+                  <div className="card-progress-bar" style={{ width: reportData.totalRevenue > 0 ? `${(reportData.totalDebt / reportData.totalRevenue) * 100}%` : '0%' }}></div>
+                </div>
+                <div className="card-trend">
+                  <ArrowDown size={14} /> <span>Reste à recouvrer</span>
+                </div>
               </div>
-              <div className="stat-card">
-                <div className="stat-value" style={{ color: 'var(--info)' }}>{(reportData.totalPurchases || 0).toLocaleString()} FCFA</div>
+
+              <div className="stat-card stat-card-premium bg-gradient-purple">
+                <div className="stat-icon-bg"><Package size={48} /></div>
                 <div className="stat-label">Achats Partenaires</div>
+                <div className="stat-value">{formatPrice(reportData.totalPurchases || 0)} FCFA</div>
+                <div className="card-progress-container">
+                  <div className="card-progress-bar" style={{ width: '100%' }}></div>
+                </div>
+                <div className="card-trend">
+                  <span>Approvisionnements</span>
+                </div>
               </div>
             </div>
 
@@ -319,7 +364,7 @@ export default function ReportsPage() {
                   {reportData.partnerPurchases.map(p => (
                     <div key={p.name} style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                       <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>{p.name}</span>
-                      <span style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--info)' }}>{p.total.toLocaleString()} <span style={{ fontSize: '0.7rem' }}>FCFA</span></span>
+                      <span style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--info)' }}>{formatPrice(p.total)} <span style={{ fontSize: '0.7rem' }}>FCFA</span></span>
                     </div>
                   ))}
                 </div>
@@ -334,7 +379,7 @@ export default function ReportsPage() {
                   const cashHeight = maxVal > 0 ? (d.cash / maxVal) * 100 : 0;
                   return (
                     <div key={d.month} style={{ flex: 1, minWidth: '60px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', height: '100%', justifyContent: 'flex-end' }}>
-                      <div style={{ fontSize: '0.65rem', fontWeight: 'bold', color: 'var(--primary)' }}>{d.revenue > 0 ? d.revenue.toLocaleString() : ''}</div>
+                      <div style={{ fontSize: '0.65rem', fontWeight: 'bold', color: 'var(--primary)' }}>{d.revenue > 0 ? formatPrice(d.revenue) : ''}</div>
                       <div style={{ display: 'flex', gap: '4px', height: '200px', alignItems: 'flex-end', width: '100%', justifyContent: 'center' }}>
                         <div 
                           style={{ width: '20px', height: `${revHeight}%`, backgroundColor: 'var(--primary)', borderRadius: '4px 4px 0 0', transition: 'height 0.5s ease' }} 
@@ -362,9 +407,9 @@ export default function ReportsPage() {
                       return (
                         <tr key={d.month}>
                           <td><strong>{getMonthName(d.month)}</strong></td>
-                          <td>{d.revenue.toLocaleString()}</td>
-                          <td style={{ color: 'var(--success)' }}>{d.cash.toLocaleString()}</td>
-                          <td style={{ color: d.revenue-d.cash > 0 ? 'var(--danger)' : 'inherit' }}>{(d.revenue-d.cash).toLocaleString()}</td>
+                          <td>{formatPrice(d.revenue)}</td>
+                          <td style={{ color: 'var(--success)' }}>{formatPrice(d.cash)}</td>
+                          <td style={{ color: d.revenue-d.cash > 0 ? 'var(--danger)' : 'inherit' }}>{formatPrice(d.revenue-d.cash)}</td>
                           <td><span className={`badge ${rate >= 80 ? 'badge-success' : 'badge-warning'}`}>{rate.toFixed(1)}%</span></td>
                           <td>
                             <div style={{ display: 'flex', gap: '0.5rem' }}>

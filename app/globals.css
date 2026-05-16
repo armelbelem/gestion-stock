@@ -258,32 +258,78 @@ body {
   padding: 1.5rem;
   box-shadow: var(--shadow-sm);
   border: 1px solid var(--border-color);
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+  position: relative;
+  overflow: hidden;
 }
 
 .stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
+  transform: translateY(-5px);
+  box-shadow: var(--shadow-lg);
 }
 
-.stat-value {
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: var(--primary);
-  margin-bottom: 0.5rem;
+.stat-card-premium {
+  color: white !important;
+  border: none !important;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 140px;
 }
 
-.stat-label {
-  color: var(--text-muted);
-  font-weight: 500;
-  font-size: 0.875rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+.stat-card-premium .stat-value {
+  color: white !important;
+  font-size: 2rem;
+  z-index: 2;
 }
 
-.stat-card.alert .stat-value {
-  color: var(--danger);
+.stat-card-premium .stat-label {
+  color: rgba(255, 255, 255, 0.8) !important;
+  font-weight: 600;
+  z-index: 2;
 }
+
+.stat-card-premium .stat-icon-bg {
+  position: absolute;
+  top: 1.5rem;
+  right: 1.5rem;
+  opacity: 0.2;
+  transform: scale(1.5);
+  z-index: 1;
+}
+
+.card-progress-container {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+  margin: 1rem 0;
+  position: relative;
+  z-index: 2;
+}
+
+.card-progress-bar {
+  height: 100%;
+  background: white;
+  border-radius: 2px;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+.card-trend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  z-index: 2;
+}
+
+.bg-gradient-blue { background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); }
+.bg-gradient-orange { background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); }
+.bg-gradient-green { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+.bg-gradient-purple { background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); }
+.bg-gradient-pink { background: linear-gradient(135deg, #ec4899 0%, #be185d 100%); }
+.bg-gradient-red { background: linear-gradient(135deg, #ef4444 0%, #991b1b 100%); }
 
 .content-card {
   background-color: var(--surface);
@@ -1612,4 +1658,58 @@ input[type=number] {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+}
+
+/* Health Indicator Styles */
+.health-indicator {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+  padding: 4px 10px !important;
+  background-color: #ecfdf5 !important;
+  color: #059669 !important;
+  border-radius: 999px !important;
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  border: 1px solid #d1fae5 !important;
+  width: fit-content;
+}
+
+[data-theme="dark"] .health-indicator {
+  background-color: rgba(16, 185, 129, 0.1) !important;
+  color: #10b981 !important;
+  border-color: rgba(16, 185, 129, 0.2) !important;
+}
+
+.health-dot {
+  width: 8px !important;
+  height: 8px !important;
+  background-color: #10b981 !important;
+  border-radius: 50% !important;
+  display: inline-block !important;
+  animation: health-pulse 2s infinite !important;
+}
+
+@keyframes health-pulse {
+  0% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+  70% { transform: scale(1.1); opacity: 0.8; box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+  100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.health-indicator.error { background-color: #fef2f2 !important; color: #dc2626 !important; border-color: #fee2e2 !important; }
+.health-indicator.error .health-dot { background-color: #ef4444 !important; animation-name: error-pulse !important; }
+
+.health-indicator.warning { background-color: #fffbeb !important; color: #d97706 !important; border-color: #fef3c7 !important; }
+.health-indicator.warning .health-dot { background-color: #f59e0b !important; animation-name: health-pulse !important; }
+
+@keyframes error-pulse {
+  0% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+  70% { transform: scale(1.1); opacity: 0.8; box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+  100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+@media (max-width: 1024px) {
+  .desktop-only {
+    display: none !important;
+  }
 }

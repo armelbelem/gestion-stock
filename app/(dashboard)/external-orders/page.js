@@ -5,8 +5,20 @@ import { storage } from '../../lib/storage';
 import { Plus, CheckCircle, XCircle, Clock, Trash2, Search, X, PackageOpen, ListPlus, Printer, Truck, AlertCircle, Download } from 'lucide-react';
 import AlertModal from '../../components/AlertModal';
 import { exportToExcel } from '../../utils/excelExport';
+import { useAuth } from '../../providers';
 
 export default function ExternalOrdersPage() {
+  const { user: currentUser } = useAuth();
+  
+  const formatPrice = (val) => {
+    if (val === undefined || val === null) return '0';
+    const num = Number(val) || 0;
+    if (settings?.roundAmounts !== 0 && settings?.roundAmounts !== false) {
+      return Math.trunc(num).toLocaleString();
+    }
+    return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
   const [orders, setOrders] = useState([]);
   const [clients, setClients] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
@@ -130,7 +142,6 @@ export default function ExternalOrdersPage() {
     e.preventDefault();
     if (!hasActiveYear) return showAlert('error', 'Action bloquée', "Aucun exercice fiscal n'est ouvert. Veuillez ouvrir un exercice dans les réglages avant de créer une commande spéciale.");
     try {
-      // Forcer le storeId à null (Global) pour les commandes spéciales selon la nouvelle règle
       await storage.create('external-orders', { ...formData, storeId: null });
       showAlert('success', 'Succès', "Commande spéciale créée avec succès dans le Magasin Global !");
       await loadData();
@@ -270,15 +281,15 @@ export default function ExternalOrdersPage() {
               <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
                 <td style={{ padding: '8px' }}>{item.description}</td>
                 <td style={{ textAlign: 'center', padding: '8px' }}>{item.quantity}</td>
-                <td style={{ textAlign: 'right', padding: '8px' }}>{Number(item.sellPrice).toLocaleString()} FCFA</td>
-                <td style={{ textAlign: 'right', padding: '8px' }}>{(item.quantity * item.sellPrice).toLocaleString()} FCFA</td>
+                <td style={{ textAlign: 'right', padding: '8px' }}>{formatPrice(item.sellPrice)} FCFA</td>
+                <td style={{ textAlign: 'right', padding: '8px' }}>{formatPrice(item.quantity * item.sellPrice)} FCFA</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
             <tr style={{ fontWeight: 'bold' }}>
               <td colSpan="3" style={{ textAlign: 'right', padding: '8px' }}>MONTANT TOTAL À PAYER</td>
-              <td style={{ textAlign: 'right', padding: '8px' }}>{totalVente.toLocaleString()} FCFA</td>
+              <td style={{ textAlign: 'right', padding: '8px' }}>{formatPrice(totalVente)} FCFA</td>
             </tr>
           </tfoot>
         </table>
@@ -315,15 +326,15 @@ export default function ExternalOrdersPage() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', marginBottom: '30px', backgroundColor: '#f9f9f9', padding: '15px', borderRadius: '8px', border: '1px solid #ddd' }}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: '12px', color: '#666' }}>CHIFFRE D'AFFAIRES</div>
-            <div style={{ fontSize: '18px', fontWeight: 'bold' }}>{totalRevenue.toLocaleString()} FCFA</div>
+            <div style={{ fontSize: '18px', fontWeight: 'bold' }}>{formatPrice(totalRevenue)} FCFA</div>
           </div>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: '12px', color: '#666' }}>TOTAL ACHATS</div>
-            <div style={{ fontSize: '18px', fontWeight: 'bold' }}>{totalCost.toLocaleString()} FCFA</div>
+            <div style={{ fontSize: '18px', fontWeight: 'bold' }}>{formatPrice(totalCost)} FCFA</div>
           </div>
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: '12px', color: '#666' }}>BÉNÉFICE NET</div>
-            <div style={{ fontSize: '18px', fontWeight: 'bold', color: 'green' }}>{totalProfit.toLocaleString()} FCFA</div>
+            <div style={{ fontSize: '18px', fontWeight: 'bold', color: 'green' }}>{formatPrice(totalProfit)} FCFA</div>
           </div>
         </div>
 
@@ -353,8 +364,8 @@ export default function ExternalOrdersPage() {
                       <div key={iindex}>{it.quantity}x {it.description}</div>
                     ))}
                   </td>
-                  <td style={{ textAlign: 'right', padding: '10px', fontSize: '11px' }}>{orderRevenue.toLocaleString()}</td>
-                  <td style={{ textAlign: 'right', padding: '10px', fontSize: '11px', fontWeight: 'bold', color: 'green' }}>+{(orderRevenue - orderCost).toLocaleString()}</td>
+                  <td style={{ textAlign: 'right', padding: '10px', fontSize: '11px' }}>{formatPrice(orderRevenue)}</td>
+                  <td style={{ textAlign: 'right', padding: '10px', fontSize: '11px', fontWeight: 'bold', color: 'green' }}>+{formatPrice(orderRevenue - orderCost)}</td>
                 </tr>
               );
             })}
@@ -402,23 +413,23 @@ export default function ExternalOrdersPage() {
       <div className="dashboard-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', marginBottom: '1.5rem' }}>
         <div className="stat-card">
           <div className="stat-value">
-            {filteredOrders.filter(o => o.status === 'termine').reduce((sum, o) => sum + (o.items ? o.items.reduce((s, i) => s + (i.quantity * i.sellPrice), 0) : 0), 0).toLocaleString()} FCFA
+            {formatPrice(filteredOrders.filter(o => o.status === 'termine').reduce((sum, o) => sum + (o.items ? o.items.reduce((s, i) => s + (i.quantity * i.sellPrice), 0) : 0), 0))} FCFA
           </div>
           <div className="stat-label">Ventes Totales (Réalisées)</div>
         </div>
         <div className="stat-card">
           <div className="stat-value" style={{ color: 'var(--danger)' }}>
-            {filteredOrders.filter(o => o.status === 'termine').reduce((sum, o) => sum + (o.items ? o.items.reduce((s, i) => s + (i.quantity * i.purchasePrice), 0) : 0), 0).toLocaleString()} FCFA
+            {formatPrice(filteredOrders.filter(o => o.status === 'termine').reduce((sum, o) => sum + (o.items ? o.items.reduce((s, i) => s + (i.quantity * i.purchasePrice), 0) : 0), 0))} FCFA
           </div>
           <div className="stat-label">Total Achats (Effectués)</div>
         </div>
         <div className="stat-card">
           <div className="stat-value" style={{ color: 'var(--success)' }}>
-            {filteredOrders.filter(o => o.status === 'termine').reduce((sum, o) => {
+            {formatPrice(filteredOrders.filter(o => o.status === 'termine').reduce((sum, o) => {
               const totalAchat = o.items ? o.items.reduce((s, i) => s + (i.quantity * i.purchasePrice), 0) : 0;
               const totalVente = o.items ? o.items.reduce((s, i) => s + (i.quantity * i.sellPrice), 0) : 0;
               return sum + (totalVente - totalAchat);
-            }, 0).toLocaleString()} FCFA
+            }, 0))} FCFA
           </div>
           <div className="stat-label">Bénéfice Net Réalisé</div>
         </div>
@@ -497,17 +508,17 @@ export default function ExternalOrdersPage() {
                             <div key={item.id} style={{ display: 'flex', flexDirection: 'column', fontSize: '0.9rem', padding: '4px 0', borderBottom: '1px dashed var(--border-color)' }}>
                               <div style={{fontWeight:500}}>{item.quantity}x {item.description}</div>
                               <div style={{fontSize:'0.75rem', color:'var(--text-muted)'}}>
-                                Achat: {Number(item.purchasePrice).toLocaleString()} | Vente: {Number(item.sellPrice).toLocaleString()}
+                                Achat: {formatPrice(item.purchasePrice)} | Vente: {formatPrice(item.sellPrice)}
                               </div>
                             </div>
                           ))}
                         </div>
                       </td>
                       <td>
-                        <div style={{fontWeight:600}}>{totalVente.toLocaleString()} FCFA</div>
+                        <div style={{fontWeight:600}}>{formatPrice(totalVente)} FCFA</div>
                       </td>
                       <td>
-                        <div style={{fontWeight:600, color:'var(--success)'}}>+{profit.toLocaleString()} FCFA</div>
+                        <div style={{fontWeight:600, color:'var(--success)'}}>+{formatPrice(profit)} FCFA</div>
                       </td>
                       <td>{getStatusBadge(order.status)}</td>
                       <td>
@@ -595,7 +606,7 @@ export default function ExternalOrdersPage() {
                       <div style={{ padding: '10px', backgroundColor: 'var(--bg-color)', borderRadius: '8px', textAlign: 'center' }}>
                         <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Bénéfice estimé</div>
                         <div style={{ fontWeight: 700, color: (item.sellPrice - item.purchasePrice) >= 0 ? 'var(--success)' : 'var(--danger)' }}>
-                          {((item.sellPrice - item.purchasePrice) * item.quantity).toLocaleString()} FCFA
+                          {formatPrice((item.sellPrice - item.purchasePrice) * item.quantity)} FCFA
                         </div>
                       </div>
                     </div>

@@ -22,6 +22,17 @@ export default function IntelligencePage() {
   const [stores, setStores] = useState([]);
   const [forecastStoreId, setForecastStoreId] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [settings, setSettings] = useState(null);
+
+  const formatPrice = (val) => {
+    if (val === undefined || val === null) return '0';
+    const num = Number(val) || 0;
+    if (settings?.roundAmounts !== 0 && settings?.roundAmounts !== false) {
+      return Math.trunc(num).toLocaleString();
+    }
+    return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
 
   const filteredForecastData = forecastData ? forecastData.filter(row => {
     const term = searchTerm.toLowerCase();
@@ -56,6 +67,18 @@ export default function IntelligencePage() {
       setLoading(false);
     }
   };
+
+  const loadSettings = async () => {
+    try {
+      const data = await storage.get('settings');
+      setSettings(data);
+    } catch (err) { console.error(err); }
+  };
+
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
 
   const handleGenerateAll = async () => {
     setIsGeneratingAll(true);
@@ -133,28 +156,36 @@ export default function IntelligencePage() {
 
       <div className="dashboard-grid">
         {/* Pareto Summary Card */}
-        <div className="stat-card">
-          <div className="stat-value" style={{ color: 'var(--primary)' }}>{pareto80.length}</div>
+        <div className="stat-card stat-card-premium bg-gradient-blue">
+          <div className="stat-icon-bg"><BarChart3 size={48} /></div>
           <div className="stat-label">Articles "Classe A" (80% du CA)</div>
-          <div style={{ fontSize: '0.75rem', marginTop: '10px', color: 'var(--text-muted)' }}>
-            Ces {pareto80.length} articles génèrent la majorité de vos revenus.
+          <div className="stat-value">{pareto80.length}</div>
+          <div className="card-progress-container">
+            <div className="card-progress-bar" style={{ width: '80%' }}></div>
+          </div>
+          <div className="card-trend">
+            <Info size={14} /> <span>Produits Critiques</span>
           </div>
         </div>
 
         {/* Churn Summary Card */}
-        <div className="stat-card">
-          <div className="stat-value" style={{ color: churnRisks.length > 0 ? 'var(--danger)' : 'var(--success)' }}>
+        <div className="stat-card stat-card-premium bg-gradient-orange">
+          <div className="stat-icon-bg"><Users size={48} /></div>
+          <div className="stat-label">Clients en baisse de consommation</div>
+          <div className="stat-value" style={{ color: 'white' }}>
             {churnRisks.length}
           </div>
-          <div className="stat-label">Clients en baisse de consommation</div>
-          <div style={{ fontSize: '0.75rem', marginTop: '10px', color: 'var(--text-muted)' }}>
-            Clients ayant chuté de {'>'}30% par rapport à leur moyenne.
+          <div className="card-progress-container">
+            <div className="card-progress-bar" style={{ width: churnRisks.length > 0 ? '60%' : '0%' }}></div>
+          </div>
+          <div className="card-trend">
+            <AlertTriangle size={14} /> <span>Risque de désengagement</span>
           </div>
         </div>
       </div>
 
       {/* BLOC DE CONSEILS STRATÉGIQUES */}
-      <div className="content-card" style={{ marginTop: '2rem', borderLeft: '5px solid var(--primary)', backgroundColor: 'var(--primary-light)' }}>
+      <div className="content-card" style={{ marginTop: '2rem', borderLeft: '5px solid var(--primary)', backgroundColor: 'var(--primary-light)', borderRadius: 'var(--radius)' }}>
         <h3 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Brain size={20} className="text-primary" /> Recommandations Stratégiques
         </h3>
@@ -208,19 +239,21 @@ export default function IntelligencePage() {
           {data.stockOut.slice(0, 4).map(item => {
             const isUrgent = item.daysRemaining <= 7;
             const isWarning = item.daysRemaining <= 15;
+            const gradientClass = isUrgent ? 'bg-gradient-red' : isWarning ? 'bg-gradient-orange' : 'bg-gradient-green';
             return (
-              <div key={item.id} className={`stat-card ${isUrgent ? 'alert-pulse' : ''}`} style={{ borderTop: `4px solid ${isUrgent ? 'var(--danger)' : isWarning ? 'var(--warning)' : 'var(--success)'}` }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                   <div style={{ fontSize: '0.9rem', fontWeight: 700, maxWidth: '70%' }}>{item.name}</div>
-                   <div className={`badge ${isUrgent ? 'badge-danger' : isWarning ? 'badge-warning' : 'badge-success'}`}>
-                     {item.daysRemaining} jours
-                   </div>
+              <div key={item.id} className={`stat-card stat-card-premium ${gradientClass} ${isUrgent ? 'alert-pulse' : ''}`}>
+                <div className="stat-icon-bg"><Package size={48} /></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem', zIndex: 2 }}>
+                   <div style={{ fontSize: '1rem', fontWeight: 700, maxWidth: '80%' }}>{item.name}</div>
                 </div>
-                <div style={{ display: 'flex', gap: '1rem', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                <div className="stat-value" style={{ fontSize: '1.5rem' }}>{item.daysRemaining} jours restants</div>
+                <div className="card-progress-container">
+                  <div className="card-progress-bar" style={{ width: `${Math.max(0, Math.min(100, (item.daysRemaining / 30) * 100))}%` }}></div>
+                </div>
+                <div style={{ display: 'flex', gap: '1rem', fontSize: '0.75rem', color: 'rgba(255,255,255,0.8)', zIndex: 2 }}>
                   <div>Stock: <strong>{item.currentStock}</strong></div>
-                  <div>Vente/jour: <strong>{Number(item.dailyVelocity).toFixed(1)}</strong></div>
+                  <div>Vente/j: <strong>{Number(item.dailyVelocity).toFixed(1)}</strong></div>
                 </div>
-                {isUrgent && <div style={{ marginTop: '10px', fontSize: '0.7rem', color: 'var(--danger)', fontWeight: 700 }}>⚠️ Ravitaillement urgent !</div>}
               </div>
             );
           })}
@@ -298,8 +331,8 @@ export default function IntelligencePage() {
                 {churnRisks.map(c => (
                   <tr key={c.id}>
                     <td><strong>{c.name}</strong></td>
-                    <td>{Math.round(c.avgLast3Months).toLocaleString()} FCFA</td>
-                    <td style={{ color: 'var(--danger)', fontWeight: 600 }}>{Math.round(c.currentMonth).toLocaleString()} FCFA</td>
+                    <td>{formatPrice(Math.round(c.avgLast3Months))} FCFA</td>
+                    <td style={{ color: 'var(--danger)', fontWeight: 600 }}>{formatPrice(Math.round(c.currentMonth))} FCFA</td>
                     <td>
                       <span className="badge badge-danger" style={{ display: 'flex', alignItems: 'center', width: 'fit-content', gap: '4px' }}>
                         <ArrowDownRight size={14} /> {Math.round(c.dropPercentage)}%
@@ -423,7 +456,7 @@ export default function IntelligencePage() {
                     <td style={{ fontWeight: row.abcClass === 'A' ? 'bold' : 'normal' }}>{row.code}</td>
                     <td style={{ maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={row.name}>{row.name}</td>
                     <td>{row.reference}</td>
-                    <td>{row.unitPrice?.toLocaleString()}</td>
+                    <td>{formatPrice(row.unitPrice)}</td>
                     <td style={{ fontWeight: 'bold', color: 'var(--success)' }}>{row.currentStock}</td>
                     <td>{row.qty1m}</td>
                     <td>{row.qty2m}</td>

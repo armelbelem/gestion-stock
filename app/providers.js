@@ -7,17 +7,28 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [apiStatus, setApiStatus] = useState('healthy'); // healthy, warning, error
   const [welcomeShownInThisSession, setWelcomeShownInThisSession] = useState(false);
 
   useEffect(() => {
     const savedUser = sessionStorage.getItem('user');
-    const token = sessionStorage.getItem('token');
-    if (savedUser && token) {
+    // Le token est maintenant géré via un cookie HttpOnly sécurisé
+    if (savedUser) {
       setUser(JSON.parse(savedUser));
     }
+    const handleStatusChange = (e) => {
+      setApiStatus(e.detail);
+    };
+
+    window.addEventListener('api-status-change', handleStatusChange);
+
     setTimeout(() => {
       setLoading(false);
     }, 800);
+
+    return () => {
+      window.removeEventListener('api-status-change', handleStatusChange);
+    };
   }, []);
 
   const login = (userData) => {
@@ -27,14 +38,21 @@ export function AuthProvider({ children }) {
 
   const logout = () => {
     setUser(null);
-    sessionStorage.removeItem('token');
     sessionStorage.removeItem('user');
     sessionStorage.removeItem('welcomeShown');
     window.location.href = '/login';
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user, loading }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      login, 
+      logout, 
+      isAuthenticated: !!user, 
+      loading,
+      apiStatus,
+      setApiStatus
+    }}>
       {children}
     </AuthContext.Provider>
   );

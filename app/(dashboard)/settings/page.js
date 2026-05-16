@@ -484,7 +484,7 @@ export default function SettingsPage() {
               <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', margin: 0, width: '100%' }}>
                 <input 
                   type="checkbox" 
-                  checked={settings.roundAmounts !== false} 
+                  checked={!!settings.roundAmounts} 
                   onChange={e => setSettings({...settings, roundAmounts: e.target.checked})} 
                   style={{ width: '20px', height: '20px', accentColor: 'var(--primary)' }}
                 />

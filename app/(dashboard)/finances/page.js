@@ -11,6 +11,16 @@ export default function FinancesPage() {
   const [loading, setLoading] = useState(false);
   const [settings, setSettings] = useState(null);
   const { user: currentUser } = useAuth();
+  
+  const formatPrice = (val) => {
+    if (val === undefined || val === null) return '0';
+    const num = Number(val) || 0;
+    if (settings?.roundAmounts !== 0 && settings?.roundAmounts !== false) {
+      return Math.trunc(num).toLocaleString();
+    }
+    return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
 
   useEffect(() => {
     loadDailyPayments();
@@ -67,27 +77,32 @@ export default function FinancesPage() {
         </div>
       </div>
 
-      <div className="dashboard-grid no-print" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', marginBottom: '2rem' }}>
-        <div className="stat-card">
-          <div className="stat-icon" style={{ backgroundColor: 'var(--success-light)', color: 'var(--success)' }}>
-            <DollarSign size={24} />
+      <div className="dashboard-grid no-print" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', marginBottom: '2rem' }}>
+        <div className="stat-card stat-card-premium bg-gradient-green">
+          <div className="stat-icon-bg"><DollarSign size={48} /></div>
+          <div className="stat-label">Total Encaissé</div>
+          <div className="stat-value">
+            {formatPrice(totalCollected)} FCFA
           </div>
-          <div className="stat-info">
-            <div className="stat-value" style={{ color: 'var(--success)' }}>
-              {totalCollected.toLocaleString('fr-FR')} FCFA
-            </div>
-            <div className="stat-label">Total Encaissé</div>
+          <div className="card-progress-container">
+            <div className="card-progress-bar" style={{ width: '100%' }}></div>
+          </div>
+          <div className="card-trend">
+            <span>Rapport journalier</span>
           </div>
         </div>
-        <div className="stat-card">
-          <div className="stat-icon" style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary)' }}>
-            <Calendar size={24} />
+        
+        <div className="stat-card stat-card-premium bg-gradient-blue">
+          <div className="stat-icon-bg"><Calendar size={48} /></div>
+          <div className="stat-label">Transactions</div>
+          <div className="stat-value">
+            {activePaymentsCount}
           </div>
-          <div className="stat-info">
-            <div className="stat-value">
-              {activePaymentsCount}
-            </div>
-            <div className="stat-label">Transactions</div>
+          <div className="card-progress-container">
+            <div className="card-progress-bar" style={{ width: '100%' }}></div>
+          </div>
+          <div className="card-trend">
+            <span>Volume du jour</span>
           </div>
         </div>
       </div>
@@ -142,7 +157,7 @@ export default function FinancesPage() {
                       color: payment.saleStatus === 'annulée' ? 'var(--text-muted)' : 'var(--success)',
                       textDecoration: payment.saleStatus === 'annulée' ? 'line-through' : 'none'
                     }}>
-                      {payment.amount.toLocaleString('fr-FR')} FCFA
+                      {formatPrice(payment.amount)} FCFA
                     </td>
                   </tr>
                 ))
@@ -153,7 +168,7 @@ export default function FinancesPage() {
                 <tr>
                   <td colSpan="4" style={{ textAlign: 'right', fontWeight: 700, paddingTop: '1rem' }}>TOTAL</td>
                   <td style={{ textAlign: 'right', fontWeight: 800, fontSize: '1.2rem', color: 'var(--success)', paddingTop: '1rem' }}>
-                    {totalCollected.toLocaleString('fr-FR')} FCFA
+                    {formatPrice(totalCollected)} FCFA
                   </td>
                 </tr>
               </tfoot>

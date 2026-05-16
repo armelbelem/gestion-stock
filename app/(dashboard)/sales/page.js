@@ -27,6 +27,16 @@ export default function SalesPage() {
   const [isReporting, setIsReporting] = useState(false);
   const [settings, setSettings] = useState(null);
   const { user: currentUser } = useAuth();
+
+  const formatPrice = (val) => {
+    if (val === undefined || val === null) return '0';
+    const num = Number(val) || 0;
+    if (settings?.roundAmounts !== 0 && settings?.roundAmounts !== false) {
+      return Math.trunc(num).toLocaleString();
+    }
+    return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
   
   const [alertModal, setAlertModal] = useState({ open: false, type: 'info', title: '', message: '', onConfirm: null });
   const closeAlert = () => setAlertModal(prev => ({ ...prev, open: false, onConfirm: null }));
@@ -206,8 +216,14 @@ export default function SalesPage() {
     const afterDiscount = sale.totalAmount - (sale.tvaAmount || 0);
     const subtotalHT = afterDiscount + (sale.discount || 0);
 
+    const formattedItems = items.map(item => ({
+      ...item,
+      unitPrice: formatPrice(item.unitPrice),
+      total: formatPrice(item.quantity * item.unitPrice)
+    }));
+
     exportToExcel(
-      items, 
+      formattedItems, 
       headers, 
       `${isProforma ? 'proforma' : 'facture'}_${sale.id.substring(0,8)}`,
       {
@@ -215,10 +231,10 @@ export default function SalesPage() {
         companyName: settings?.companyName || "NS AUTO",
         period: `Le ${formatDate(sale.date)}`,
         summary: [
-          '', '', 'SOUS-TOTAL HT', `${subtotalHT.toLocaleString()} FCFA`,
-          '', '', 'REMISE', `-${(sale.discount || 0).toLocaleString()} FCFA`,
-          '', '', 'TVA', `${(sale.tvaAmount || 0).toLocaleString()} FCFA`,
-          '', '', 'TOTAL NET TTC', `${sale.totalAmount.toLocaleString()} FCFA`
+          '', '', 'SOUS-TOTAL HT', `${formatPrice(subtotalHT)} FCFA`,
+          '', '', 'REMISE', `-${formatPrice(sale.discount || 0)} FCFA`,
+          '', '', 'TVA', `${formatPrice(sale.tvaAmount || 0)} FCFA`,
+          '', '', 'TOTAL NET TTC', `${formatPrice(sale.totalAmount)} FCFA`
         ]
       }
     );
@@ -238,7 +254,8 @@ export default function SalesPage() {
     const dataToExport = filteredSales.map(s => ({
       ...s,
       idShort: `#${s.id.substring(0,8).toUpperCase()}`,
-      dateFormatted: formatDate(s.date)
+      dateFormatted: formatDate(s.date),
+      totalAmount: formatPrice(s.totalAmount)
     }));
 
     exportToExcel(
@@ -249,7 +266,7 @@ export default function SalesPage() {
         title: "RAPPORT DE VENTES",
         companyName: settings?.companyName || "NS AUTO",
         period: `${dateRange.start || 'Début'} au ${dateRange.end || 'Fin'}`,
-        summary: ['', 'TOTAUX GÉNÉRAUX', '', '', `${totalPeriodAmount.toLocaleString()} FCFA`, '']
+        summary: ['', 'TOTAUX GÉNÉRAUX', '', '', `${formatPrice(totalPeriodAmount)} FCFA`, '']
       }
     );
   };
@@ -315,30 +332,30 @@ export default function SalesPage() {
               <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
                 <td style={{ padding: '8px' }}>{item.articleName}</td>
                 <td style={{ textAlign: 'center', padding: '8px' }}>{item.quantity}</td>
-                <td style={{ textAlign: 'right', padding: '8px' }}>{(item.quantity * item.unitPrice).toLocaleString()} FCFA</td>
+                <td style={{ textAlign: 'right', padding: '8px' }}>{formatPrice(item.quantity * item.unitPrice)} FCFA</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
             <tr style={{ borderTop: '1px solid black' }}>
               <td colSpan="2" style={{ textAlign: 'right', padding: '4px 8px', fontSize: '0.9rem', color: '#666' }}>TOTAL HT</td>
-              <td style={{ textAlign: 'right', padding: '4px 8px', fontSize: '0.9rem', color: '#666' }}>{(printData.totalAmount - (printData.tvaAmount || 0) + (printData.discount || 0)).toLocaleString()} FCFA</td>
+              <td style={{ textAlign: 'right', padding: '4px 8px', fontSize: '0.9rem', color: '#666' }}>{formatPrice(printData.totalAmount - (printData.tvaAmount || 0) + (printData.discount || 0))} FCFA</td>
             </tr>
             {printData.discount > 0 && (
               <tr>
                 <td colSpan="2" style={{ textAlign: 'right', padding: '4px 8px', fontSize: '0.9rem', color: '#666' }}>REMISE</td>
-                <td style={{ textAlign: 'right', padding: '4px 8px', fontSize: '0.9rem', color: '#666' }}>-{(printData.discount || 0).toLocaleString()} FCFA</td>
+                <td style={{ textAlign: 'right', padding: '4px 8px', fontSize: '0.9rem', color: '#666' }}>-{formatPrice(printData.discount || 0)} FCFA</td>
               </tr>
             )}
             <tr style={{ borderBottom: '1px solid #eee' }}>
               <td colSpan="2" style={{ textAlign: 'right', padding: '4px 8px', fontSize: '0.9rem', color: '#666' }}>
                 TVA ({printData.totalAmount - printData.tvaAmount > 0 ? Math.round((printData.tvaAmount / (printData.totalAmount - printData.tvaAmount)) * 100) : 0}%)
               </td>
-              <td style={{ textAlign: 'right', padding: '4px 8px', fontSize: '0.9rem', color: '#666' }}>{(printData.tvaAmount || 0).toLocaleString()} FCFA</td>
+              <td style={{ textAlign: 'right', padding: '4px 8px', fontSize: '0.9rem', color: '#666' }}>{formatPrice(printData.tvaAmount || 0)} FCFA</td>
             </tr>
             <tr style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>
               <td colSpan="2" style={{ textAlign: 'right', padding: '12px 8px' }}>TOTAL NET TTC</td>
-              <td style={{ textAlign: 'right', padding: '12px 8px' }}>{printData.totalAmount.toLocaleString()} FCFA</td>
+              <td style={{ textAlign: 'right', padding: '12px 8px' }}>{formatPrice(printData.totalAmount)} FCFA</td>
             </tr>
           </tfoot>
         </table>
@@ -402,7 +419,7 @@ export default function SalesPage() {
                   <td style={{ padding: '8px', fontWeight: 'bold' }}>#{sale.id.substring(0,8).toUpperCase()}</td>
                   <td style={{ padding: '8px', fontWeight: 'bold' }}>{sale.clientName}</td>
                   <td style={{ padding: '8px' }}>{formatDate(sale.date)}</td>
-                  <td style={{ textAlign: 'right', padding: '8px', fontWeight: 'bold' }}>{sale.totalAmount.toLocaleString()} FCFA</td>
+                  <td style={{ textAlign: 'right', padding: '8px', fontWeight: 'bold' }}>{formatPrice(sale.totalAmount)} FCFA</td>
                   <td style={{ textAlign: 'center', padding: '8px' }}>{sale.status}</td>
                 </tr>
                 {sale.items && sale.items.map((item, idx) => (
@@ -418,7 +435,7 @@ export default function SalesPage() {
           <tfoot>
             <tr style={{ fontWeight: 'bold', borderTop: '2px solid black' }}>
               <td colSpan="3" style={{ textAlign: 'right', padding: '12px' }}>TOTAL GÉNÉRAL</td>
-              <td style={{ textAlign: 'right', padding: '12px' }}>{totalPeriodAmount.toLocaleString()} FCFA</td>
+              <td style={{ textAlign: 'right', padding: '12px' }}>{formatPrice(totalPeriodAmount)} FCFA</td>
               <td></td>
             </tr>
           </tfoot>
@@ -487,7 +504,7 @@ export default function SalesPage() {
             </div>
             <div style={{ fontSize: '0.9rem' }}>
               <span className="text-muted">Total CA sur période : </span>
-              <strong style={{ color: 'var(--success)' }}>{totalPeriodAmount.toLocaleString()} FCFA</strong>
+              <strong style={{ color: 'var(--success)' }}>{formatPrice(totalPeriodAmount)} FCFA</strong>
             </div>
           </div>
         )}
@@ -520,7 +537,7 @@ export default function SalesPage() {
                       <td>{sale.clientName}</td>
                       {(currentUser?.role === 'admin' || currentUser?.role === 'gestionnaire') && <td>{sale.sellerName}</td>}
                       <td>{formatDate(sale.date)}</td>
-                      {(currentUser?.role === 'admin' || currentUser?.role === 'gestionnaire') && <td style={{ fontWeight: 600 }}>{sale.totalAmount.toLocaleString()} FCFA</td>}
+                      {(currentUser?.role === 'admin' || currentUser?.role === 'gestionnaire') && <td style={{ fontWeight: 600 }}>{formatPrice(sale.totalAmount)} FCFA</td>}
                       {currentUser?.role !== 'vendeur' && <td>{getStatusBadge(sale.status)}</td>}
                       <td>
                         <div style={{ display: 'flex', gap: '4px' }}>
@@ -574,8 +591,8 @@ export default function SalesPage() {
                                       <td>{item.quantity}</td>
                                       {(currentUser?.role === 'admin' || currentUser?.role === 'gestionnaire') && (
                                         <>
-                                          <td>{item.unitPrice.toLocaleString()} FCFA</td>
-                                          <td style={{ textAlign: 'right' }}>{(item.quantity * item.unitPrice).toLocaleString()} FCFA</td>
+                                          <td>{formatPrice(item.unitPrice)} FCFA</td>
+                                          <td style={{ textAlign: 'right' }}>{formatPrice(item.quantity * item.unitPrice)} FCFA</td>
                                         </>
                                       )}
                                     </tr>
@@ -592,16 +609,16 @@ export default function SalesPage() {
                               {(currentUser?.role === 'admin' || currentUser?.role === 'gestionnaire') && (
                                <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end', gap: '3rem', borderTop: '1px dashed var(--border-light)', paddingTop: '1rem' }}>
                                  <div style={{ textAlign: 'right', fontSize: '0.9rem' }}>
-                                   <p className="text-muted" style={{ margin: '2px 0' }}>Sous-total HT : {(sale.totalAmount - (sale.tvaAmount || 0) + (sale.discount || 0)).toLocaleString()} FCFA</p>
-                                   {sale.discount > 0 && <p className="text-muted" style={{ margin: '2px 0' }}>Remise : -{(sale.discount || 0).toLocaleString()} FCFA</p>}
+                                   <p className="text-muted" style={{ margin: '2px 0' }}>Sous-total HT : {formatPrice(sale.totalAmount - (sale.tvaAmount || 0) + (sale.discount || 0))} FCFA</p>
+                                   {sale.discount > 0 && <p className="text-muted" style={{ margin: '2px 0' }}>Remise : -{formatPrice(sale.discount || 0)} FCFA</p>}
                                    <p className="text-muted" style={{ margin: '2px 0' }}>
-                                     TVA ({sale.totalAmount - sale.tvaAmount > 0 ? Math.round((sale.tvaAmount / (sale.totalAmount - sale.tvaAmount)) * 100) : 0}%) : {(sale.tvaAmount || 0).toLocaleString()} FCFA
+                                     TVA ({sale.totalAmount - sale.tvaAmount > 0 ? Math.round((sale.tvaAmount / (sale.totalAmount - sale.tvaAmount)) * 100) : 0}%) : {formatPrice(sale.tvaAmount || 0)} FCFA
                                    </p>
-                                   <p style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '1.1rem', marginTop: '5px' }}>Total TTC : {sale.totalAmount.toLocaleString()} FCFA</p>
+                                   <p style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '1.1rem', marginTop: '5px' }}>Total TTC : {formatPrice(sale.totalAmount)} FCFA</p>
                                  </div>
                                  <div style={{ textAlign: 'right', borderLeft: '1px solid var(--border-light)', paddingLeft: '2rem' }}>
-                                   <p className="text-muted" style={{ margin: '2px 0' }}>Payé : {sale.amountPaid.toLocaleString()} FCFA</p>
-                                   <p style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '1.1rem' }}>À régler : {(sale.totalAmount - sale.amountPaid).toLocaleString()} FCFA</p>
+                                   <p className="text-muted" style={{ margin: '2px 0' }}>Payé : {formatPrice(sale.amountPaid)} FCFA</p>
+                                   <p style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '1.1rem' }}>À régler : {formatPrice(sale.totalAmount - sale.amountPaid)} FCFA</p>
                                  </div>
                                </div>
                              )}
@@ -635,7 +652,7 @@ export default function SalesPage() {
             <form onSubmit={handleAddPayment}>
               <div className="modal-body">
                 <div className="form-group">
-                  <label className="form-label">Montant (Reste: {(paymentModal.total - paymentModal.paid).toLocaleString()} FCFA)</label>
+                  <label className="form-label">Montant (Reste: {formatPrice(paymentModal.total - paymentModal.paid)} FCFA)</label>
                   <input type="number" className="form-control" required value={newPayment.amount} onChange={(e) => setNewPayment({ ...newPayment, amount: e.target.value })} max={paymentModal.total - paymentModal.paid} />
                 </div>
                 <div className="form-group">
