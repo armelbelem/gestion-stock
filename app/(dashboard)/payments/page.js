@@ -123,7 +123,7 @@ export default function PaymentsPage() {
             <form onSubmit={handleAddPayment}>
               <div className="modal-body">
                 <p>Vente #{payModal.sale.id.substring(0, 8).toUpperCase()} - {payModal.sale.clientName}</p>
-                <div className="form-group"><label className="form-label">Montant (Reste: {(payModal.sale.totalAmount - payModal.sale.amountPaid).toLocaleString()} FCFA)</label><input type="number" className="form-control" required value={payModal.amount} onChange={e => setPayModal({...payModal, amount: e.target.value})} autoFocus /></div>
+                <div className="form-group"><label className="form-label">Montant (Reste: {(payModal.sale.totalAmount - payModal.sale.amountPaid).toLocaleString()} FCFA)</label><input type="number" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} min="0" className="form-control" required value={payModal.amount} onChange={e => setPayModal({...payModal, amount: e.target.value})} autoFocus /></div>
                 <div className="form-group"><label className="form-label">Notes</label><textarea className="form-control" value={payModal.notes} onChange={e => setPayModal({...payModal, notes: e.target.value})} /></div>
               </div>
               <div className="modal-footer"><button type="button" className="btn btn-secondary" onClick={() => setPayModal({ open: false })}>Annuler</button><button type="submit" className="btn btn-primary">Confirmer</button></div>

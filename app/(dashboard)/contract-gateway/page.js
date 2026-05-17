@@ -2879,10 +2879,10 @@ export default function ContractGatewayPage() {
                         <td><input type="text" className="form-control" style={{ fontSize: '0.8rem', height: '30px', padding: '4px 8px' }} value={item.code} onChange={e => { const val = e.target.value; setNewOrder(prev => { const ni = [...prev.items]; ni[idx].code = val; return { ...prev, items: ni }; }); }} /></td>
                         <td><input type="text" className="form-control" style={{ fontSize: '0.8rem', height: '30px', padding: '4px 8px' }} value={item.refCfao} onChange={e => { const val = e.target.value; setNewOrder(prev => { const ni = [...prev.items]; ni[idx].refCfao = val; return { ...prev, items: ni }; }); }} /></td>
                         <td><input type="text" className="form-control" style={{ fontSize: '0.8rem', height: '30px', padding: '4px 8px' }} value={item.description} onChange={e => { const val = e.target.value; setNewOrder(prev => { const ni = [...prev.items]; ni[idx].description = val; return { ...prev, items: ni }; }); }} /></td>
-                        <td><input type="number" className="form-control" style={{ textAlign: 'center', padding: '2px', height: '30px', fontSize: '0.85rem' }} value={item.quantity} onChange={e => { const val = e.target.value; setNewOrder(prev => { const ni = [...prev.items]; ni[idx].quantity = val; return { ...prev, items: ni }; }); }} /></td>
+                        <td><input type="number" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} min="0" className="form-control" style={{ textAlign: 'center', padding: '2px', height: '30px', fontSize: '0.85rem' }} value={item.quantity} onChange={e => { const val = e.target.value; setNewOrder(prev => { const ni = [...prev.items]; ni[idx].quantity = val; return { ...prev, items: ni }; }); }} /></td>
                         {hasPermission(user, 'stock', 'view_cost_price') && (
                           <>
-                            <td><input type="number" className="form-control" style={{ height: '30px', padding: '4px 8px', fontSize: '0.85rem' }} value={item.purchasePrice} onChange={e => { const val = e.target.value; setNewOrder(prev => { const ni = [...prev.items]; ni[idx].purchasePrice = val; return { ...prev, items: ni }; }); }} /></td>
+                            <td><input type="number" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} min="0" className="form-control" style={{ height: '30px', padding: '4px 8px', fontSize: '0.85rem' }} value={item.purchasePrice} onChange={e => { const val = e.target.value; setNewOrder(prev => { const ni = [...prev.items]; ni[idx].purchasePrice = val; return { ...prev, items: ni }; }); }} /></td>
                             <td style={{ fontWeight: 600, textAlign: 'right', fontSize: '0.85rem' }}>{formatPrice(item.quantity * item.purchasePrice)}</td>
                             <td style={{ fontWeight: 700, textAlign: 'right', color: 'var(--primary)', fontSize: '0.85rem' }}>
                               {formatPrice(item.quantity * item.purchasePrice * (1 + (newOrder.tvaRate ?? settings?.tvaRate ?? 18) / 100))}
@@ -3101,7 +3101,7 @@ export default function ContractGatewayPage() {
                 {!!selectedMine && <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>Verrouillé sur la mine sélectionnée.</p>}
               </div>
               {hasPermission(user, 'stock', 'view_cost_price') && (
-                <div className="form-group"><label className="form-label">P.A Contrat (FCFA)</label><input type="number" className="form-control" value={catalogItem.purchasePrice || 0} onChange={e => setCatalogItem({ ...catalogItem, purchasePrice: e.target.value })} /></div>
+                <div className="form-group"><label className="form-label">P.A Contrat (FCFA)</label><input type="number" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} min="0" className="form-control" value={catalogItem.purchasePrice || 0} onChange={e => setCatalogItem({ ...catalogItem, purchasePrice: e.target.value })} /></div>
               )}
             </div>
             <div className="modal-footer">
@@ -3266,7 +3266,7 @@ export default function ContractGatewayPage() {
                           newItems[idx].refCfao = e.target.value;
                           setPrintData({ ...printData, items: newItems });
                         }} /></td>
-                        <td><input type="number" className="form-control" value={item.quantity} onChange={e => {
+                        <td><input type="number" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} min="0" className="form-control" value={item.quantity} onChange={e => {
                           const newItems = [...printData.items];
                           newItems[idx].quantity = e.target.value;
                           setPrintData({ ...printData, items: newItems });
@@ -3535,7 +3535,7 @@ export default function ContractGatewayPage() {
                 </div>
                 <div className="form-group">
                   <label className="form-label" style={{ marginBottom: '4px', fontSize: '0.8rem' }}>TVA %</label>
-                  <input type="number" className="form-control" style={{ padding: '6px 12px' }} value={printData.customTvaRate} onChange={e => setPrintData({ ...printData, customTvaRate: parseFloat(e.target.value) || 0 })} disabled={printData.isExempt} />
+                  <input type="number" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} min="0" className="form-control" style={{ padding: '6px 12px' }} value={printData.customTvaRate} onChange={e => setPrintData({ ...printData, customTvaRate: parseFloat(e.target.value) || 0 })} disabled={printData.isExempt} />
                 </div>
               </div>
 
@@ -3621,12 +3621,12 @@ export default function ContractGatewayPage() {
                           newItems[idx].description = e.target.value;
                           setPrintData({ ...printData, items: newItems });
                         }} placeholder="Nom de l'article" /></td>
-                        <td style={{ width: '100px' }}><input type="number" className="form-control" style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '1rem' }} value={item.quantity || 1} onChange={e => {
+                        <td style={{ width: '100px' }}><input type="number" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} min="0" className="form-control" style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '1rem' }} value={item.quantity || 1} onChange={e => {
                           const newItems = [...printData.items];
                           newItems[idx].quantity = Number(e.target.value);
                           setPrintData({ ...printData, items: newItems });
                         }} min="1" /></td>
-                        <td style={{ width: '120px' }}><input type="number" className="form-control form-control-sm" style={{ textAlign: 'right' }} value={item.purchasePrice} onChange={e => {
+                        <td style={{ width: '120px' }}><input type="number" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} min="0" className="form-control form-control-sm" style={{ textAlign: 'right' }} value={item.purchasePrice} onChange={e => {
                           const newItems = [...printData.items];
                           newItems[idx].purchasePrice = Number(e.target.value);
                           setPrintData({ ...printData, items: newItems });

@@ -258,8 +258,8 @@ export default function MouvementsPage() {
           <button className="btn btn-secondary" onClick={handlePrintReport} title="Imprimer / PDF">
             <FileText size={18} /> PDF
           </button>
-          <button className="btn btn-success" onClick={() => { handleOpenModal('IN'); setArticleSearch(''); }}><ArrowDownRight size={16} /> Entrée</button>
-          <button className="btn btn-danger" onClick={() => { handleOpenModal('OUT'); setArticleSearch(''); }}><ArrowUpRight size={16} /> Sortie</button>
+          {currentUser?.role !== 'observateur' && (<button className="btn btn-success" onClick={() => { handleOpenModal('IN'); setArticleSearch(''); }}><ArrowDownRight size={16} /> Entrée</button>)}
+          {currentUser?.role !== 'observateur' && (<button className="btn btn-danger" onClick={() => { handleOpenModal('OUT'); setArticleSearch(''); }}><ArrowUpRight size={16} /> Sortie</button>)}
         </div>
       </div>
 
@@ -353,7 +353,7 @@ export default function MouvementsPage() {
                     </div>
                   )}
                 </div>
-                <div className="form-group"><label className="form-label">Quantité</label><input type="number" className="form-control" required value={formData.quantity} onChange={(e) => setFormData({...formData, quantity: e.target.value})} /></div>
+                <div className="form-group"><label className="form-label">Quantité</label><input type="number" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} min="0" className="form-control" required value={formData.quantity} onChange={(e) => setFormData({...formData, quantity: e.target.value})} /></div>
                 {modalType === 'IN' && <div className="form-group"><label className="form-label">Fournisseur</label><select className="form-control" value={formData.supplierId} onChange={(e) => setFormData({...formData, supplierId: e.target.value})}>
                   <option value="">Choisir...</option>
                   {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}

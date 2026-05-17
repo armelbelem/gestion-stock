@@ -9,6 +9,9 @@ export async function POST(request, { params }) {
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const { id: saleId } = await params;
   const { amount, notes } = await request.json();
+  if (parseFloat(amount) <= 0) {
+    return NextResponse.json({ error: "Le montant doit être supérieur à 0" }, { status: 400 });
+  }
   const connection = await db.getConnection();
   try {
     await connection.beginTransaction();

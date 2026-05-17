@@ -73,6 +73,10 @@ export async function POST(request) {
 
   const { code, name, price, currentStock, minStock, barcode, storeId: bodyStoreId } = await request.json();
 
+  if (parseFloat(price) < 0 || parseInt(currentStock) < 0 || parseInt(minStock) < 0) {
+    return NextResponse.json({ error: 'Le prix, le stock et le seuil d\'alerte ne peuvent pas être négatifs' }, { status: 400 });
+  }
+
   let storeId = bodyStoreId || auth.user.storeId;
 
   if (!storeId && (auth.user.role === 'admin' || auth.user.role === 'gestionnaire')) {

@@ -593,15 +593,15 @@ export default function ExternalOrdersPage() {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '1rem', alignItems: 'flex-end' }}>
                       <div className="form-group" style={{ margin: 0 }}>
                         <label className="form-label">Quantité</label>
-                        <input type="number" className="form-control" required min="1" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', e.target.value)} />
+                        <input type="number" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} className="form-control" required min="1" value={item.quantity} onChange={e => handleItemChange(index, 'quantity', e.target.value)} />
                       </div>
                       <div className="form-group" style={{ margin: 0 }}>
                         <label className="form-label">Prix Achat Unit.</label>
-                        <input type="number" className="form-control" required min="0" placeholder="0" value={item.purchasePrice} onChange={e => handleItemChange(index, 'purchasePrice', e.target.value)} />
+                        <input type="number" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} className="form-control" required min="0" placeholder="0" value={item.purchasePrice} onChange={e => handleItemChange(index, 'purchasePrice', e.target.value)} />
                       </div>
                       <div className="form-group" style={{ margin: 0 }}>
                         <label className="form-label">Prix Vente Unit.</label>
-                        <input type="number" className="form-control" required min="0" placeholder="0" value={item.sellPrice} onChange={e => handleItemChange(index, 'sellPrice', e.target.value)} />
+                        <input type="number" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} className="form-control" required min="0" placeholder="0" value={item.sellPrice} onChange={e => handleItemChange(index, 'sellPrice', e.target.value)} />
                       </div>
                       <div style={{ padding: '10px', backgroundColor: 'var(--bg-color)', borderRadius: '8px', textAlign: 'center' }}>
                         <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Bénéfice estimé</div>

@@ -461,8 +461,7 @@ export default function SettingsPage() {
 
               <div className="form-group">
                 <label className="form-label">Taux de TVA (%)</label>
-                <input 
-                  type="number" 
+                <input type="number" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} min="0" 
                   step="0.01"
                   className="form-control" 
                   value={settings.tvaRate || 18} 

@@ -454,9 +454,11 @@ export default function SalesPage() {
           <h1>Ventes</h1>
           <p>Historique des ventes effectuées</p>
         </div>
-        <Link href="/sales/new" className="btn btn-primary">
-          <Plus size={16} /> Nouvelle Vente
-        </Link>
+        {currentUser?.role !== 'observateur' && (
+          <Link href="/sales/new" className="btn btn-primary">
+            <Plus size={16} /> Nouvelle Vente
+          </Link>
+        )}
       </div>
 
       <div className="content-card" style={{ marginBottom: '1.5rem', padding: '1rem' }}>
@@ -653,7 +655,7 @@ export default function SalesPage() {
               <div className="modal-body">
                 <div className="form-group">
                   <label className="form-label">Montant (Reste: {formatPrice(paymentModal.total - paymentModal.paid)} FCFA)</label>
-                  <input type="number" className="form-control" required value={newPayment.amount} onChange={(e) => setNewPayment({ ...newPayment, amount: e.target.value })} max={paymentModal.total - paymentModal.paid} />
+                  <input type="number" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} min="0" className="form-control" required value={newPayment.amount} onChange={(e) => setNewPayment({ ...newPayment, amount: e.target.value })} max={paymentModal.total - paymentModal.paid} />
                 </div>
                 <div className="form-group">
                   <label className="form-label">Notes</label>

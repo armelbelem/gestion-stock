@@ -32,6 +32,9 @@ export function authenticateToken(request) {
   
   try {
     const user = jwt.verify(token, FINAL_JWT_SECRET);
+    if (user.role === 'observateur' && request.method && request.method !== 'GET') {
+      return { error: 'Action interdite : Mode lecture seule.', status: 403 };
+    }
     return { user };
   } catch (err) {
     console.error('[AUTH ERROR]', err.message);
@@ -73,6 +76,14 @@ export function hasPermission(user, category, action) {
     if (category === 'clients') return false;
     
     return false;
+  }
+  
+  // 4. L'observateur a un accès strictement limité à la lecture
+  if (user.role === 'observateur') {
+    if (category === 'admin') return false;
+    // Bloque formellement toute action de modification au niveau des composants qui utilisent ces flags
+    if (action === 'create' || action === 'edit' || action === 'delete') return false;
+    return true; // Autorise view, move (pour voir l'historique), etc.
   }
   
   return false;

@@ -396,10 +396,10 @@ export default function NewSalePage() {
                             </select>
                           )}
                         </td>
-                        <td><input type="number" className="form-control" value={item.quantity} onChange={(e) => updateItem(item.id, 'quantity', e.target.value === '' ? '' : parseInt(e.target.value))} /></td>
+                        <td><input type="number" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} min="0" className="form-control" value={item.quantity} onChange={(e) => updateItem(item.id, 'quantity', e.target.value === '' ? '' : parseInt(e.target.value))} /></td>
                         {currentUser?.role !== 'vendeur' && (
                           <>
-                            <td><input type="number" className="form-control" value={item.unitPrice} onChange={(e) => updateItem(item.id, 'unitPrice', e.target.value === '' ? '' : parseFloat(e.target.value))} /></td>
+                            <td><input type="number" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} min="0" className="form-control" value={item.unitPrice} onChange={(e) => updateItem(item.id, 'unitPrice', e.target.value === '' ? '' : parseFloat(e.target.value))} /></td>
                             <td style={{ fontWeight: 600 }}>{formatPrice(item.quantity * item.unitPrice)}</td>
                           </>
                         )}
@@ -424,14 +424,13 @@ export default function NewSalePage() {
                     </div>
                     <div className="form-group" style={{ margin: '0.5rem 0' }}>
                       <label className="form-label" style={{ fontSize: '0.8rem' }}>Remise</label>
-                      <input type="number" className="form-control" value={discount} onChange={(e) => setDiscount(Number(e.target.value) || 0)} />
+                      <input type="number" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} min="0" className="form-control" value={discount} onChange={(e) => setDiscount(Number(e.target.value) || 0)} />
                     </div>
                     
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderTop: '1px dashed var(--border)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span className="text-muted">TVA (%)</span>
-                        <input 
-                          type="number" 
+                        <input type="number" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} min="0" 
                           className="form-control" 
                           style={{ width: '70px', height: '30px', padding: '0 5px', textAlign: 'center' }} 
                           value={tvaRate} 
@@ -457,7 +456,7 @@ export default function NewSalePage() {
                     <button type="button" className={`btn ${paymentType === 'credit' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1 }} onClick={() => setPaymentType('credit')}>Consommation</button>
                   </div>
                   {currentUser?.role !== 'vendeur' && (
-                    <div className="form-group"><label className="form-label">Versement</label><input type="number" className="form-control" value={initialPayment} onChange={(e) => setInitialPayment(Number(e.target.value) || 0)} disabled={paymentType === 'credit'} /></div>
+                    <div className="form-group"><label className="form-label">Versement</label><input type="number" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} min="0" className="form-control" value={initialPayment} onChange={(e) => setInitialPayment(Number(e.target.value) || 0)} disabled={paymentType === 'credit'} /></div>
                   )}
                   <div className="form-group" style={{ marginTop: '1rem' }}>
                     <label className="form-label" style={{ fontSize: '0.85rem', fontWeight: 600 }}>Notes / Justificatif</label>

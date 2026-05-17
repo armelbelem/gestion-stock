@@ -481,11 +481,11 @@ export default function ArticlesPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <div className="form-group">
                     <label className="form-label">Prix (FCFA)</label>
-                    <input type="number" className="form-control" required value={formData.price} onChange={(e) => setFormData({...formData, price: e.target.value})} />
+                    <input type="number" min="0" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} className="form-control" required value={formData.price} onChange={(e) => setFormData({...formData, price: e.target.value})} />
                   </div>
                   <div className="form-group">
                     <label className="form-label">Seuil Alerte</label>
-                    <input type="number" className="form-control" required value={formData.minStock} onChange={(e) => setFormData({...formData, minStock: e.target.value})} />
+                    <input type="number" min="0" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} className="form-control" required value={formData.minStock} onChange={(e) => setFormData({...formData, minStock: e.target.value})} />
                   </div>
                 </div>
                 {(user?.role === 'admin' || user?.role === 'gestionnaire') && !formData.id && (
@@ -500,7 +500,7 @@ export default function ArticlesPage() {
                 {!formData.id && (
                   <div className="form-group">
                     <label className="form-label">Stock Initial</label>
-                    <input type="number" className="form-control" required value={formData.currentStock} onChange={(e) => setFormData({...formData, currentStock: e.target.value})} />
+                    <input type="number" min="0" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} className="form-control" required value={formData.currentStock} onChange={(e) => setFormData({...formData, currentStock: e.target.value})} />
                   </div>
                 )}
               </div>

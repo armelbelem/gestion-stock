@@ -39,6 +39,9 @@ export async function POST(request) {
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   const { articleId, type, quantity, notes, supplierId, storeId: bodyStoreId } = await request.json();
+  if (parseInt(quantity) <= 0) {
+    return NextResponse.json({ error: "La quantité doit être supérieure à 0" }, { status: 400 });
+  }
   const movId = uuidv4();
   
   const [fyRows] = await db.query("SELECT * FROM fiscal_years WHERE status = 'active'");

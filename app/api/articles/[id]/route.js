@@ -15,6 +15,10 @@ export async function PUT(request, { params }) {
   const { id: articleId } = await params;
   const { code, name, price, minStock, barcode } = await request.json();
 
+  if (parseFloat(price) < 0 || parseInt(minStock) < 0) {
+    return NextResponse.json({ error: 'Le prix et le seuil d\'alerte ne peuvent pas être négatifs' }, { status: 400 });
+  }
+
 
   const connection = await db.getConnection();
   try {

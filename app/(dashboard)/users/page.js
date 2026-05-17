@@ -135,7 +135,7 @@ export default function UsersPage() {
                   <input type="password" className="form-control" required={!editingId} value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} />
                 </div>
                 <div className="form-group"><label className="form-label">Rôle</label><select className="form-control" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})}>
-                  <option value="vendeur">Vendeur</option><option value="gestionnaire">Gestionnaire</option><option value="admin">Admin</option>
+                  <option value="vendeur">Vendeur</option><option value="gestionnaire">Gestionnaire</option><option value="admin">Admin</option><option value="observateur">Observateur</option>
                 </select></div>
                 <div className="form-group"><label className="form-label">Magasin</label><select className="form-control" required value={formData.storeId} onChange={e => setFormData({...formData, storeId: e.target.value})}>
                   {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}

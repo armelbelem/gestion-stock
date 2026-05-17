@@ -27,6 +27,9 @@ export async function POST(request) {
   const auth = authenticateToken(request);
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
   const { articleId, fromStoreId, toStoreId, quantity, notes } = await request.json();
+  if (parseInt(quantity) <= 0) {
+    return NextResponse.json({ error: "La quantité doit être supérieure à 0" }, { status: 400 });
+  }
   const id = uuidv4();
   const connection = await db.getConnection();
   try {
