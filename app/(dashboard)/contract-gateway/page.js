@@ -2520,7 +2520,8 @@ export default function ContractGatewayPage() {
                   <p className="text-muted">Calcul des statistiques de consommation par produit...</p>
                 </div>
               ) : (
-                <div className="table-wrapper">
+                <>
+                  <div className="table-wrapper">
                   <table className="table-sm">
                     <thead>
                       <tr style={{ backgroundColor: 'var(--bg-light)' }}>
@@ -2650,8 +2651,9 @@ export default function ContractGatewayPage() {
                     </div>
                   </div>
                 )}
-              )}
-            </div>
+              </>
+            )}
+          </div>
           ) : statsLoading ? (
             <div className="content-card" style={{ textAlign: 'center', padding: '5rem' }}>
               <div className="loader" style={{ margin: '0 auto 1rem' }}></div>
