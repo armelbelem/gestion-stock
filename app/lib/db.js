@@ -16,7 +16,7 @@ if (!global._mysqlPool) {
   global._mysqlPool = mysql.createPool(typeof dbConfig === 'string' ? dbConfig : {
     ...dbConfig,
     waitForConnections: true,
-    connectionLimit: 10, // Réduit pour plus de stabilité sur une petite config
+    connectionLimit: 20, // Équilibré à 20 pour allier haute performance et stabilité
     queueLimit: 0,
     dateStrings: true,
     charset: 'utf8mb4'
