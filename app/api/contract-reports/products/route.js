@@ -33,11 +33,7 @@ export async function GET(request) {
         p.name as partnerName
       FROM contract_catalog cc
       LEFT JOIN contract_partners p ON cc.partner_id = p.id
-      LEFT JOIN contract_order_items coi ON (
-        (cc.code IS NOT NULL AND cc.code != '' AND coi.code = cc.code) 
-        OR 
-        (cc.refCfao IS NOT NULL AND cc.refCfao != '' AND coi.refCfao = cc.refCfao)
-      )
+      LEFT JOIN contract_order_items coi ON coi.articleId = cc.id
       LEFT JOIN contract_orders co ON (coi.orderId = co.id AND co.status = 'termine')
       WHERE 1=1
     `;
