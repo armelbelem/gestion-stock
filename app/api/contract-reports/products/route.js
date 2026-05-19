@@ -21,136 +21,53 @@ export async function GET(request) {
 
     let query = `
       SELECT 
-        cc.code,
-        cc.refCfao,
-        cc.name as description,
-        cc.purchasePrice as unitPrice,
-        p.name as partnerName,
-        
-        -- Somme totale des quantités filtrées par mine / liaison article
-        COALESCE(SUM(
-          CASE WHEN (
-            coi.orderId IS NOT NULL AND (
-              coi.articleId = cc.id
-              OR (
-                (cc.clientId IS NOT NULL AND co.clientId = cc.clientId)
-                OR (
-                  cc.clientId IS NULL 
-                  AND NOT EXISTS (
-                    SELECT 1 FROM contract_catalog sub 
-                    WHERE (sub.refCfao = cc.refCfao OR sub.code = cc.code)
-                    AND sub.clientId = co.clientId
-                    AND sub.partner_id = cc.partner_id
-                  )
-                )
-              )
-            )
-          ) THEN coi.quantity ELSE 0 END
-        ), 0) as totalQuantity,
-
-        -- Somme totale des montants HT filtrés par mine / liaison article
-        COALESCE(SUM(
-          CASE WHEN (
-            coi.orderId IS NOT NULL AND (
-              coi.articleId = cc.id
-              OR (
-                (cc.clientId IS NOT NULL AND co.clientId = cc.clientId)
-                OR (
-                  cc.clientId IS NULL 
-                  AND NOT EXISTS (
-                    SELECT 1 FROM contract_catalog sub 
-                    WHERE (sub.refCfao = cc.refCfao OR sub.code = cc.code)
-                    AND sub.clientId = co.clientId
-                    AND sub.partner_id = cc.partner_id
-                  )
-                )
-              )
-            )
-          ) THEN coi.quantity * coi.purchasePrice ELSE 0 END
-        ), 0) as totalHT,
-
-        -- Quantités 2 derniers mois
-        COALESCE(SUM(
-          CASE WHEN (
-            coi.orderId IS NOT NULL AND co.createdAt >= NOW() - INTERVAL 2 MONTH AND (
-              coi.articleId = cc.id
-              OR (
-                (cc.clientId IS NOT NULL AND co.clientId = cc.clientId)
-                OR (
-                  cc.clientId IS NULL 
-                  AND NOT EXISTS (
-                    SELECT 1 FROM contract_catalog sub 
-                    WHERE (sub.refCfao = cc.refCfao OR sub.code = cc.code)
-                    AND sub.clientId = co.clientId
-                    AND sub.partner_id = cc.partner_id
-                  )
-                )
-              )
-            )
-          ) THEN coi.quantity ELSE 0 END
-        ), 0) as qty2Months,
-
-        -- Quantités 3 derniers mois
-        COALESCE(SUM(
-          CASE WHEN (
-            coi.orderId IS NOT NULL AND co.createdAt >= NOW() - INTERVAL 3 MONTH AND (
-              coi.articleId = cc.id
-              OR (
-                (cc.clientId IS NOT NULL AND co.clientId = cc.clientId)
-                OR (
-                  cc.clientId IS NULL 
-                  AND NOT EXISTS (
-                    SELECT 1 FROM contract_catalog sub 
-                    WHERE (sub.refCfao = cc.refCfao OR sub.code = cc.code)
-                    AND sub.clientId = co.clientId
-                    AND sub.partner_id = cc.partner_id
-                  )
-                )
-              )
-            )
-          ) THEN coi.quantity ELSE 0 END
-        ), 0) as qty3Months,
-
-        -- Quantités 6 derniers mois
-        COALESCE(SUM(
-          CASE WHEN (
-            coi.orderId IS NOT NULL AND co.createdAt >= NOW() - INTERVAL 6 MONTH AND (
-              coi.articleId = cc.id
-              OR (
-                (cc.clientId IS NOT NULL AND co.clientId = cc.clientId)
-                OR (
-                  cc.clientId IS NULL 
-                  AND NOT EXISTS (
-                    SELECT 1 FROM contract_catalog sub 
-                    WHERE (sub.refCfao = cc.refCfao OR sub.code = cc.code)
-                    AND sub.clientId = co.clientId
-                    AND sub.partner_id = cc.partner_id
-                  )
-                )
-              )
-            )
-          ) THEN coi.quantity ELSE 0 END
-        ), 0) as qty6Months
-      FROM contract_catalog cc
-      LEFT JOIN contract_partners p ON cc.partner_id = p.id
-      LEFT JOIN contract_order_items coi ON (
-        coi.articleId = cc.id
-        OR (cc.refCfao IS NOT NULL AND cc.refCfao != '' AND coi.refCfao = cc.refCfao)
-        OR (cc.code IS NOT NULL AND cc.code != '' AND coi.code = cc.code)
-      )
-      LEFT JOIN contract_orders co ON (coi.orderId = co.id AND co.status = 'termine')
+        cat.code,
+        cat.refCfao,
+        cat.description,
+        cat.unitPrice,
+        cat.partnerName,
+        COALESCE(stats.totalQuantity, 0) as totalQuantity,
+        COALESCE(stats.totalHT, 0) as totalHT,
+        COALESCE(stats.qty2Months, 0) as qty2Months,
+        COALESCE(stats.qty3Months, 0) as qty3Months,
+        COALESCE(stats.qty6Months, 0) as qty6Months
+      FROM (
+        -- 1. Regroupement du catalogue par référence unique
+        SELECT 
+          COALESCE(NULLIF(cc.refCfao, ''), cc.code) as productRef,
+          MAX(cc.code) as code,
+          MAX(cc.refCfao) as refCfao,
+          MAX(cc.name) as description,
+          MAX(cc.purchasePrice) as unitPrice,
+          MAX(p.name) as partnerName,
+          MAX(cc.partner_id) as partner_id
+        FROM contract_catalog cc
+        LEFT JOIN contract_partners p ON cc.partner_id = p.id
+        GROUP BY COALESCE(NULLIF(cc.refCfao, ''), cc.code)
+      ) cat
+      LEFT JOIN (
+        -- 2. Regroupement des achats réels par référence unique (toutes mines confondues)
+        SELECT 
+          COALESCE(NULLIF(coi.refCfao, ''), coi.code) as orderProductRef,
+          SUM(coi.quantity) as totalQuantity,
+          SUM(coi.quantity * coi.purchasePrice) as totalHT,
+          SUM(CASE WHEN co.createdAt >= NOW() - INTERVAL 2 MONTH THEN coi.quantity ELSE 0 END) as qty2Months,
+          SUM(CASE WHEN co.createdAt >= NOW() - INTERVAL 3 MONTH THEN coi.quantity ELSE 0 END) as qty3Months,
+          SUM(CASE WHEN co.createdAt >= NOW() - INTERVAL 6 MONTH THEN coi.quantity ELSE 0 END) as qty6Months
+        FROM contract_order_items coi
+        JOIN contract_orders co ON (coi.orderId = co.id AND co.status = 'termine')
+        GROUP BY COALESCE(NULLIF(coi.refCfao, ''), coi.code)
+      ) stats ON cat.productRef = stats.orderProductRef
       WHERE 1=1
     `;
     const params = [];
 
     if (partnerId && partnerId !== 'all') {
-      query += ` AND cc.partner_id = ? `;
+      query += ` AND cat.partner_id = ? `;
       params.push(partnerId);
     }
 
-    // Regrouper par catalogue
-    query += ` GROUP BY cc.id, cc.code, cc.refCfao, cc.name, cc.purchasePrice, p.name`;
-    query += ` ORDER BY totalQuantity DESC, cc.name ASC`;
+    query += ` ORDER BY totalQuantity DESC, cat.description ASC`;
 
     const [rows] = await db.query(query, params);
     
