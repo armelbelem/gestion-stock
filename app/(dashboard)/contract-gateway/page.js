@@ -2433,6 +2433,21 @@ export default function ContractGatewayPage() {
                   <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                     Suivi comparatif des volumes achetés et consommés sur 2 mois, 3 mois et 6 mois.
                   </p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '8px' }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 14px', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.25)', borderRadius: '24px' }}>
+                      <CheckCircle2 size={14} style={{ color: 'var(--success)' }} />
+                      <span style={{ fontSize: '0.85rem', color: 'var(--success)', fontWeight: 700 }}>
+                        Liste des articles issus des dossiers clôturés uniquement.
+                      </span>
+                    </div>
+                    
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 14px', background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.25)', borderRadius: '24px' }}>
+                      <Info size={14} style={{ color: 'var(--warning)' }} />
+                      <span style={{ fontSize: '0.85rem', color: 'var(--warning)', fontWeight: 700 }}>
+                        NB : Un dossier non clôturé (en cours, en demande) ne fait pas partie de ce rapport.
+                      </span>
+                    </div>
+                  </div>
                 </div>
                 
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
