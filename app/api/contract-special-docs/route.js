@@ -85,7 +85,12 @@ export async function DELETE(request) {
   }
 
   try {
+    // 1. Supprimer également l'historique d'en-tête BC lié dans contract_bc_history
+    await db.query('DELETE FROM contract_bc_history WHERE order_id = ?', [id]);
+
+    // 2. Supprimer le document libre
     await db.query('DELETE FROM contract_special_docs WHERE id = ?', [id]);
+
     await logAction(auth.user.id, auth.user.storeId, 'Suppression document libre', { id });
     return NextResponse.json({ success: true });
   } catch (err) {
