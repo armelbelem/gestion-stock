@@ -133,6 +133,12 @@ export default function ContractGatewayPage() {
   const [reportPartnerId, setReportPartnerId] = useState('all');
   const [reportLoading, setReportLoading] = useState(false);
 
+  // États pour les rapports d'achat par produit
+  const [reportSubTab, setReportSubTab] = useState('dashboard'); // 'dashboard' ou 'products'
+  const [productReports, setProductReports] = useState([]);
+  const [productReportsLoading, setProductReportsLoading] = useState(false);
+  const [productSearch, setProductSearch] = useState('');
+
   const closeAlert = () => setAlertModal(prev => ({ ...prev, open: false, onConfirm: null }));
   const showAlert = (type, title, message) => setAlertModal({ open: true, type, title, message, onConfirm: null });
 
@@ -200,6 +206,55 @@ export default function ContractGatewayPage() {
       setStatsLoading(false);
     }
   };
+
+  const loadProductReports = async () => {
+    setProductReportsLoading(true);
+    try {
+      const url = `/api/contract-reports/products?partnerId=${reportPartnerId}&_t=${Date.now()}`;
+      const res = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${sessionStorage.getItem('token')}` }
+      });
+      const data = await res.json();
+      setProductReports(data || []);
+    } catch (err) {
+      console.error("Error loading product reports:", err);
+    } finally {
+      setProductReportsLoading(false);
+    }
+  };
+
+  const exportProductReportToExcel = () => {
+    if (!productReports || productReports.length === 0) {
+      showAlert('warning', 'Aucune donnée', 'Il n\'y a aucune donnée à exporter pour ce rapport.');
+      return;
+    }
+    const data = productReports.map(item => ({
+      'Code Article': item.code || '-',
+      'Référence CFAO': item.refCfao || '-',
+      'Désignation': item.description,
+      'Prix Unitaire Contractuel (FCFA)': item.unitPrice,
+      'Quantité Totale Consommée': item.totalQuantity,
+      'Consommation 2 derniers mois (Qté)': item.qty2Months,
+      'Consommation 3 derniers mois (Qté)': item.qty3Months,
+      'Consommation 6 derniers mois (Qté)': item.qty6Months,
+      'Rotation': item.rotation,
+      'Montant Total HT (FCFA)': item.totalHT,
+      'Montant Total TTC (FCFA)': item.totalTTC,
+      'Partenaire': item.partnerName || (reportPartnerId === 'all' ? 'Tous' : reportPartnerId)
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    const sheetName = `Consommation Produits`.substring(0, 31);
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    XLSX.writeFile(wb, `Rapport_Consommation_Produits_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
+  useEffect(() => {
+    if (activeTab === 'rapports' && reportSubTab === 'products') {
+      loadProductReports();
+    }
+  }, [activeTab, reportSubTab, reportPartnerId]);
 
   useEffect(() => {
     if (selectedPartner) {
@@ -2345,321 +2400,479 @@ export default function ContractGatewayPage() {
           </div>
         )
       ) : activeTab === 'rapports' ? (
-        statsLoading ? (
-          <div className="content-card" style={{ textAlign: 'center', padding: '5rem' }}>
-            <div className="loader" style={{ margin: '0 auto 1rem' }}></div>
-            <p className="text-muted">Analyse des données en cours...</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          {/* --- SOUS-ONGLETS DE RAPPORT PREMIUM --- */}
+          <div className="no-print" style={{ 
+            display: 'flex', 
+            gap: '10px', 
+            borderBottom: '2px solid var(--border-color)', 
+            paddingBottom: '10px',
+            marginBottom: '0.5rem'
+          }}>
+            <button 
+              className={`btn btn-sm ${reportSubTab === 'dashboard' ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ borderRadius: '20px', padding: '6px 16px', fontWeight: 700 }}
+              onClick={() => setReportSubTab('dashboard')}
+            >
+              📊 Tableau de bord global
+            </button>
+            <button 
+              className={`btn btn-sm ${reportSubTab === 'products' ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ borderRadius: '20px', padding: '6px 16px', fontWeight: 700 }}
+              onClick={() => setReportSubTab('products')}
+            >
+              📦 Analyse de Consommation par Produit
+            </button>
           </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }} className="printable-report">
-            {/* --- EN-TETE IMPRESSION UNIQUEMENT --- */}
-            <div className="print-only" style={{ marginBottom: '2rem', borderBottom: '2px solid var(--primary)', paddingBottom: '1rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+
+          {reportSubTab === 'products' ? (
+            <div className="content-card" style={{ padding: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
                 <div>
-                  <h1 style={{ margin: 0, color: 'var(--primary)' }}>RAPPORT D'ACTIVITÉ : ACHATS PARTENAIRES</h1>
-                  <p style={{ margin: '5px 0', fontSize: '1.1rem', fontWeight: 600 }}>Partenaire : {selectedPartner?.name || 'Tous'}</p>
+                  <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>📦 Analyse de Consommation de Pièces par Produit</h3>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                    Suivi comparatif des volumes achetés et consommés sur 2 mois, 3 mois et 6 mois.
+                  </p>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <p style={{ margin: 0, fontWeight: 'bold' }}>{settings?.companyName || 'NS AUTO BF'}</p>
-                  <p style={{ margin: 0, fontSize: '0.9rem' }}>Date du rapport : {new Date().toLocaleDateString('fr-FR')}</p>
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(stats?.partnerTotals?.length || 3, 4)}, 1fr)`, gap: '1.5rem' }}>
-              {stats?.partnerTotals?.map((p, idx) => (
-                hasPermission(user, 'stock', 'view_cost_price') && (
-                  <div key={idx} className="content-card" style={{ padding: '1.5rem', borderLeft: `6px solid ${idx % 2 === 0 ? 'var(--primary)' : 'var(--success)'}` }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '0.5rem' }}>Dépenses {p.partnerName}</div>
-                        <div style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--text-main)' }}>
-                          {formatPrice(p.totalAmount || 0)} <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>FCFA</span>
-                        </div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>{p.orderCount} dossiers enregistrés</div>
-                      </div>
-                      <div style={{ backgroundColor: 'var(--bg-light)', padding: '10px', borderRadius: '12px' }}>
-                        {idx % 2 === 0 ? <ShoppingCart size={24} color="var(--primary)" /> : <Package size={24} color="var(--success)" />}
-                      </div>
-                    </div>
-                  </div>
-                )
-              ))}
-
-              {/* Global Volume */}
-              <div className="content-card" style={{ padding: '1.5rem', borderLeft: '6px solid var(--warning)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '0.5rem' }}>Total Dossiers</div>
-                    <div style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--text-main)' }}>
-                      {stats?.partnerTotals?.reduce((acc, p) => acc + p.orderCount, 0) || 0} <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Actes</span>
-                    </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>Cumul tous partenaires</div>
-                  </div>
-                  <div style={{ backgroundColor: 'var(--bg-light)', padding: '10px', borderRadius: '12px' }}><FileText size={24} color="var(--warning)" /></div>
+                
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <button className="btn btn-secondary" onClick={exportProductReportToExcel}>
+                    <FileSpreadsheet size={18} /> Exporter Excel
+                  </button>
                 </div>
               </div>
-            </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem', marginBottom: '1rem' }}>
-              <button
-                className="btn btn-primary no-print"
-                onClick={() => window.print()}
-                style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '12px' }}
-              >
-                <Printer size={18} /> Exporter Rapport PDF (Réunion)
-              </button>
-            </div>
-
-            {hasPermission(user, 'stock', 'view_cost_price') && (
-              <>
-                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem' }}>
-                  {/* --- ÉVOLUTION MENSUELLE --- */}
-                  <div className="content-card" style={{ padding: '1.5rem' }}>
-                    <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}><Clock size={20} /> Évolution Mensuelle des Commandes (FCFA)</h3>
-                    <div style={{ width: '100%', height: '300px' }}>
-                      <ResponsiveContainer>
-                        <AreaChart data={stats?.monthlyEvolution || []}>
-                          <defs>
-                            <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.1} />
-                              <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                          <XAxis dataKey="month" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-                          <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${(value / 1000000).toFixed(1)}M`} />
-                          <Tooltip
-                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
-                            formatter={(val) => [`${formatPrice(val)} FCFA`, 'Total']}
-                          />
-                          <Area type="monotone" dataKey="totalAmount" stroke="var(--primary)" strokeWidth={3} fillOpacity={1} fill="url(#colorTotal)" isAnimationActive={false} />
-                        </AreaChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
-
-                  {/* --- TOP ARTICLES PAR PARTENAIRE --- */}
-                  <div className="content-card" style={{ padding: '1.5rem' }}>
-                    <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}><ArrowUpRight size={20} /> Top Articles</h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                      {stats?.topArticles?.slice(0, 5).map((art, i) => (
-                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', backgroundColor: 'var(--bg-light)', borderRadius: '8px' }}>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '180px' }}>{art.description}</div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{art.partnerName} • {art.totalQuantity} unités</div>
-                          </div>
-                          <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--primary)', textAlign: 'right' }}>
-                            {formatPrice(art.totalValue)} <span style={{ fontSize: '0.7rem' }}>FCFA</span>
-                          </div>
-                        </div>
-                      ))}
-                      {(!stats?.topArticles || stats.topArticles.length === 0) && (
-                        <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>Aucune donnée disponible</div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginBottom: '2rem' }}>
-                  {/* --- TEMPS DE TRAITEMENT --- */}
-                  <div className="content-card" style={{ padding: '1.5rem' }}>
-                    <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}><Timer size={20} /> Temps Moyen de Traitement (Heures)</h3>
-                    <div style={{ width: '100%', height: '300px' }}>
-                      <ResponsiveContainer>
-                        <BarChart data={stats?.avgProcessingTime || []}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                          <XAxis dataKey="partnerName" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-                          <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
-                          <Tooltip
-                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
-                            formatter={(val) => [`${parseFloat(val).toFixed(1)} h`, 'Temps Moyen']}
-                          />
-                          <Bar dataKey="avgHours" fill="var(--primary)" radius={[4, 4, 0, 0]} barSize={40} isAnimationActive={false} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '1rem', textAlign: 'center' }}>
-                      Durée moyenne entre la création de la demande et la clôture (Statut Terminé).
-                    </p>
-                  </div>
-
-                  {/* --- RÉPARTITION PAR CLIENT --- */}
-                  <div className="content-card" style={{ padding: '1.5rem' }}>
-                    <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}><LucidePieChart size={20} /> Répartition Volume par Client Final</h3>
-                    <div style={{ width: '100%', height: '300px' }}>
-                      <ResponsiveContainer>
-                        <PieChart>
-                          <Pie
-                            data={stats?.clientDistribution || []}
-                            dataKey="totalAmount"
-                            nameKey="clientName"
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={60}
-                            outerRadius={100}
-                            paddingAngle={5}
-                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                            isAnimationActive={false}
-                          >
-                            {(stats?.clientDistribution || []).map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][index % 5]} />
-                            ))}
-                          </Pie>
-                          <Tooltip
-                            formatter={(val) => [`${formatPrice(val)} FCFA`, 'Volume']}
-                          />
-                          <Legend />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* --- RÉCAPITULATIF DÉTAILLÉ (Ancien Rapports) --- */}
-            <div className="content-card">
-              <div className="section-header" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <h3 style={{ margin: 0 }}>Récapitulatif Détaillé des Articles</h3>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '6px' }}>
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 14px', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.25)', borderRadius: '24px' }}>
-                      <CheckCircle2 size={14} style={{ color: 'var(--success)' }} />
-                      <span style={{ fontSize: '0.85rem', color: 'var(--success)', fontWeight: 700 }}>
-                        Liste des articles issus des dossiers clôturés.
-                      </span>
-                    </div>
-                    
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 14px', background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.25)', borderRadius: '24px' }}>
-                      <Info size={14} style={{ color: 'var(--warning)' }} />
-                      <span style={{ fontSize: '0.85rem', color: 'var(--warning)', fontWeight: 700 }}>
-                        NB : Un dossier non clôturé (en cours, en demande) ne fait pas partie de ce rapport.
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <button className="btn btn-secondary" onClick={() => {
-                  if (reportPartnerId === 'all') {
-                    showAlert('info', 'Sélection Requise', 'Veuillez d\'abord choisir un partenaire spécifique dans la barre de filtres ci-dessous pour exporter le rapport détaillé.');
-                  } else {
-                    exportReportToExcel();
-                  }
-                }}>
-                  <Download size={18} /> Exporter Excel
-                </button>
-              </div>
-
-              {/* BARRE DE FILTRES DU RAPPORT */}
-              <div className="filter-bar" style={{
+              {/* FILTRES RAPIDES ET BARRE DE RECHERCHE */}
+              <div style={{
                 display: 'flex',
                 flexWrap: 'wrap',
                 gap: '1rem',
                 padding: '1rem',
                 backgroundColor: 'var(--bg-light)',
-                borderRadius: '8px',
+                borderRadius: '12px',
                 marginBottom: '1.5rem',
                 alignItems: 'center',
                 border: '1px solid var(--border-light)'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>Période du :</span>
-                  <input
-                    type="date"
-                    className="form-control"
-                    style={{ width: 'auto', height: '38px' }}
-                    value={reportStartDate}
-                    onChange={(e) => setReportStartDate(e.target.value)}
-                  />
-                  <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>au</span>
-                  <input
-                    type="date"
-                    className="form-control"
-                    style={{ width: 'auto', height: '38px' }}
-                    value={reportEndDate}
-                    onChange={(e) => setReportEndDate(e.target.value)}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: '200px' }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>Partenaire :</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: '250px' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)' }}>Partenaire :</span>
                   <select
                     className="form-control"
                     style={{ height: '38px' }}
                     value={reportPartnerId}
                     onChange={(e) => setReportPartnerId(e.target.value)}
                   >
-                    <option value="all">Tous les partenaires</option>
+                    <option value="all">🌍 Tous les partenaires</option>
                     {partners.map(p => (
                       <option key={p.id} value={p.id}>{p.name}</option>
                     ))}
                   </select>
                 </div>
 
-                {reportLoading && (
-                  <div style={{ fontSize: '0.85rem', color: 'var(--primary)', fontWeight: 600 }}>
-                    Chargement...
-                  </div>
-                )}
+                <div className="search-box" style={{ position: 'relative', width: '350px' }}>
+                  <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Rechercher par désignation ou référence..."
+                    style={{ paddingLeft: '40px', height: '38px' }}
+                    value={productSearch}
+                    onChange={e => setProductSearch(e.target.value)}
+                  />
+                </div>
               </div>
 
-              <div className="table-wrapper">
-                <table className="table-sm">
-                  <thead>
-                    <tr style={{ backgroundColor: 'var(--bg-light)' }}>
-                      <th style={{ width: '120px' }}>Code</th>
-                      <th>Article / Référence</th>
-                      <th style={{ width: '120px', textAlign: 'right' }}>P.U (HT)</th>
-                      <th style={{ width: '100px', textAlign: 'center' }}>Qté Vendue</th>
-                      <th style={{ width: '150px', textAlign: 'right' }}>Montant Total (HT)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {reportItems.length === 0 ? (
-                      <tr><td colSpan="5" style={{ textAlign: 'center', padding: '2rem' }}>Aucun article trouvé.</td></tr>
-                    ) : (
-                      reportItems.map((item, idx) => (
-                        <tr key={idx}>
-                          <td style={{ fontWeight: 700 }}>{item.refCfao || item.code || '-'}</td>
-                          <td>
-                            <div style={{ fontWeight: 600 }}>{item.description}</div>
-                            {reportPartnerId === 'all' && <div style={{ fontSize: '0.75rem', color: 'var(--primary)' }}>{item.partnerName}</div>}
-                          </td>
-                          <td style={{ textAlign: 'right' }}>{formatPrice(item.unitPrice)}</td>
-                          <td style={{ textAlign: 'center', fontWeight: 700 }}>{item.totalQuantity}</td>
-                          <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatPrice(item.totalHT)}</td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                  {reportItems.length > 0 && (
-                    <tfoot style={{ borderTop: '2px solid var(--primary)', backgroundColor: 'var(--bg-light)' }}>
-                      <tr>
-                        <td colSpan="3" style={{ textAlign: 'right', padding: '12px', fontWeight: 'bold', textTransform: 'uppercase' }}>TOTAL BRUT (HT)</td>
-                        <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{reportItems.reduce((sum, it) => sum + Number(it.totalQuantity), 0)}</td>
-                        <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{formatPrice(reportItems.reduce((sum, it) => sum + Number(it.totalHT || 0), 0))}</td>
+              {productReportsLoading ? (
+                <div style={{ textAlign: 'center', padding: '5rem' }}>
+                  <div className="loader" style={{ margin: '0 auto 1rem' }}></div>
+                  <p className="text-muted">Calcul des statistiques de consommation par produit...</p>
+                </div>
+              ) : (
+                <div className="table-wrapper">
+                  <table className="table-sm">
+                    <thead>
+                      <tr style={{ backgroundColor: 'var(--bg-light)' }}>
+                        <th style={{ width: '120px' }}>Réf CFAO</th>
+                        <th style={{ width: '120px' }}>Code Int.</th>
+                        <th>Désignation de la Pièce</th>
+                        {reportPartnerId === 'all' && <th>Partenaire</th>}
+                        <th style={{ width: '120px', textAlign: 'right' }}>P.U (HT)</th>
+                        <th style={{ width: '110px', textAlign: 'center' }}>Rotation</th>
+                        <th style={{ width: '110px', textAlign: 'center', backgroundColor: 'rgba(59, 130, 246, 0.05)' }}>2 Derniers Mois</th>
+                        <th style={{ width: '110px', textAlign: 'center', backgroundColor: 'rgba(59, 130, 246, 0.05)' }}>3 Derniers Mois</th>
+                        <th style={{ width: '110px', textAlign: 'center', backgroundColor: 'rgba(59, 130, 246, 0.05)' }}>6 Derniers Mois</th>
+                        <th style={{ width: '100px', textAlign: 'center', fontWeight: 'bold' }}>Volume Total</th>
+                        {hasPermission(user, 'stock', 'view_cost_price') && <th style={{ width: '140px', textAlign: 'right' }}>Total HT</th>}
                       </tr>
-                      <tr>
-                        <td colSpan="4" style={{ textAlign: 'right', padding: '8px', fontWeight: 600, color: 'var(--primary)' }}>
-                          MONTANT TVA ({reportItems[0]?.tvaRate || settings?.tvaRate || 18}%)
-                        </td>
-                        <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--primary)' }}>
-                          {formatPrice(reportItems.reduce((sum, it) => sum + Number(it.tvaAmount || 0), 0))}
-                        </td>
-                      </tr>
-                      <tr style={{ backgroundColor: '#eff6ff' }}>
-                        <td colSpan="4" style={{ textAlign: 'right', padding: '12px', fontWeight: '800', fontSize: '1rem' }}>TOTAL NET (TTC)</td>
-                        <td style={{ textAlign: 'right', fontWeight: '900', fontSize: '1.1rem', color: 'var(--text-main)' }}>
-                          {formatPrice(reportItems.reduce((sum, it) => sum + Number(it.totalTTC || 0), 0))} FCFA
-                        </td>
-                      </tr>
-                    </tfoot>
+                    </thead>
+                    <tbody>
+                      {productReports
+                        .filter(item => 
+                          item.description?.toLowerCase().includes(productSearch.toLowerCase()) ||
+                          item.code?.toLowerCase().includes(productSearch.toLowerCase()) ||
+                          item.refCfao?.toLowerCase().includes(productSearch.toLowerCase())
+                        )
+                        .length === 0 ? (
+                          <tr><td colSpan={reportPartnerId === 'all' ? 11 : 10} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>Aucun produit trouvé.</td></tr>
+                        ) : (
+                          productReports
+                            .filter(item => 
+                              item.description?.toLowerCase().includes(productSearch.toLowerCase()) ||
+                              item.code?.toLowerCase().includes(productSearch.toLowerCase()) ||
+                              item.refCfao?.toLowerCase().includes(productSearch.toLowerCase())
+                            )
+                            .map((item, idx) => (
+                              <tr key={idx} style={{ transition: 'all 0.2s' }}>
+                                <td style={{ fontWeight: 800, color: 'var(--primary)' }}>{item.refCfao || '-'}</td>
+                                <td style={{ fontWeight: 700 }}>{item.code || '-'}</td>
+                                <td style={{ fontWeight: 600 }}>{item.description}</td>
+                                {reportPartnerId === 'all' && <td style={{ fontWeight: 700, color: 'var(--text-muted)' }}>{item.partnerName}</td>}
+                                <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatPrice(item.unitPrice)}</td>
+                                <td style={{ textAlign: 'center' }}>
+                                  <span style={{
+                                    display: 'inline-block',
+                                    padding: '4px 10px',
+                                    borderRadius: '12px',
+                                    fontSize: '0.75rem',
+                                    fontWeight: 700,
+                                    backgroundColor: item.rotation === 'Forte' ? 'rgba(16, 185, 129, 0.1)' : item.rotation === 'Moyenne' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(59, 130, 246, 0.1)',
+                                    color: item.rotation === 'Forte' ? '#10b981' : item.rotation === 'Moyenne' ? '#f59e0b' : '#3b82f6',
+                                    border: `1px solid ${item.rotation === 'Forte' ? 'rgba(16, 185, 129, 0.2)' : item.rotation === 'Moyenne' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(59, 130, 246, 0.2)'}`
+                                  }}>
+                                    {item.rotation}
+                                  </span>
+                                </td>
+                                <td style={{ textAlign: 'center', fontWeight: 700, backgroundColor: 'rgba(59, 130, 246, 0.02)' }}>{item.qty2Months}</td>
+                                <td style={{ textAlign: 'center', fontWeight: 700, backgroundColor: 'rgba(59, 130, 246, 0.02)' }}>{item.qty3Months}</td>
+                                <td style={{ textAlign: 'center', fontWeight: 700, backgroundColor: 'rgba(59, 130, 246, 0.02)' }}>{item.qty6Months}</td>
+                                <td style={{ textAlign: 'center', fontWeight: 800, color: 'var(--text-main)' }}>{item.totalQuantity}</td>
+                                {hasPermission(user, 'stock', 'view_cost_price') && (
+                                  <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--text-main)' }}>{formatPrice(item.totalHT)}</td>
+                                )}
+                              </tr>
+                            ))
+                        )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ) : statsLoading ? (
+            <div className="content-card" style={{ textAlign: 'center', padding: '5rem' }}>
+              <div className="loader" style={{ margin: '0 auto 1rem' }}></div>
+              <p className="text-muted">Analyse des données en cours...</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }} className="printable-report">
+              {/* --- EN-TETE IMPRESSION UNIQUEMENT --- */}
+              <div className="print-only" style={{ marginBottom: '2rem', borderBottom: '2px solid var(--primary)', paddingBottom: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <h1 style={{ margin: 0, color: 'var(--primary)' }}>RAPPORT D'ACTIVITÉ : ACHATS PARTENAIRES</h1>
+                    <p style={{ margin: '5px 0', fontSize: '1.1rem', fontWeight: 600 }}>Partenaire : {selectedPartner?.name || 'Tous'}</p>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <p style={{ margin: 0, fontWeight: 'bold' }}>{settings?.companyName || 'NS AUTO BF'}</p>
+                    <p style={{ margin: 0, fontSize: '0.9rem' }}>Date du rapport : {new Date().toLocaleDateString('fr-FR')}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.min(stats?.partnerTotals?.length || 3, 4)}, 1fr)`, gap: '1.5rem' }}>
+                {stats?.partnerTotals?.map((p, idx) => (
+                  hasPermission(user, 'stock', 'view_cost_price') && (
+                    <div key={idx} className="content-card" style={{ padding: '1.5rem', borderLeft: `6px solid ${idx % 2 === 0 ? 'var(--primary)' : 'var(--success)'}` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '0.5rem' }}>Dépenses {p.partnerName}</div>
+                          <div style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--text-main)' }}>
+                            {formatPrice(p.totalAmount || 0)} <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>FCFA</span>
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>{p.orderCount} dossiers enregistrés</div>
+                        </div>
+                        <div style={{ backgroundColor: 'var(--bg-light)', padding: '10px', borderRadius: '12px' }}>
+                          {idx % 2 === 0 ? <ShoppingCart size={24} color="var(--primary)" /> : <Package size={24} color="var(--success)" />}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                ))}
+
+                {/* Global Volume */}
+                <div className="content-card" style={{ padding: '1.5rem', borderLeft: '6px solid var(--warning)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '0.5rem' }}>Total Dossiers</div>
+                      <div style={{ fontSize: '1.8rem', fontWeight: 900, color: 'var(--text-main)' }}>
+                        {stats?.partnerTotals?.reduce((acc, p) => acc + p.orderCount, 0) || 0} <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>Actes</span>
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>Cumul tous partenaires</div>
+                    </div>
+                    <div style={{ backgroundColor: 'var(--bg-light)', padding: '10px', borderRadius: '12px' }}><FileText size={24} color="var(--warning)" /></div>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem', marginBottom: '1rem' }}>
+                <button
+                  className="btn btn-primary no-print"
+                  onClick={() => window.print()}
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', borderRadius: '12px' }}
+                >
+                  <Printer size={18} /> Exporter Rapport PDF (Réunion)
+                </button>
+              </div>
+
+              {hasPermission(user, 'stock', 'view_cost_price') && (
+                <>
+                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem' }}>
+                    {/* --- ÉVOLUTION MENSUELLE --- */}
+                    <div className="content-card" style={{ padding: '1.5rem' }}>
+                      <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}><Clock size={20} /> Évolution Mensuelle des Commandes (FCFA)</h3>
+                      <div style={{ width: '100%', height: '300px' }}>
+                        <ResponsiveContainer>
+                          <AreaChart data={stats?.monthlyEvolution || []}>
+                            <defs>
+                              <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.1} />
+                                <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                            <XAxis dataKey="month" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
+                            <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${(value / 1000000).toFixed(1)}M`} />
+                            <Tooltip
+                              contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                              formatter={(val) => [`${formatPrice(val)} FCFA`, 'Total']}
+                            />
+                            <Area type="monotone" dataKey="totalAmount" stroke="var(--primary)" strokeWidth={3} fillOpacity={1} fill="url(#colorTotal)" isAnimationActive={false} />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+
+                    {/* --- TOP ARTICLES PAR PARTENAIRE --- */}
+                    <div className="content-card" style={{ padding: '1.5rem' }}>
+                      <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}><ArrowUpRight size={20} /> Top Articles</h3>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        {stats?.topArticles?.slice(0, 5).map((art, i) => (
+                          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', backgroundColor: 'var(--bg-light)', borderRadius: '8px' }}>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-main)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '180px' }}>{art.description}</div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{art.partnerName} • {art.totalQuantity} unités</div>
+                            </div>
+                            <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--primary)', textAlign: 'right' }}>
+                              {formatPrice(art.totalValue)} <span style={{ fontSize: '0.7rem' }}>FCFA</span>
+                            </div>
+                          </div>
+                        ))}
+                        {(!stats?.topArticles || stats.topArticles.length === 0) && (
+                          <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>Aucune donnée disponible</div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginBottom: '2rem' }}>
+                    {/* --- TEMPS DE TRAITEMENT --- */}
+                    <div className="content-card" style={{ padding: '1.5rem' }}>
+                      <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}><Timer size={20} /> Temps Moyen de Traitement (Heures)</h3>
+                      <div style={{ width: '100%', height: '300px' }}>
+                        <ResponsiveContainer>
+                          <BarChart data={stats?.avgProcessingTime || []}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                            <XAxis dataKey="partnerName" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
+                            <YAxis stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
+                            <Tooltip
+                              contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                              formatter={(val) => [`${parseFloat(val).toFixed(1)} h`, 'Temps Moyen']}
+                            />
+                            <Bar dataKey="avgHours" fill="var(--primary)" radius={[4, 4, 0, 0]} barSize={40} isAnimationActive={false} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '1rem', textAlign: 'center' }}>
+                        Durée moyenne entre la création de la demande et la clôture (Statut Terminé).
+                      </p>
+                    </div>
+
+                    {/* --- RÉPARTITION PAR CLIENT --- */}
+                    <div className="content-card" style={{ padding: '1.5rem' }}>
+                      <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}><LucidePieChart size={20} /> Répartition Volume par Client Final</h3>
+                      <div style={{ width: '100%', height: '300px' }}>
+                        <ResponsiveContainer>
+                          <PieChart>
+                            <Pie
+                              data={stats?.clientDistribution || []}
+                              dataKey="totalAmount"
+                              nameKey="clientName"
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={60}
+                              outerRadius={100}
+                              paddingAngle={5}
+                              label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                              isAnimationActive={false}
+                            >
+                              {(stats?.clientDistribution || []).map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'][index % 5]} />
+                              ))}
+                            </Pie>
+                            <Tooltip
+                              formatter={(val) => [`${formatPrice(val)} FCFA`, 'Volume']}
+                            />
+                            <Legend />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* --- RÉCAPITULATIF DÉTAILLÉ (Ancien Rapports) --- */}
+              <div className="content-card">
+                <div className="section-header" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <h3 style={{ margin: 0 }}>Récapitulatif Détaillé des Articles</h3>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '6px' }}>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 14px', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.25)', borderRadius: '24px' }}>
+                        <CheckCircle2 size={14} style={{ color: 'var(--success)' }} />
+                        <span style={{ fontSize: '0.85rem', color: 'var(--success)', fontWeight: 700 }}>
+                          Liste des articles issus des dossiers clôturés.
+                        </span>
+                      </div>
+                      
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 14px', background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.25)', borderRadius: '24px' }}>
+                        <Info size={14} style={{ color: 'var(--warning)' }} />
+                        <span style={{ fontSize: '0.85rem', color: 'var(--warning)', fontWeight: 700 }}>
+                          NB : Un dossier non clôturé (en cours, en demande) ne fait pas partie de ce rapport.
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <button className="btn btn-secondary" onClick={() => {
+                    if (reportPartnerId === 'all') {
+                      showAlert('info', 'Sélection Requise', 'Veuillez d\'abord choisir un partenaire spécifique dans la barre de filtres ci-dessous pour exporter le rapport détaillé.');
+                    } else {
+                      exportReportToExcel();
+                    }
+                  }}>
+                    <Download size={18} /> Exporter Excel
+                  </button>
+                </div>
+
+                {/* BARRE DE FILTRES DU RAPPORT */}
+                <div className="filter-bar" style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '1rem',
+                  padding: '1rem',
+                  backgroundColor: 'var(--bg-light)',
+                  borderRadius: '8px',
+                  marginBottom: '1.5rem',
+                  alignItems: 'center',
+                  border: '1px solid var(--border-light)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>Période du :</span>
+                    <input
+                      type="date"
+                      className="form-control"
+                      style={{ width: 'auto', height: '38px' }}
+                      value={reportStartDate}
+                      onChange={(e) => setReportStartDate(e.target.value)}
+                    />
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>au</span>
+                    <input
+                      type="date"
+                      className="form-control"
+                      style={{ width: 'auto', height: '38px' }}
+                      value={reportEndDate}
+                      onChange={(e) => setReportEndDate(e.target.value)}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: '200px' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>Partenaire :</span>
+                    <select
+                      className="form-control"
+                      style={{ height: '38px' }}
+                      value={reportPartnerId}
+                      onChange={(e) => setReportPartnerId(e.target.value)}
+                    >
+                      <option value="all">Tous les partenaires</option>
+                      {partners.map(p => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {reportLoading && (
+                    <div style={{ fontSize: '0.85rem', color: 'var(--primary)', fontWeight: 600 }}>
+                      Chargement...
+                    </div>
                   )}
-                </table>
+                </div>
+
+                <div className="table-wrapper">
+                  <table className="table-sm">
+                    <thead>
+                      <tr style={{ backgroundColor: 'var(--bg-light)' }}>
+                        <th style={{ width: '120px' }}>Code</th>
+                        <th>Article / Référence</th>
+                        <th style={{ width: '120px', textAlign: 'right' }}>P.U (HT)</th>
+                        <th style={{ width: '100px', textAlign: 'center' }}>Qté Vendue</th>
+                        <th style={{ width: '150px', textAlign: 'right' }}>Montant Total (HT)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reportItems.length === 0 ? (
+                        <tr><td colSpan="5" style={{ textAlign: 'center', padding: '2rem' }}>Aucun article trouvé.</td></tr>
+                      ) : (
+                        reportItems.map((item, idx) => (
+                          <tr key={idx}>
+                            <td style={{ fontWeight: 700 }}>{item.refCfao || item.code || '-'}</td>
+                            <td>
+                              <div style={{ fontWeight: 600 }}>{item.description}</div>
+                              {reportPartnerId === 'all' && <div style={{ fontSize: '0.75rem', color: 'var(--primary)' }}>{item.partnerName}</div>}
+                            </td>
+                            <td style={{ textAlign: 'right' }}>{formatPrice(item.unitPrice)}</td>
+                            <td style={{ textAlign: 'center', fontWeight: 700 }}>{item.totalQuantity}</td>
+                            <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatPrice(item.totalHT)}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                    {reportItems.length > 0 && (
+                      <tfoot style={{ borderTop: '2px solid var(--primary)', backgroundColor: 'var(--bg-light)' }}>
+                        <tr>
+                          <td colSpan="3" style={{ textAlign: 'right', padding: '12px', fontWeight: 'bold', textTransform: 'uppercase' }}>TOTAL BRUT (HT)</td>
+                          <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{reportItems.reduce((sum, it) => sum + Number(it.totalQuantity), 0)}</td>
+                          <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{formatPrice(reportItems.reduce((sum, it) => sum + Number(it.totalHT || 0), 0))}</td>
+                        </tr>
+                        <tr>
+                          <td colSpan="4" style={{ textAlign: 'right', padding: '8px', fontWeight: 600, color: 'var(--primary)' }}>
+                            MONTANT TVA ({reportItems[0]?.tvaRate || settings?.tvaRate || 18}%)
+                          </td>
+                          <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--primary)' }}>
+                            {formatPrice(reportItems.reduce((sum, it) => sum + Number(it.tvaAmount || 0), 0))}
+                          </td>
+                        </tr>
+                        <tr style={{ backgroundColor: '#eff6ff' }}>
+                          <td colSpan="4" style={{ textAlign: 'right', padding: '12px', fontWeight: '800', fontSize: '1rem' }}>TOTAL NET (TTC)</td>
+                          <td style={{ textAlign: 'right', fontWeight: '900', fontSize: '1.1rem', color: 'var(--text-main)' }}>
+                            {formatPrice(reportItems.reduce((sum, it) => sum + Number(it.totalTTC || 0), 0))} FCFA
+                          </td>
+                        </tr>
+                      </tfoot>
+                    )}
+                  </table>
+                </div>
               </div>
             </div>
-          </div>
-        )
+          )}
+        </div>
       ) : activeTab === 'planning' ? (
         <div className="content-card" style={{ padding: '2rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
