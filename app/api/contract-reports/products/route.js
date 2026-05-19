@@ -21,31 +21,36 @@ export async function GET(request) {
 
     let query = `
       SELECT 
-        coi.code,
-        coi.refCfao,
-        coi.description,
-        coi.purchasePrice as unitPrice,
-        SUM(coi.quantity) as totalQuantity,
-        SUM(coi.quantity * coi.purchasePrice) as totalHT,
-        SUM(CASE WHEN co.createdAt >= NOW() - INTERVAL 2 MONTH THEN coi.quantity ELSE 0 END) as qty2Months,
-        SUM(CASE WHEN co.createdAt >= NOW() - INTERVAL 3 MONTH THEN coi.quantity ELSE 0 END) as qty3Months,
-        SUM(CASE WHEN co.createdAt >= NOW() - INTERVAL 6 MONTH THEN coi.quantity ELSE 0 END) as qty6Months,
+        cc.code,
+        cc.refCfao,
+        cc.name as description,
+        cc.purchasePrice as unitPrice,
+        COALESCE(SUM(coi.quantity), 0) as totalQuantity,
+        COALESCE(SUM(coi.quantity * coi.purchasePrice), 0) as totalHT,
+        COALESCE(SUM(CASE WHEN co.createdAt >= NOW() - INTERVAL 2 MONTH THEN coi.quantity ELSE 0 END), 0) as qty2Months,
+        COALESCE(SUM(CASE WHEN co.createdAt >= NOW() - INTERVAL 3 MONTH THEN coi.quantity ELSE 0 END), 0) as qty3Months,
+        COALESCE(SUM(CASE WHEN co.createdAt >= NOW() - INTERVAL 6 MONTH THEN coi.quantity ELSE 0 END), 0) as qty6Months,
         p.name as partnerName
-      FROM contract_order_items coi
-      JOIN contract_orders co ON coi.orderId = co.id
-      LEFT JOIN contract_partners p ON co.partner_id = p.id
-      WHERE co.status = 'termine'
+      FROM contract_catalog cc
+      LEFT JOIN contract_partners p ON cc.partner_id = p.id
+      LEFT JOIN contract_order_items coi ON (
+        (cc.code IS NOT NULL AND cc.code != '' AND coi.code = cc.code) 
+        OR 
+        (cc.refCfao IS NOT NULL AND cc.refCfao != '' AND coi.refCfao = cc.refCfao)
+      )
+      LEFT JOIN contract_orders co ON (coi.orderId = co.id AND co.status = 'termine')
+      WHERE 1=1
     `;
     const params = [];
 
     if (partnerId && partnerId !== 'all') {
-      query += ` AND co.partner_id = ? `;
+      query += ` AND cc.partner_id = ? `;
       params.push(partnerId);
     }
 
-    // Regrouper par description, référence et prix unitaire
-    query += ` GROUP BY coi.description, coi.refCfao, coi.code, coi.purchasePrice, p.name`;
-    query += ` ORDER BY totalQuantity DESC`; // Trier par quantité totale vendue par défaut
+    // Regrouper par catalogue
+    query += ` GROUP BY cc.id, cc.code, cc.refCfao, cc.name, cc.purchasePrice, p.name`;
+    query += ` ORDER BY totalQuantity DESC, cc.name ASC`;
 
     const [rows] = await db.query(query, params);
     
@@ -55,15 +60,18 @@ export async function GET(request) {
       const tva = ht * (globalTvaRate / 100);
       const totalQuantity = Number(item.totalQuantity);
       
-      // Déterminer la rotation (forte, moyenne, faible)
-      let rotation = 'Faible';
-      let rotationColor = 'var(--info)'; // bleu
+      // Déterminer la rotation (forte, moyenne, faible, aucune)
+      let rotation = 'Aucune';
+      let rotationColor = '#94a3b8'; // gris neutre pour les produits hors-consommation
       if (totalQuantity >= 50) {
         rotation = 'Forte';
         rotationColor = 'var(--success)'; // vert
       } else if (totalQuantity >= 15) {
         rotation = 'Moyenne';
         rotationColor = 'var(--warning)'; // jaune
+      } else if (totalQuantity > 0) {
+        rotation = 'Faible';
+        rotationColor = 'var(--info)'; // bleu
       }
 
       return {
