@@ -30,7 +30,8 @@ export async function GET(request) {
         COALESCE(stats.totalHT, 0) as totalHT,
         COALESCE(stats.qty2Months, 0) as qty2Months,
         COALESCE(stats.qty3Months, 0) as qty3Months,
-        COALESCE(stats.qty6Months, 0) as qty6Months
+        COALESCE(stats.qty6Months, 0) as qty6Months,
+        COALESCE(stats.qty12Months, 0) as qty12Months
       FROM (
         -- 1. Regroupement du catalogue par référence unique
         SELECT 
@@ -53,7 +54,8 @@ export async function GET(request) {
           SUM(coi.quantity * coi.purchasePrice) as totalHT,
           SUM(CASE WHEN co.createdAt >= NOW() - INTERVAL 2 MONTH THEN coi.quantity ELSE 0 END) as qty2Months,
           SUM(CASE WHEN co.createdAt >= NOW() - INTERVAL 3 MONTH THEN coi.quantity ELSE 0 END) as qty3Months,
-          SUM(CASE WHEN co.createdAt >= NOW() - INTERVAL 6 MONTH THEN coi.quantity ELSE 0 END) as qty6Months
+          SUM(CASE WHEN co.createdAt >= NOW() - INTERVAL 6 MONTH THEN coi.quantity ELSE 0 END) as qty6Months,
+          SUM(CASE WHEN co.createdAt >= NOW() - INTERVAL 12 MONTH THEN coi.quantity ELSE 0 END) as qty12Months
         FROM contract_order_items coi
         JOIN contract_orders co ON (coi.orderId = co.id AND co.status = 'termine')
         GROUP BY COALESCE(NULLIF(coi.refCfao, ''), coi.code)
@@ -104,6 +106,7 @@ export async function GET(request) {
         qty2Months: Number(item.qty2Months),
         qty3Months: Number(item.qty3Months),
         qty6Months: Number(item.qty6Months),
+        qty12Months: Number(item.qty12Months),
         rotation,
         rotationColor,
         partnerName: item.partnerName || ''

@@ -242,6 +242,7 @@ export default function ContractGatewayPage() {
       'Consommation 2 derniers mois (Qté)': item.qty2Months,
       'Consommation 3 derniers mois (Qté)': item.qty3Months,
       'Consommation 6 derniers mois (Qté)': item.qty6Months,
+      'Consommation 12 derniers mois (Qté)': item.qty12Months,
       'Rotation': item.rotation,
       'Montant Total HT (FCFA)': item.totalHT,
       'Montant Total TTC (FCFA)': item.totalTTC,
@@ -2534,13 +2535,14 @@ export default function ContractGatewayPage() {
                         <th style={{ width: '110px', textAlign: 'center', backgroundColor: 'rgba(59, 130, 246, 0.05)' }}>2 Derniers Mois</th>
                         <th style={{ width: '110px', textAlign: 'center', backgroundColor: 'rgba(59, 130, 246, 0.05)' }}>3 Derniers Mois</th>
                         <th style={{ width: '110px', textAlign: 'center', backgroundColor: 'rgba(59, 130, 246, 0.05)' }}>6 Derniers Mois</th>
+                        <th style={{ width: '110px', textAlign: 'center', backgroundColor: 'rgba(59, 130, 246, 0.05)' }}>12 Derniers Mois</th>
                         <th style={{ width: '100px', textAlign: 'center', fontWeight: 'bold' }}>Volume Total</th>
                         {hasPermission(user, 'stock', 'view_cost_price') && <th style={{ width: '140px', textAlign: 'right' }}>Total HT</th>}
                       </tr>
                     </thead>
                     <tbody>
                       {filteredProducts.length === 0 ? (
-                          <tr><td colSpan={reportPartnerId === 'all' ? 11 : 10} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>Aucun produit trouvé.</td></tr>
+                          <tr><td colSpan={reportPartnerId === 'all' ? 12 : 11} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>Aucun produit trouvé.</td></tr>
                         ) : (
                           paginatedProducts.map((item, idx) => (
                             <tr key={idx} style={{ transition: 'all 0.2s' }}>
@@ -2566,6 +2568,7 @@ export default function ContractGatewayPage() {
                               <td style={{ textAlign: 'center', fontWeight: 700, backgroundColor: 'rgba(59, 130, 246, 0.02)' }}>{item.qty2Months}</td>
                               <td style={{ textAlign: 'center', fontWeight: 700, backgroundColor: 'rgba(59, 130, 246, 0.02)' }}>{item.qty3Months}</td>
                               <td style={{ textAlign: 'center', fontWeight: 700, backgroundColor: 'rgba(59, 130, 246, 0.02)' }}>{item.qty6Months}</td>
+                              <td style={{ textAlign: 'center', fontWeight: 700, backgroundColor: 'rgba(59, 130, 246, 0.02)' }}>{item.qty12Months}</td>
                               <td style={{ textAlign: 'center', fontWeight: 800, color: 'var(--text-main)' }}>{item.totalQuantity}</td>
                               {hasPermission(user, 'stock', 'view_cost_price') && (
                                 <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--text-main)' }}>{formatPrice(item.totalHT)}</td>
