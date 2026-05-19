@@ -138,6 +138,11 @@ export default function ContractGatewayPage() {
   const [productReports, setProductReports] = useState([]);
   const [productReportsLoading, setProductReportsLoading] = useState(false);
   const [productSearch, setProductSearch] = useState('');
+  const [productPage, setProductPage] = useState(1);
+
+  useEffect(() => {
+    setProductPage(1);
+  }, [productSearch, reportPartnerId]);
 
   const closeAlert = () => setAlertModal(prev => ({ ...prev, open: false, onConfirm: null }));
   const showAlert = (type, title, message) => setAlertModal({ open: true, type, title, message, onConfirm: null });
@@ -1847,6 +1852,18 @@ export default function ContractGatewayPage() {
 
   if (loading) return <div className="page">Chargement...</div>;
 
+  const filteredProducts = productReports.filter(item => 
+    item.description?.toLowerCase().includes(productSearch.toLowerCase()) ||
+    item.code?.toLowerCase().includes(productSearch.toLowerCase()) ||
+    item.refCfao?.toLowerCase().includes(productSearch.toLowerCase())
+  );
+  const productItemsPerPage = 20;
+  const totalProductPages = Math.ceil(filteredProducts.length / productItemsPerPage) || 1;
+  const paginatedProducts = filteredProducts.slice(
+    (productPage - 1) * productItemsPerPage,
+    productPage * productItemsPerPage
+  );
+
   return (
     <div className="page">
       <style>{blinkingStyle}</style>
@@ -2521,55 +2538,118 @@ export default function ContractGatewayPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {productReports
-                        .filter(item => 
-                          item.description?.toLowerCase().includes(productSearch.toLowerCase()) ||
-                          item.code?.toLowerCase().includes(productSearch.toLowerCase()) ||
-                          item.refCfao?.toLowerCase().includes(productSearch.toLowerCase())
-                        )
-                        .length === 0 ? (
+                      {filteredProducts.length === 0 ? (
                           <tr><td colSpan={reportPartnerId === 'all' ? 11 : 10} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>Aucun produit trouvé.</td></tr>
                         ) : (
-                          productReports
-                            .filter(item => 
-                              item.description?.toLowerCase().includes(productSearch.toLowerCase()) ||
-                              item.code?.toLowerCase().includes(productSearch.toLowerCase()) ||
-                              item.refCfao?.toLowerCase().includes(productSearch.toLowerCase())
-                            )
-                            .map((item, idx) => (
-                              <tr key={idx} style={{ transition: 'all 0.2s' }}>
-                                <td style={{ fontWeight: 800, color: 'var(--primary)' }}>{item.refCfao || '-'}</td>
-                                <td style={{ fontWeight: 700 }}>{item.code || '-'}</td>
-                                <td style={{ fontWeight: 600 }}>{item.description}</td>
-                                {reportPartnerId === 'all' && <td style={{ fontWeight: 700, color: 'var(--text-muted)' }}>{item.partnerName}</td>}
-                                <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatPrice(item.unitPrice)}</td>
-                                <td style={{ textAlign: 'center' }}>
-                                  <span style={{
-                                    display: 'inline-block',
-                                    padding: '4px 10px',
-                                    borderRadius: '12px',
-                                    fontSize: '0.75rem',
-                                    fontWeight: 700,
-                                    backgroundColor: item.rotation === 'Forte' ? 'rgba(16, 185, 129, 0.1)' : item.rotation === 'Moyenne' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(59, 130, 246, 0.1)',
-                                    color: item.rotation === 'Forte' ? '#10b981' : item.rotation === 'Moyenne' ? '#f59e0b' : '#3b82f6',
-                                    border: `1px solid ${item.rotation === 'Forte' ? 'rgba(16, 185, 129, 0.2)' : item.rotation === 'Moyenne' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(59, 130, 246, 0.2)'}`
-                                  }}>
-                                    {item.rotation}
-                                  </span>
-                                </td>
-                                <td style={{ textAlign: 'center', fontWeight: 700, backgroundColor: 'rgba(59, 130, 246, 0.02)' }}>{item.qty2Months}</td>
-                                <td style={{ textAlign: 'center', fontWeight: 700, backgroundColor: 'rgba(59, 130, 246, 0.02)' }}>{item.qty3Months}</td>
-                                <td style={{ textAlign: 'center', fontWeight: 700, backgroundColor: 'rgba(59, 130, 246, 0.02)' }}>{item.qty6Months}</td>
-                                <td style={{ textAlign: 'center', fontWeight: 800, color: 'var(--text-main)' }}>{item.totalQuantity}</td>
-                                {hasPermission(user, 'stock', 'view_cost_price') && (
-                                  <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--text-main)' }}>{formatPrice(item.totalHT)}</td>
-                                )}
-                              </tr>
-                            ))
+                          paginatedProducts.map((item, idx) => (
+                            <tr key={idx} style={{ transition: 'all 0.2s' }}>
+                              <td style={{ fontWeight: 800, color: 'var(--primary)' }}>{item.refCfao || '-'}</td>
+                              <td style={{ fontWeight: 700 }}>{item.code || '-'}</td>
+                              <td style={{ fontWeight: 600 }}>{item.description}</td>
+                              {reportPartnerId === 'all' && <td style={{ fontWeight: 700, color: 'var(--text-muted)' }}>{item.partnerName}</td>}
+                              <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatPrice(item.unitPrice)}</td>
+                              <td style={{ textAlign: 'center' }}>
+                                <span style={{
+                                  display: 'inline-block',
+                                  padding: '4px 10px',
+                                  borderRadius: '12px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 700,
+                                  backgroundColor: item.rotation === 'Forte' ? 'rgba(16, 185, 129, 0.1)' : item.rotation === 'Moyenne' ? 'rgba(245, 158, 11, 0.1)' : item.rotation === 'Faible' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(148, 163, 184, 0.1)',
+                                  color: item.rotation === 'Forte' ? '#10b981' : item.rotation === 'Moyenne' ? '#f59e0b' : item.rotation === 'Faible' ? '#3b82f6' : '#64748b',
+                                  border: `1px solid ${item.rotation === 'Forte' ? 'rgba(16, 185, 129, 0.2)' : item.rotation === 'Moyenne' ? 'rgba(245, 158, 11, 0.2)' : item.rotation === 'Faible' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(148, 163, 184, 0.2)'}`
+                                }}>
+                                  {item.rotation}
+                                </span>
+                              </td>
+                              <td style={{ textAlign: 'center', fontWeight: 700, backgroundColor: 'rgba(59, 130, 246, 0.02)' }}>{item.qty2Months}</td>
+                              <td style={{ textAlign: 'center', fontWeight: 700, backgroundColor: 'rgba(59, 130, 246, 0.02)' }}>{item.qty3Months}</td>
+                              <td style={{ textAlign: 'center', fontWeight: 700, backgroundColor: 'rgba(59, 130, 246, 0.02)' }}>{item.qty6Months}</td>
+                              <td style={{ textAlign: 'center', fontWeight: 800, color: 'var(--text-main)' }}>{item.totalQuantity}</td>
+                              {hasPermission(user, 'stock', 'view_cost_price') && (
+                                <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--text-main)' }}>{formatPrice(item.totalHT)}</td>
+                              )}
+                            </tr>
+                          ))
                         )}
                     </tbody>
                   </table>
                 </div>
+
+                {totalProductPages > 1 && (
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginTop: '1.5rem',
+                    padding: '1rem',
+                    backgroundColor: 'var(--bg-light)',
+                    borderRadius: '12px',
+                    border: '1px solid var(--border-light)',
+                    flexWrap: 'wrap',
+                    gap: '1rem'
+                  }}>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                      Affichage de <span style={{ color: 'var(--text-main)', fontWeight: 700 }}>{((productPage - 1) * productItemsPerPage) + 1}</span> à{' '}
+                      <span style={{ color: 'var(--text-main)', fontWeight: 700 }}>
+                        {Math.min(productPage * productItemsPerPage, filteredProducts.length)}
+                      </span>{' '}
+                      sur <span style={{ color: 'var(--text-main)', fontWeight: 700 }}>{filteredProducts.length}</span> articles
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        style={{ borderRadius: '8px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}
+                        disabled={productPage === 1}
+                        onClick={() => setProductPage(prev => Math.max(prev - 1, 1))}
+                      >
+                        ◀ Précédent
+                      </button>
+
+                      <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                        {[...Array(totalProductPages)].map((_, i) => {
+                          const pageNum = i + 1;
+                          if (pageNum === 1 || pageNum === totalProductPages || Math.abs(pageNum - productPage) <= 1) {
+                            return (
+                              <button
+                                key={pageNum}
+                                className={`btn btn-sm ${productPage === pageNum ? 'btn-primary' : 'btn-secondary'}`}
+                                style={{
+                                  borderRadius: '8px',
+                                  width: '36px',
+                                  height: '36px',
+                                  padding: 0,
+                                  fontWeight: 700,
+                                  boxShadow: productPage === pageNum ? '0 4px 10px rgba(59, 130, 246, 0.3)' : 'none'
+                                }}
+                                onClick={() => setProductPage(pageNum)}
+                              >
+                                {pageNum}
+                              </button>
+                            );
+                          }
+                          if (pageNum === 2 && productPage > 3) {
+                            return <span key="ellipsis-start" style={{ color: 'var(--text-muted)', padding: '0 4px' }}>...</span>;
+                          }
+                          if (pageNum === totalProductPages - 1 && productPage < totalProductPages - 2) {
+                            return <span key="ellipsis-end" style={{ color: 'var(--text-muted)', padding: '0 4px' }}>...</span>;
+                          }
+                          return null;
+                        })}
+                      </div>
+
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        style={{ borderRadius: '8px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}
+                        disabled={productPage === totalProductPages}
+                        onClick={() => setProductPage(prev => Math.min(prev + 1, totalProductPages))}
+                      >
+                        Suivant ▶
+                      </button>
+                    </div>
+                  </div>
+                )}
               )}
             </div>
           ) : statsLoading ? (
