@@ -1312,6 +1312,7 @@ export default function ContractGatewayPage() {
         {/* CSS FORCÉ POUR L'IMPRESSION */}
         <style dangerouslySetInnerHTML={{
           __html: `
+          @page { margin: 0 !important; }
           @media print {
             .receipt-print-only { 
               width: 21cm !important; 
@@ -1319,6 +1320,7 @@ export default function ContractGatewayPage() {
               padding: 0 !important; 
               margin: 0 !important; 
               position: relative !important;
+              top: -60px !important;
             }
             .receipt-print-only table { border-collapse: collapse !important; width: 100% !important; }
             .receipt-print-only th, .receipt-print-only td { border: 1.5pt solid black !important; -webkit-print-color-adjust: exact !important; }
@@ -1343,17 +1345,17 @@ export default function ContractGatewayPage() {
           }
         `}} />
 
-        <div style={{ padding: '20px 40px' }}>
+        <div style={{ padding: '0px 40px 20px 40px' }}>
           {/* Header Rebrand - Perfect Alignment */}
-          <div style={{ display: 'flex', alignItems: 'flex-end', marginBottom: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', marginBottom: '32px' }}>
             {settings?.logo && (
               <img
                 src={settings?.logo}
                 alt="Logo"
-                style={{ maxHeight: '100px', marginRight: '2px' }}
+                style={{ maxHeight: '120px', marginRight: '2px', position: 'relative', top: '34px' }}
               />
             )}
-            <div style={{ flex: 1, height: '2.5pt', backgroundColor: '#b91c1c', marginBottom: '11px', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}></div>
+            <div style={{ flex: 1, height: '2.5pt', backgroundColor: '#b91c1c', marginBottom: '13px', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}></div>
           </div>
 
           <div style={{ border: '1.5pt solid #000', padding: '10px', textAlign: 'center', marginBottom: '15px', backgroundColor: '#f3f4f6' }}>
@@ -1613,8 +1615,9 @@ export default function ContractGatewayPage() {
       }}>
         <style dangerouslySetInnerHTML={{
           __html: `
+          @page { margin: 0 !important; }
           @media print {
-            .receipt-print-only { width: 21cm !important; min-height: 29.7cm !important; padding: 0 !important; margin: 0 !important; position: relative !important; }
+            .receipt-print-only { width: 21cm !important; min-height: 29.7cm !important; padding: 0 !important; margin: 0 !important; position: relative !important; top: -60px !important; }
             .receipt-print-only table { border-collapse: collapse !important; width: 100% !important; }
             .receipt-print-only th, .receipt-print-only td { border: 1.5pt solid black !important; -webkit-print-color-adjust: exact !important; }
             .red-footer { 
@@ -1625,16 +1628,16 @@ export default function ContractGatewayPage() {
           }
         `}} />
 
-        <div style={{ padding: '20px 40px' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-end', marginBottom: '12px' }}>
+        <div style={{ padding: '0px 40px 20px 40px' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-end', marginBottom: '32px' }}>
             {(selectedPartner?.logo || settings?.logo) && (
               <img
                 src={selectedPartner?.logo || settings?.logo}
                 alt="Logo"
-                style={{ maxHeight: '100px', marginRight: '2px' }}
+                style={{ maxHeight: '120px', marginRight: '2px', position: 'relative', top: '34px' }}
               />
             )}
-            <div style={{ flex: 1, height: '2.5pt', backgroundColor: '#b91c1c', marginBottom: '11px', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}></div>
+            <div style={{ flex: 1, height: '2.5pt', backgroundColor: '#b91c1c', marginBottom: '13px', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}></div>
           </div>
 
           <div style={{ border: '1.5pt solid #000', padding: '10px', textAlign: 'center', marginBottom: '15px', backgroundColor: '#f3f4f6' }}>
@@ -2520,7 +2523,21 @@ export default function ContractGatewayPage() {
               <div className="section-header" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <h3 style={{ margin: 0 }}>Récapitulatif Détaillé des Articles</h3>
-                  <p className="text-muted" style={{ fontSize: '0.85rem' }}>Liste des articles issus des dossiers clôturés.</p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '6px' }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 14px', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.25)', borderRadius: '24px' }}>
+                      <CheckCircle2 size={14} style={{ color: 'var(--success)' }} />
+                      <span style={{ fontSize: '0.85rem', color: 'var(--success)', fontWeight: 700 }}>
+                        Liste des articles issus des dossiers clôturés.
+                      </span>
+                    </div>
+                    
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 14px', background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.25)', borderRadius: '24px' }}>
+                      <Info size={14} style={{ color: 'var(--warning)' }} />
+                      <span style={{ fontSize: '0.85rem', color: 'var(--warning)', fontWeight: 700 }}>
+                        NB : Un dossier non clôturé (en cours, en demande) ne fait pas partie de ce rapport.
+                      </span>
+                    </div>
+                  </div>
                 </div>
                 <button className="btn btn-secondary" onClick={() => {
                   if (reportPartnerId === 'all') {

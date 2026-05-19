@@ -6,7 +6,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { 
   LayoutDashboard, Tags, Package, ArrowRightLeft, LogOut, 
   Users, ShoppingCart, Sun, Moon, UserCog, Coins, BarChart3, 
-  Truck, Menu, X, Wallet, AlertCircle, Calendar, Store, ShieldAlert, PackageOpen, Settings, Brain, TrendingDown, Globe, Archive, Search
+  Truck, Menu, X, Wallet, AlertCircle, Calendar, Store, ShieldAlert, PackageOpen, Settings, Brain, TrendingDown, Globe, Archive, Search,
+  FileText
 } from 'lucide-react';
 import { useAuth } from '../providers';
 import { storage } from '../lib/storage';
@@ -21,6 +22,7 @@ const routePermissions = [
   { path: '/fournisseurs', category: 'procurement', action: 'view' },
   { path: '/external-orders', category: 'procurement', action: 'view' },
   { path: '/contract-gateway', category: 'procurement', action: 'view' },
+  { path: '/documents-bl-bc', category: 'procurement', action: 'view' },
   { path: '/finances', category: 'finances', action: 'view' },
   { path: '/payments', category: 'finances', action: 'view' },
   { path: '/reports', category: 'finances', action: 'view' },
@@ -227,6 +229,7 @@ export default function ClientLayout({ children }) {
               <NavItem href="/fournisseurs" icon={Truck} label="Fournisseurs" />
               <NavItem href="/external-orders" icon={PackageOpen} label="Commandes Spéciales" />
               <NavItem href="/contract-gateway" icon={Globe} label="Achats Partenaires" />
+              <NavItem href="/documents-bl-bc" icon={FileText} label="Centralisation BL/BC" />
             </>
           )}
 
