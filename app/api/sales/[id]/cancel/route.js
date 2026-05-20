@@ -12,45 +12,57 @@ export async function POST(request, { params }) {
   console.log('[CANCEL_SALE] Attempting to cancel sale ID:', saleId);
   
   const connection = await db.getConnection();
+  const lockName = `lock_sale_${saleId}`;
   try {
-    await connection.beginTransaction();
-    
-    const [sales] = await connection.query('SELECT * FROM sales WHERE id = ? FOR UPDATE', [saleId]);
-    console.log('[CANCEL_SALE] Found sales count:', sales.length);
-    
-    if (sales.length === 0) {
-      throw new Error(`Vente introuvable (ID: ${saleId})`);
-    }
-    
-    if (sales[0].status === 'annulée') {
-      throw new Error('Cette vente est déjà annulée');
+    const [lockResult] = await connection.query('SELECT GET_LOCK(?, 5) as locked', [lockName]);
+    if (!lockResult || lockResult[0].locked !== 1) {
+      throw new Error("Une autre opération est en cours sur cette vente. Veuillez réagir après quelques instants.");
     }
 
-    const sale = sales[0];
-    const [items] = await connection.query('SELECT * FROM sale_items WHERE saleId = ?', [saleId]);
-    
-    for (const item of items) {
-      // Remise en stock
-      await connection.query(
-        'UPDATE inventory SET quantity = quantity + ? WHERE articleId = ? AND storeId = ?', 
-        [item.quantity, item.articleId, sale.storeId]
-      );
+    try {
+      await connection.beginTransaction();
       
-      // Tracer le mouvement de retour
-      await connection.query(
-        'INSERT INTO mouvements (id, articleId, type, quantity, date, storeId, fiscalYearId, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', 
-        [uuidv4(), item.articleId, 'IN', item.quantity, new Date().toISOString(), sale.storeId, sale.fiscalYearId, `Annulation Vente #${saleId.substring(0,8)}`]
-      );
+      const [sales] = await connection.query('SELECT * FROM sales WHERE id = ?', [saleId]);
+      console.log('[CANCEL_SALE] Found sales count:', sales.length);
+      
+      if (sales.length === 0) {
+        throw new Error(`Vente introuvable (ID: ${saleId})`);
+      }
+      
+      if (sales[0].status === 'annulée') {
+        throw new Error('Cette vente est déjà annulée');
+      }
+
+      const sale = sales[0];
+      const [items] = await connection.query('SELECT * FROM sale_items WHERE saleId = ?', [saleId]);
+      
+      for (const item of items) {
+        // Remise en stock
+        await connection.query(
+          'UPDATE inventory SET quantity = quantity + ? WHERE articleId = ? AND storeId = ?', 
+          [item.quantity, item.articleId, sale.storeId]
+        );
+        
+        // Tracer le mouvement de retour
+        await connection.query(
+          'INSERT INTO mouvements (id, articleId, type, quantity, date, storeId, fiscalYearId, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', 
+          [uuidv4(), item.articleId, 'IN', item.quantity, new Date().toISOString(), sale.storeId, sale.fiscalYearId, `Annulation Vente #${saleId.substring(0,8)}`]
+        );
+      }
+      
+      await connection.query('UPDATE sales SET status = "annulée" WHERE id = ?', [saleId]);
+      await logAction(auth.user.id, sale.storeId, 'Annulation vente', { saleId });
+      
+      await connection.commit();
+      return NextResponse.json({ success: true });
+    } finally {
+      await connection.query('SELECT RELEASE_LOCK(?)', [lockName]);
     }
-    
-    await connection.query('UPDATE sales SET status = "annulée" WHERE id = ?', [saleId]);
-    await logAction(auth.user.id, sale.storeId, 'Annulation vente', { saleId });
-    
-    await connection.commit();
-    return NextResponse.json({ success: true });
   } catch (err) {
     console.error('[CANCEL_SALE ERROR]', err);
-    await connection.rollback();
+    try {
+      await connection.rollback();
+    } catch (e) {}
     return NextResponse.json({ error: err.message }, { status: 500 });
   } finally {
     connection.release();

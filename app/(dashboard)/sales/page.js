@@ -26,6 +26,7 @@ export default function SalesPage() {
   const itemsPerPage = 10;
   const [isReporting, setIsReporting] = useState(false);
   const [settings, setSettings] = useState(null);
+  const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
   const { user: currentUser } = useAuth();
 
   const formatPrice = (val) => {
@@ -146,6 +147,8 @@ export default function SalesPage() {
 
   const handleAddPayment = async (e) => {
     e.preventDefault();
+    if (isSubmittingPayment) return;
+    setIsSubmittingPayment(true);
     try {
       await storage.create(`sales/${paymentModal.saleId}/payments`, {
         amount: Number(newPayment.amount),
@@ -157,6 +160,8 @@ export default function SalesPage() {
       showAlert('success', 'Succès', 'Paiement enregistré !');
     } catch (error) {
       showAlert('error', 'Erreur', error.message);
+    } finally {
+      setIsSubmittingPayment(false);
     }
   };
 
@@ -663,8 +668,10 @@ export default function SalesPage() {
                 </div>
               </div>
               <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setPaymentModal({ ...paymentModal, open: false })}>Annuler</button>
-                <button type="submit" className="btn btn-primary">Valider</button>
+                <button type="button" className="btn btn-secondary" disabled={isSubmittingPayment} onClick={() => setPaymentModal({ ...paymentModal, open: false })}>Annuler</button>
+                <button type="submit" className="btn btn-primary" disabled={isSubmittingPayment}>
+                  {isSubmittingPayment ? 'Enregistrement...' : 'Valider'}
+                </button>
               </div>
             </form>
           </div>

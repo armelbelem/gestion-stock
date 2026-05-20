@@ -14,9 +14,11 @@ const AlertModal = ({
   cancelLabel,
 }) => {
   const [isRendered, setIsRendered] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
+      setIsSubmitting(false);
       setTimeout(() => setIsRendered(true), 10);
     } else {
       setIsRendered(false);
@@ -70,6 +72,22 @@ const AlertModal = ({
 
   const { icon, bg, color, buttonBg, defaultTitle, defaultConfirm } = config[type] || config.info;
   const isConfirm = type === 'confirm';
+
+  const handleConfirmClick = async () => {
+    if (isSubmitting) return;
+    if (isConfirm && onConfirm) {
+      setIsSubmitting(true);
+      try {
+        await onConfirm();
+      } catch (err) {
+        console.error('[AlertModal Confirm Error]', err);
+      } finally {
+        setIsSubmitting(false);
+      }
+    } else {
+      onClose();
+    }
+  };
 
   return (
     <div 
@@ -152,10 +170,10 @@ const AlertModal = ({
             {message}
           </div>
         </div>
-
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', width: '100%', marginTop: '8px' }}>
           {isConfirm && (
             <button 
+              disabled={isSubmitting}
               style={{ 
                 flex: 1,
                 padding: '14px 24px', 
@@ -164,7 +182,8 @@ const AlertModal = ({
                 border: '1px solid var(--border-color)',
                 backgroundColor: 'transparent',
                 color: 'var(--text-main)',
-                cursor: 'pointer',
+                cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                opacity: isSubmitting ? 0.5 : 1,
                 fontWeight: 600,
                 transition: 'background-color 0.2s'
               }} 
@@ -174,6 +193,7 @@ const AlertModal = ({
             </button>
           )}
           <button
+            disabled={isSubmitting}
             style={{ 
               flex: 1,
               padding: '14px 24px', 
@@ -184,13 +204,14 @@ const AlertModal = ({
               fontSize: '1rem',
               fontWeight: 700,
               borderRadius: '16px',
-              cursor: 'pointer',
+              cursor: isSubmitting ? 'not-allowed' : 'pointer',
+              opacity: isSubmitting ? 0.7 : 1,
               boxShadow: `0 10px 15px -3px ${buttonBg}55`,
               transition: 'transform 0.2s, box-shadow 0.2s'
             }}
-            onClick={isConfirm ? onConfirm : onClose}
+            onClick={handleConfirmClick}
           >
-            {confirmLabel || defaultConfirm}
+            {isSubmitting ? 'Chargement...' : (confirmLabel || defaultConfirm)}
           </button>
         </div>
       </div>

@@ -51,6 +51,13 @@ export async function DELETE(request, { params }) {
     return NextResponse.json({ success: true });
   } catch (err) { 
     await connection.rollback();
+    
+    if (err.code === 'ER_ROW_IS_REFERENCED_2' || err.errno === 1451) {
+      return NextResponse.json({ 
+        error: "Impossible de supprimer ce client car il est lié à des historiques de ventes ou commandes. Pour des raisons de comptabilité et d'intégrité, vous ne pouvez pas le supprimer." 
+      }, { status: 400 });
+    }
+    
     return NextResponse.json({ error: err.message }, { status: 400 }); 
   } finally {
     connection.release();
