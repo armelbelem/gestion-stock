@@ -72,6 +72,8 @@ export async function POST(request) {
     let calculatedTotal = 0;
     const isSeller = auth.user.role === 'vendeur' || auth.user.role === 'vendeurs';
 
+    const itemsToInsert = [];
+
     for (const item of items) {
       const quantity = parseInt(item.quantity) || 0;
       let unitPrice = parseFloat(item.unitPrice);
@@ -105,8 +107,14 @@ export async function POST(request) {
         if (auth.user.role !== 'admin' && auth.user.role !== 'gestionnaire') throw new Error('Action refusée : Seul un administrateur ou gestionnaire peut saisir des articles hors catalogue.');
       }
       
-      await connection.query('INSERT INTO sale_items (id, saleId, articleId, quantity, unitPrice, description) VALUES (?, ?, ?, ?, ?, ?)', 
-        [uuidv4(), saleId, item.articleId || null, quantity, unitPrice, item.description || null]);
+      itemsToInsert.push({
+        id: uuidv4(),
+        saleId: saleId,
+        articleId: item.articleId || null,
+        quantity: quantity,
+        unitPrice: unitPrice,
+        description: item.description || null
+      });
     }
     
     // On utilise le total calculé coté serveur ou celui envoyé par le body s'il contient déjà la TVA
@@ -132,10 +140,18 @@ export async function POST(request) {
 
     const status = isProforma ? 'proforma' : (safeAmountPaid >= finalTotal ? 'payé' : (safeAmountPaid > 0 ? 'partiel' : 'en_attente'));
     
+    // 1. Insérer la vente principale d'abord (Parent)
     await connection.query(
       'INSERT INTO sales (id, clientId, userId, totalAmount, discount, tvaAmount, amountPaid, paymentType, status, dueDate, notes, date, storeId, fiscalYearId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [saleId, clientId, auth.user.id, finalTotal, safeDiscount, safeTvaAmount, safeAmountPaid, paymentType || 'complet', status, dueDate || null, notes || null, new Date().toISOString(), storeId, activeYear?.id || null]
     );
+
+    // 2. Insérer les articles associés après (Enfants)
+    for (const item of itemsToInsert) {
+      await connection.query('INSERT INTO sale_items (id, saleId, articleId, quantity, unitPrice, description) VALUES (?, ?, ?, ?, ?, ?)', 
+        [item.id, item.saleId, item.articleId, item.quantity, item.unitPrice, item.description]);
+    }
+
     if (!isProforma && amountPaid > 0) {
       await connection.query('INSERT INTO payments (id, saleId, amount, date, storeId, fiscalYearId) VALUES (?, ?, ?, ?, ?, ?)', 
         [uuidv4(), saleId, amountPaid, new Date().toISOString(), storeId, activeYear?.id || null]);
