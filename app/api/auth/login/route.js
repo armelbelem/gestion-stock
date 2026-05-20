@@ -50,10 +50,13 @@ export async function POST(request) {
       } 
     });
 
+    // Détection dynamique du protocole sécurisé (HTTPS)
+    const isSecure = request.nextUrl.protocol === 'https:' || request.headers.get('x-forwarded-proto') === 'https';
+
     response.cookies.set('token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: isSecure,
+      sameSite: 'lax',
       maxAge: 60 * 60 * 24, // 1 jour
       path: '/',
     });
