@@ -71,12 +71,12 @@ export async function POST(request) {
         a.barcode as reference, 
         a.price as unitPrice,
         COALESCE(inv.totalQty, 0) as currentStock,
-        COALESCE(SUM(CASE WHEN m.date >= DATE_SUB(NOW(), INTERVAL 1 MONTH) THEN (CASE WHEN m.type = 'OUT' THEN m.quantity ELSE -m.quantity END) ELSE 0 END), 0) as qty1m,
-        COALESCE(SUM(CASE WHEN m.date >= DATE_SUB(NOW(), INTERVAL 2 MONTH) THEN (CASE WHEN m.type = 'OUT' THEN m.quantity ELSE -m.quantity END) ELSE 0 END), 0) as qty2m,
-        COALESCE(SUM(CASE WHEN m.date >= DATE_SUB(NOW(), INTERVAL 3 MONTH) THEN (CASE WHEN m.type = 'OUT' THEN m.quantity ELSE -m.quantity END) ELSE 0 END), 0) as qty3m,
-        COALESCE(SUM(CASE WHEN m.date >= DATE_SUB(NOW(), INTERVAL 6 MONTH) THEN (CASE WHEN m.type = 'OUT' THEN m.quantity ELSE -m.quantity END) ELSE 0 END), 0) as qty6m,
-        COALESCE(SUM(CASE WHEN m.date >= DATE_SUB(NOW(), INTERVAL 12 MONTH) THEN (CASE WHEN m.type = 'OUT' THEN m.quantity ELSE -m.quantity END) ELSE 0 END), 0) as qty1y,
-        COALESCE(SUM(CASE WHEN m.date >= DATE_SUB(NOW(), INTERVAL 24 MONTH) THEN (CASE WHEN m.type = 'OUT' THEN m.quantity ELSE -m.quantity END) ELSE 0 END), 0) as qty2y
+        COALESCE(SUM(CASE WHEN s.date >= DATE_SUB(NOW(), INTERVAL 1 MONTH) THEN si.quantity ELSE 0 END), 0) as qty1m,
+        COALESCE(SUM(CASE WHEN s.date >= DATE_SUB(NOW(), INTERVAL 2 MONTH) THEN si.quantity ELSE 0 END), 0) as qty2m,
+        COALESCE(SUM(CASE WHEN s.date >= DATE_SUB(NOW(), INTERVAL 3 MONTH) THEN si.quantity ELSE 0 END), 0) as qty3m,
+        COALESCE(SUM(CASE WHEN s.date >= DATE_SUB(NOW(), INTERVAL 6 MONTH) THEN si.quantity ELSE 0 END), 0) as qty6m,
+        COALESCE(SUM(CASE WHEN s.date >= DATE_SUB(NOW(), INTERVAL 12 MONTH) THEN si.quantity ELSE 0 END), 0) as qty1y,
+        COALESCE(SUM(CASE WHEN s.date >= DATE_SUB(NOW(), INTERVAL 24 MONTH) THEN si.quantity ELSE 0 END), 0) as qty2y
       FROM articles a
       LEFT JOIN (
         SELECT articleId, SUM(quantity) as totalQty 
@@ -84,7 +84,8 @@ export async function POST(request) {
         ${storeId ? 'WHERE storeId = ?' : ''} 
         GROUP BY articleId
       ) inv ON a.id = inv.articleId
-      LEFT JOIN mouvements m ON a.id = m.articleId AND (m.type = 'OUT' OR (m.type = 'IN' AND m.notes LIKE 'Annulation%')) ${storeId ? 'AND m.storeId = ?' : ''}
+      LEFT JOIN sale_items si ON a.id = si.articleId
+      LEFT JOIN sales s ON si.saleId = s.id AND s.status != 'annulée' AND s.status != 'proforma' ${storeId ? 'AND s.storeId = ?' : ''}
       ${whereClause}
       GROUP BY a.id
     `;
