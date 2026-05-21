@@ -20,7 +20,11 @@ export default function SalesPage() {
   const [paymentModal, setPaymentModal] = useState({ open: false, saleId: null, total: 0, paid: 0 });
   const [newPayment, setNewPayment] = useState({ amount: '', notes: '' });
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({ total: 0, totalPages: 1, page: 1, limit: 10 });
+  const [totalPeriodAmount, setTotalPeriodAmount] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [printChoiceModal, setPrintChoiceModal] = useState({ open: false, sale: null });
   const itemsPerPage = 10;
@@ -44,14 +48,22 @@ export default function SalesPage() {
   const showAlert = (type, title, message) => setAlertModal({ open: true, type, title, message, onConfirm: null });
   const showConfirm = (title, message, onConfirm) => setAlertModal({ open: true, type: 'confirm', title, message, onConfirm });
 
+  // Debounce la recherche : attend 400ms après la dernière frappe
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setCurrentPage(1);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, dateRange]);
+  }, [dateRange]);
 
   useEffect(() => {
     loadSales();
-    loadSettings();
-  }, []);
+  }, [currentPage, debouncedSearch, dateRange]);
 
   const loadSettings = async () => {
     try {
@@ -61,11 +73,32 @@ export default function SalesPage() {
   };
 
   const loadSales = async () => {
+    setIsLoading(true);
     try {
-      const data = await storage.get('sales');
-      setSales(data);
+      const selectedStore = localStorage.getItem('selectedStore');
+      const token = sessionStorage.getItem('token');
+      const params = new URLSearchParams({
+        page: currentPage,
+        limit: itemsPerPage,
+        _t: Date.now()
+      });
+      if (debouncedSearch) params.set('search', debouncedSearch);
+      if (dateRange.start) params.set('startDate', dateRange.start);
+      if (dateRange.end) params.set('endDate', dateRange.end);
+      if (selectedStore) params.set('storeId', selectedStore);
+
+      const res = await fetch(`/api/sales?${params.toString()}`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        cache: 'no-store'
+      });
+      const result = await res.json();
+      setSales(result.data || []);
+      setPagination(result.pagination || { total: 0, totalPages: 1, page: 1, limit: 10 });
+      setTotalPeriodAmount(result.summary?.totalAmountPeriod || 0);
     } catch (err) {
-      console.error("Error loading sales:", err);
+      console.error('Error loading sales:', err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -186,33 +219,26 @@ export default function SalesPage() {
     });
   };
 
-  const filteredSales = sales.filter(sale => {
-    const searchLower = searchTerm.toLowerCase();
-    const matchesSearch = sale.id.toLowerCase().includes(searchLower) ||
-      (sale.clientName && sale.clientName.toLowerCase().includes(searchLower)) ||
-      (sale.notes && sale.notes.toLowerCase().includes(searchLower)) ||
-      (sale.items && sale.items.some(item => 
-        (item.articleName && item.articleName.toLowerCase().includes(searchLower)) ||
-        (item.articleCode && item.articleCode.toLowerCase().includes(searchLower)) ||
-        (item.articleBarcode && item.articleBarcode.toLowerCase().includes(searchLower))
-      ));
-    
-    if (!matchesSearch) return false;
+  const fetchAllForExport = async () => {
+    try {
+      const selectedStore = localStorage.getItem('selectedStore');
+      const token = sessionStorage.getItem('token');
+      const params = new URLSearchParams();
+      if (debouncedSearch) params.set('search', debouncedSearch);
+      if (dateRange.start) params.set('startDate', dateRange.start);
+      if (dateRange.end) params.set('endDate', dateRange.end);
+      if (selectedStore) params.set('storeId', selectedStore);
 
-    // Restriction : Seul l'admin et le gestionnaire voient les proformas
-    if (sale.status === 'proforma' && (currentUser?.role !== 'admin' && currentUser?.role !== 'gestionnaire')) return false;
-
-    const saleDate = new Date(sale.date);
-    const start = dateRange.start ? new Date(dateRange.start) : null;
-    const end = dateRange.end ? new Date(dateRange.end) : null;
-    
-    if (start) start.setHours(0, 0, 0, 0);
-    if (end) end.setHours(23, 59, 59, 999);
-    
-    return (!start || saleDate >= start) && (!end || saleDate <= end);
-  });
-
-  const totalPeriodAmount = filteredSales.reduce((acc, s) => acc + (s.status !== 'annulée' ? s.totalAmount : 0), 0);
+      const res = await fetch(`/api/sales?${params.toString()}`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      const data = await res.json();
+      return Array.isArray(data) ? data : data.data || [];
+    } catch(e) {
+      console.error(e);
+      return [];
+    }
+  };
 
   const handleExportSaleExcel = (sale) => {
     const isProforma = sale.status === 'proforma';
@@ -253,7 +279,10 @@ export default function SalesPage() {
     showAlert('success', 'Succès', 'Exportation Excel générée !');
   };
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
+    showAlert('info', 'Exportation', 'Préparation du fichier Excel en cours...');
+    const allData = await fetchAllForExport();
+
     const headers = [
       { key: 'idShort', label: 'Référence' },
       { key: 'clientName', label: 'Client' },
@@ -263,13 +292,14 @@ export default function SalesPage() {
       { key: 'status', label: 'Statut' }
     ];
     
-    const dataToExport = filteredSales.map(s => ({
+    const dataToExport = allData.map(s => ({
       ...s,
       idShort: `#${s.id.substring(0,8).toUpperCase()}`,
       dateFormatted: formatDate(s.date),
       totalAmount: formatPrice(s.totalAmount)
     }));
 
+    closeAlert();
     exportToExcel(
       dataToExport, 
       headers, 
@@ -281,6 +311,7 @@ export default function SalesPage() {
         summary: ['', 'TOTAUX GÉNÉRAUX', '', '', `${formatPrice(totalPeriodAmount)} FCFA`, '']
       }
     );
+    showAlert('success', 'Succès', "Exportation Excel réussie !");
   };
 
   const handlePrintReport = () => {
@@ -291,10 +322,7 @@ export default function SalesPage() {
     }, 500);
   };
 
-  const totalPages = Math.ceil(filteredSales.length / itemsPerPage);
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentSales = filteredSales.slice(indexOfFirstItem, indexOfLastItem);
+
 
   if (isPrinting && printData) {
     return (
@@ -425,7 +453,7 @@ export default function SalesPage() {
             </tr>
           </thead>
           <tbody>
-            {filteredSales.map((sale) => (
+            {sales.map((sale) => (
               <React.Fragment key={sale.id}>
                 <tr style={{ backgroundColor: '#f9f9f9', borderBottom: '1px solid #ccc' }}>
                   <td style={{ padding: '8px', fontWeight: 'bold' }}>#{sale.id.substring(0,8).toUpperCase()}</td>
@@ -510,11 +538,11 @@ export default function SalesPage() {
           </div>
         </div>
 
-        {currentUser?.role !== 'vendeur' && filteredSales.length > 0 && (
+        {currentUser?.role !== 'vendeur' && sales.length > 0 && (
           <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-light)', display: 'flex', gap: '2rem' }}>
             <div style={{ fontSize: '0.9rem' }}>
-              <span className="text-muted">Nombre de ventes : </span>
-              <strong style={{ color: 'var(--primary)' }}>{filteredSales.length}</strong>
+              <span className="text-muted">Nombre total de ventes : </span>
+              <strong style={{ color: 'var(--primary)' }}>{pagination.total}</strong>
             </div>
             <div style={{ fontSize: '0.9rem' }}>
               <span className="text-muted">Total CA sur période : </span>
@@ -540,10 +568,19 @@ export default function SalesPage() {
               </tr>
             </thead>
             <tbody>
-              {currentSales.length === 0 ? (
+              {isLoading ? (
+                <tr>
+                  <td colSpan="8" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem' }}>
+                      <div style={{ width: '20px', height: '20px', border: '3px solid var(--border-color)', borderTopColor: 'var(--primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}></div>
+                      Chargement des ventes...
+                    </div>
+                  </td>
+                </tr>
+              ) : sales.length === 0 ? (
                 <tr><td colSpan="8" style={{ textAlign: 'center', padding: '2rem' }}>Aucune vente trouvée.</td></tr>
               ) : (
-                currentSales.map((sale) => (
+                sales.map((sale) => (
                   <React.Fragment key={sale.id}>
                     <tr onClick={() => toggleExpand(sale.id)} style={{ cursor: 'pointer' }}>
                       <td>{expandedSale === sale.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</td>
@@ -655,11 +692,16 @@ export default function SalesPage() {
           </table>
         </div>
 
-        {totalPages > 1 && (
-          <div className="pagination">
-            <button className="btn btn-secondary" onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1}><ChevronLeft size={16} /></button>
-            <span>Page {currentPage} / {totalPages}</span>
-            <button className="btn btn-secondary" onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))} disabled={currentPage === totalPages}><ChevronRight size={16} /></button>
+        {pagination.totalPages > 1 && (
+          <div className="pagination" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', padding: '1rem', borderTop: '1px solid var(--border-color)' }}>
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+              Affichage de {(currentPage - 1) * itemsPerPage + 1} à {Math.min(currentPage * itemsPerPage, pagination.total)} sur {pagination.total}
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button className="btn btn-secondary btn-sm" onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1 || isLoading}><ChevronLeft size={16} /> Précédent</button>
+              <span style={{ padding: '0.25rem 0.75rem', backgroundColor: '#f1f5f9', borderRadius: '4px', fontSize: '0.85rem', fontWeight: 600 }}>{currentPage} / {pagination.totalPages}</span>
+              <button className="btn btn-secondary btn-sm" onClick={() => setCurrentPage(p => Math.min(p + 1, pagination.totalPages))} disabled={currentPage >= pagination.totalPages || isLoading}>Suivant <ChevronRight size={16} /></button>
+            </div>
           </div>
         )}
       </div>

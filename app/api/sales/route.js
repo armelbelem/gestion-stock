@@ -13,37 +13,111 @@ export async function GET(request) {
     const activeYearId = fyRows[0]?.id;
     const storeId = getStoreConstraint(auth.user, request.nextUrl.searchParams.get('storeId'));
 
+    const search = request.nextUrl.searchParams.get('search') || '';
+    const startDate = request.nextUrl.searchParams.get('startDate') || '';
+    const endDate = request.nextUrl.searchParams.get('endDate') || '';
+    const isPaginated = request.nextUrl.searchParams.has('page');
+    const page = parseInt(request.nextUrl.searchParams.get('page') || '1', 10);
+    const limit = parseInt(request.nextUrl.searchParams.get('limit') || '50', 10);
+    const offset = (page - 1) * limit;
+
+    let conditions = [];
+    let params = [];
+    
+    // Si on a un exercice actif, on filtre. Sinon on ne montre rien (écran propre après clôture)
+    if (activeYearId) {
+      conditions.push('s.fiscalYearId = ?');
+      params.push(activeYearId);
+    } else {
+      conditions.push('1=0');
+    }
+
+    if (storeId) { 
+      conditions.push('s.storeId = ?'); 
+      params.push(storeId); 
+    } else {
+      // Exclure le magasin virtuel par défaut pour ne pas mélanger avec le physique
+      conditions.push("(s.storeId != 'CFAO' OR s.storeId IS NULL)");
+    }
+
+    if (startDate) {
+      conditions.push('s.date >= ?');
+      params.push(`${startDate} 00:00:00`);
+    }
+
+    if (endDate) {
+      conditions.push('s.date <= ?');
+      params.push(`${endDate} 23:59:59`);
+    }
+
+    if (search) {
+      conditions.push('(s.id LIKE ? OR c.name LIKE ? OR s.notes LIKE ?)');
+      const searchPat = `%${search}%`;
+      params.push(searchPat, searchPat, searchPat);
+    }
+
+    // Role admin/gestionnaire checking for proforma
+    const isManager = auth.user.role === 'admin' || auth.user.role === 'gestionnaire';
+    if (!isManager) {
+      conditions.push("s.status != 'proforma'");
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    let total = 0;
+    let totalPages = 1;
+    let totalAmountPeriod = 0;
+
+    if (isPaginated) {
+      // Pour le Dashboard ou Stats: récupérer le total CA sur cette période
+      const [sumResult] = await db.query(
+        `SELECT SUM(s.totalAmount) as totalAmount 
+         FROM sales s 
+         LEFT JOIN clients c ON s.clientId = c.id 
+         ${whereClause} AND s.status != 'annulée'`,
+        params
+      );
+      totalAmountPeriod = sumResult[0]?.totalAmount || 0;
+
+      const [countResult] = await db.query(
+        `SELECT COUNT(*) as total 
+         FROM sales s 
+         LEFT JOIN clients c ON s.clientId = c.id 
+         ${whereClause}`,
+        params
+      );
+      total = countResult[0].total;
+      totalPages = Math.ceil(total / limit);
+    }
+
+    const queryParams = [...params];
+    if (isPaginated) queryParams.push(limit, offset);
+
     let query = `
       SELECT s.*, c.name as clientName, c.phone as clientPhone, u.username as sellerName 
       FROM sales s
       LEFT JOIN clients c ON s.clientId = c.id
       LEFT JOIN users u ON s.userId = u.id
+      ${whereClause} 
+      ORDER BY s.date DESC 
+      ${isPaginated ? 'LIMIT ? OFFSET ?' : ''}
     `;
-    let params = [];
-    
-    // Si on a un exercice actif, on filtre. Sinon on ne montre rien (écran propre après clôture)
-    if (activeYearId) {
-      query += ' WHERE s.fiscalYearId = ?';
-      params.push(activeYearId);
-    } else {
-      query += ' WHERE 1=0';
-    }
 
-    if (storeId) { 
-      query += ' AND s.storeId = ?'; 
-      params.push(storeId); 
-    } else {
-      // Exclure le magasin virtuel par défaut pour ne pas mélanger avec le physique
-      query += " AND (s.storeId != 'CFAO' OR s.storeId IS NULL)";
-    }
-    query += ' ORDER BY s.date DESC';
-    const [sales] = await db.query(query, params);
+    const [sales] = await db.query(query, queryParams);
     for (let sale of sales) {
       const [items] = await db.query(
         'SELECT si.*, COALESCE(a.name, si.description) as articleName, a.code as articleCode, a.barcode as articleBarcode FROM sale_items si LEFT JOIN articles a ON si.articleId = a.id WHERE si.saleId = ?',
         [sale.id]
       );
       sale.items = items;
+    }
+
+    if (isPaginated) {
+      return NextResponse.json({
+        data: sales,
+        pagination: { total, totalPages, page, limit },
+        summary: { totalAmountPeriod }
+      });
     }
     return NextResponse.json(sales);
   } catch (err) { 
