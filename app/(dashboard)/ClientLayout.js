@@ -33,7 +33,7 @@ const routePermissions = [
   { path: '/clients', category: 'clients', action: 'view' },
   { path: '/settings', category: 'admin', action: 'settings' },
   { path: '/users', category: 'admin', action: 'users' },
-  { path: '/logs', category: 'admin', action: 'logs' },
+  { path: '/activity-logs', category: 'admin', action: 'logs' },
   { path: '/', category: 'finances', action: 'view' },
 ];
 
@@ -262,7 +262,7 @@ export default function ClientLayout({ children }) {
             <NavItem href="/users" icon={UserCog} label="Utilisateurs" />
           )}
           {hasPermission(user, 'admin', 'logs') && (
-            <NavItem href="/logs" icon={ShieldAlert} label="Journal d'Activité" />
+            <NavItem href="/activity-logs" icon={ShieldAlert} label="Journal d'Activité" />
           )}
         </nav>
       </aside>
