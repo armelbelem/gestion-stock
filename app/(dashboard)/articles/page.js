@@ -73,8 +73,10 @@ export default function ArticlesPage() {
 
   const loadData = async () => {
     try {
-      const articlesData = await storage.get('articles');
-      const storesData = await storage.get('stores');
+      const [articlesData, storesData] = await Promise.all([
+        storage.get('articles'),
+        storage.get('stores')
+      ]);
       setArticles(articlesData);
       setStores(storesData);
     } catch (err) {
@@ -402,11 +404,6 @@ export default function ArticlesPage() {
                 currentArticles.map((article) => {
                     const isLowStock = article.currentStock <= article.minStock;
                     const prediction = calculateStockOutPrediction(article.id, null, article.currentStock, article.soldLast30Days);
-                    let storeDetails = [];
-                    try {
-                      storeDetails = typeof article.storeDetails === 'string' ? JSON.parse(article.storeDetails) : (article.storeDetails || []);
-                    } catch (e) { console.error(e); }
-
                     return (
                       <tr key={article.id} className={isLowStock ? 'tr-danger' : ''}>
                         <td style={{ fontWeight: 500 }}>{article.code || '-'}</td>

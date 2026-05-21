@@ -110,8 +110,16 @@ export default function ContractGatewayPage() {
 
   const [alertModal, setAlertModal] = useState({ open: false, type: 'info', title: '', message: '', onConfirm: null });
   const [catalogSearch, setCatalogSearch] = useState('');
+  const [catalogCurrentPage, setCatalogCurrentPage] = useState(1);
+  const catalogItemsPerPage = 100;
+  
+
   const [selectedCatalogClient, setSelectedCatalogClient] = useState('');
   const [selectedMine, setSelectedMine] = useState(''); // Global mine filter for dossiers
+
+  useEffect(() => {
+    setCatalogCurrentPage(1);
+  }, [catalogSearch, selectedCatalogClient, selectedPartner]);
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(true);
 
   const speak = (text) => {
@@ -2409,13 +2417,17 @@ export default function ContractGatewayPage() {
               <table>
                 <thead><tr><th>Code</th><th>Réf CFAO</th><th>Désignation</th><th>Mine</th>{hasPermission(user, 'stock', 'view_cost_price') && <th>P.A Contrat</th>}<th>Actions</th></tr></thead>
                 <tbody>
-                  {catalog
-                    .filter(item =>
+                  {(() => {
+                    const filteredCatalog = catalog.filter(item =>
                       item.name?.toLowerCase().includes(catalogSearch.toLowerCase()) ||
                       item.code?.toLowerCase().includes(catalogSearch.toLowerCase()) ||
                       item.refCfao?.toLowerCase().includes(catalogSearch.toLowerCase())
-                    )
-                    .map(item => (
+                    );
+                    const indexOfLastItem = catalogCurrentPage * catalogItemsPerPage;
+                    const indexOfFirstItem = indexOfLastItem - catalogItemsPerPage;
+                    const currentItems = filteredCatalog.slice(indexOfFirstItem, indexOfLastItem);
+                    
+                    return currentItems.map(item => (
                       <tr key={item.id}>
                         <td style={{ fontWeight: 700 }}>{item.code || '-'}</td>
                         <td style={{ fontWeight: 700, color: 'var(--primary)' }}>{item.refCfao || '-'}</td>
@@ -2435,9 +2447,47 @@ export default function ContractGatewayPage() {
                           </div>
                         </td>
                       </tr>
-                    ))}
+                    ));
+                  })()}
                 </tbody>
               </table>
+              
+              {(() => {
+                const filteredCatalog = catalog.filter(item =>
+                  item.name?.toLowerCase().includes(catalogSearch.toLowerCase()) ||
+                  item.code?.toLowerCase().includes(catalogSearch.toLowerCase()) ||
+                  item.refCfao?.toLowerCase().includes(catalogSearch.toLowerCase())
+                );
+                const totalPages = Math.ceil(filteredCatalog.length / catalogItemsPerPage);
+                if (totalPages <= 1) return null;
+                
+                return (
+                  <div className="pagination" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', padding: '1rem', borderTop: '1px solid var(--border-color)' }}>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                      Affichage de {(catalogCurrentPage - 1) * catalogItemsPerPage + 1} à {Math.min(catalogCurrentPage * catalogItemsPerPage, filteredCatalog.length)} sur {filteredCatalog.length}
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button 
+                        className="btn btn-secondary btn-sm" 
+                        disabled={catalogCurrentPage === 1}
+                        onClick={() => setCatalogCurrentPage(prev => Math.max(1, prev - 1))}
+                      >
+                        Précédent
+                      </button>
+                      <span style={{ padding: '0.25rem 0.75rem', backgroundColor: '#f1f5f9', borderRadius: '4px', fontSize: '0.85rem', fontWeight: 600 }}>
+                        {catalogCurrentPage} / {totalPages}
+                      </span>
+                      <button 
+                        className="btn btn-secondary btn-sm" 
+                        disabled={catalogCurrentPage === totalPages}
+                        onClick={() => setCatalogCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      >
+                        Suivant
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )

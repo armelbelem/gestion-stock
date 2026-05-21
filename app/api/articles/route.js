@@ -15,28 +15,21 @@ export async function GET(request) {
     
     let query = `
       SELECT a.id, a.code, a.name, a.price, a.minStock, a.barcode, a.storeId, a.createdAt,
-             s.name as createdInStoreName,
-             COALESCE(agg.totalQty, 0) as currentStock,
-             agg.details as storeDetails,
-             COALESCE(sales_30.soldQty, 0) as soldLast30Days
+             COALESCE((
+                 SELECT SUM(quantity) 
+                 FROM inventory i 
+                 WHERE i.articleId = a.id
+                 ${storeId ? 'AND i.storeId = ?' : ''}
+             ), 0) as currentStock,
+             COALESCE((
+                 SELECT SUM(si.quantity) 
+                 FROM sale_items si 
+                 JOIN sales s3 ON si.saleId = s3.id 
+                 WHERE si.articleId = a.id 
+                 AND s3.date >= DATE_SUB(NOW(), INTERVAL 30 DAY) 
+                 AND s3.status != 'annulée'
+             ), 0) as soldLast30Days
       FROM articles a
-      LEFT JOIN stores s ON a.storeId = s.id
-      LEFT JOIN (
-          SELECT i.articleId, 
-                 SUM(i.quantity) as totalQty,
-                 JSON_ARRAYAGG(JSON_OBJECT('storeName', s2.name, 'qty', i.quantity)) as details
-          FROM inventory i
-          JOIN stores s2 ON i.storeId = s2.id
-          ${storeId ? 'WHERE i.storeId = ?' : ''}
-          GROUP BY i.articleId
-      ) agg ON a.id = agg.articleId
-      LEFT JOIN (
-          SELECT si.articleId, SUM(si.quantity) as soldQty
-          FROM sale_items si
-          JOIN sales s3 ON si.saleId = s3.id
-          WHERE s3.date >= DATE_SUB(NOW(), INTERVAL 30 DAY) AND s3.status != 'annulée'
-          GROUP BY si.articleId
-      ) sales_30 ON a.id = sales_30.articleId
     `;
 
     let params = [];
@@ -55,8 +48,7 @@ export async function GET(request) {
     
     const cleanedArticles = articles.map(art => {
       const cleaned = {
-        ...art,
-        storeDetails: art.storeDetails || []
+        ...art
       };
       
       // Sécurité : Masquer le prix pour les vendeurs
