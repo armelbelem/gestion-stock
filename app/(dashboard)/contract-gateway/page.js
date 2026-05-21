@@ -155,8 +155,42 @@ export default function ContractGatewayPage() {
     }
   }, [isModalOpen, isCatalogModalOpen]);
 
+  const loadCatalogData = async () => {
+    if (!selectedPartner) return;
+    const pId = selectedPartner.id;
+    const catalogKey = pId === 'all'
+      ? (selectedCatalogClient ? `contract-catalog?clientId=${selectedCatalogClient}&storeId=all` : `contract-catalog?storeId=all`)
+      : (selectedCatalogClient ? `contract-catalog?clientId=${selectedCatalogClient}&partnerId=${pId}&storeId=all` : `contract-catalog?partnerId=${pId}&storeId=all`);
+    try {
+      const catalogData = await storage.get(catalogKey);
+      setCatalog(catalogData || []);
+    } catch (err) {
+      console.error("Error loading catalog:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'catalogue' || isModalOpen || isCatalogModalOpen) {
+      loadCatalogData();
+    }
+  }, [activeTab, isModalOpen, isCatalogModalOpen, selectedPartner, selectedCatalogClient]);
+
+  const loadInitialData = async () => {
+    try {
+      const [clientsData, settingsData] = await Promise.all([
+        storage.get('clients?storeId=all'),
+        storage.get('settings')
+      ]);
+      setClients(clientsData || []);
+      setSettings(settingsData || null);
+    } catch (err) {
+      console.error("Error loading initial data:", err);
+    }
+  };
+
   useEffect(() => {
     loadPartners();
+    loadInitialData();
   }, []);
 
   useEffect(() => {
@@ -299,26 +333,14 @@ export default function ContractGatewayPage() {
         ? `contract-orders?startDate=${dateRange.start}&endDate=${dateRange.end}&storeId=all${selectedMine ? `&clientId=${selectedMine}` : ''}&page=${currentPage}&limit=50`
         : `contract-orders?startDate=${dateRange.start}&endDate=${dateRange.end}&partnerId=${pId}&storeId=all${selectedMine ? `&clientId=${selectedMine}` : ''}&page=${currentPage}&limit=50`;
 
-      const catalogKey = pId === 'all'
-        ? (selectedCatalogClient ? `contract-catalog?clientId=${selectedCatalogClient}&storeId=all` : `contract-catalog?storeId=all`)
-        : (selectedCatalogClient ? `contract-catalog?clientId=${selectedCatalogClient}&partnerId=${pId}&storeId=all` : `contract-catalog?partnerId=${pId}&storeId=all`);
-
       const timestamp = Date.now();
-      const [ordersData, specialData, catalogData, clientsData, settingsData, reportData] = await Promise.all([
+      const [ordersData, specialData] = await Promise.all([
         storage.get(ordersKey),
-        storage.get(`contract-special-docs?partnerId=${pId}&startDate=${dateRange.start}&endDate=${dateRange.end}&storeId=all&t=${timestamp}`),
-        storage.get(catalogKey),
-        storage.get('clients?storeId=all'),
-        storage.get('settings'),
-        storage.get(`contract-reports/items?startDate=${dateRange.start}&endDate=${dateRange.end}&partnerId=${pId}&storeId=all`)
+        storage.get(`contract-special-docs?partnerId=${pId}&startDate=${dateRange.start}&endDate=${dateRange.end}&storeId=all&t=${timestamp}`)
       ]);
       setOrders(ordersData?.data || []);
       setPagination(ordersData?.pagination || { total: 0, totalPages: 1, limit: 50 });
       setSpecialDocs(specialData || []);
-      setCatalog(catalogData || []);
-      setClients(clientsData || []);
-      setSettings(settingsData || null);
-      setReportItems(reportData || []);
 
     } catch (err) {
       console.error("Error loading data:", err);
@@ -1002,6 +1024,7 @@ export default function ContractGatewayPage() {
         setLoading(false);
         setIsImportModalOpen(false);
         loadData();
+        loadCatalogData();
         showAlert('success', 'Importation Terminée', `${createdCount} nouveaux articles ajoutés, ${updatedCount} articles mis à jour.`);
       };
       reader.readAsBinaryString(file);
@@ -1022,6 +1045,7 @@ export default function ContractGatewayPage() {
       setIsCatalogModalOpen(false);
       setCatalogItem({ code: '', refCfao: '', name: '', purchasePrice: 0, clientId: '' });
       loadData();
+      loadCatalogData();
       showAlert('success', 'Succès', 'Article enregistré.');
     } catch (err) {
       showAlert('error', 'Erreur', err.message);
@@ -1031,7 +1055,7 @@ export default function ContractGatewayPage() {
   const deleteCatalogItem = (id) => {
     setAlertModal({
       open: true, type: 'confirm', title: 'Supprimer ?', message: 'Confirmer la suppression ?',
-      onConfirm: async () => { closeAlert(); await storage.remove('contract-catalog', id); loadData(); }
+      onConfirm: async () => { closeAlert(); await storage.remove('contract-catalog', id); loadData(); loadCatalogData(); }
     });
   };
 

@@ -13,7 +13,6 @@ export default function ArticlesPage() {
   const [articles, setArticles] = useState([]);
   const [categories, setCategories] = useState([]);
   const [stores, setStores] = useState([]);
-  const [sales, setSales] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [importStoreId, setImportStoreId] = useState('');
@@ -76,10 +75,8 @@ export default function ArticlesPage() {
     try {
       const articlesData = await storage.get('articles');
       const storesData = await storage.get('stores');
-      const salesData = await storage.get('sales');
       setArticles(articlesData);
       setStores(storesData);
-      setSales(salesData);
     } catch (err) {
       console.error("Error loading articles data:", err);
     }
@@ -404,7 +401,7 @@ export default function ArticlesPage() {
               ) : (
                 currentArticles.map((article) => {
                     const isLowStock = article.currentStock <= article.minStock;
-                    const prediction = calculateStockOutPrediction(article.id, sales, article.currentStock);
+                    const prediction = calculateStockOutPrediction(article.id, null, article.currentStock, article.soldLast30Days);
                     let storeDetails = [];
                     try {
                       storeDetails = typeof article.storeDetails === 'string' ? JSON.parse(article.storeDetails) : (article.storeDetails || []);
