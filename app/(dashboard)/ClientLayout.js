@@ -235,7 +235,7 @@ export default function ClientLayout({ children }) {
 
           {hasPermission(user, 'finances', 'view') && (
             <>
-              <NavItem href="/finances" icon={Coins} label="Finances" />
+              {/* <NavItem href="/finances" icon={Coins} label="Finances" /> */}
               <NavItem href="/payments" icon={Wallet} label="Règlements" />
               <NavItem href="/reports" icon={BarChart3} label="Rapports" />
               <NavItem href="/intelligence" icon={Brain} label="Intelligence" />
