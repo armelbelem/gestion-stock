@@ -261,9 +261,9 @@ export async function GET(request) {
 
         // B. Match à l'intérieur des articles (description, code, refCfao)
         const itemsMatch = doc.items.some(item => 
-          item.description?.toLowerCase().includes(q) ||
-          item.code?.toLowerCase().includes(q) ||
-          item.refCfao?.toLowerCase().includes(q)
+          String(item.description || '').toLowerCase().includes(q) ||
+          String(item.code || '').toLowerCase().includes(q) ||
+          String(item.refCfao || '').toLowerCase().includes(q)
         );
 
         return itemsMatch;
