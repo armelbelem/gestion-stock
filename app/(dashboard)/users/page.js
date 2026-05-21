@@ -2,13 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import { storage } from '../../lib/storage';
-import { UserPlus, Trash2, User, Edit2, X } from 'lucide-react';
+import { UserPlus, Trash2, User, Edit2, X, Search } from 'lucide-react';
 import { useAuth } from '../../providers';
 import AlertModal from '../../components/AlertModal';
 
 export default function UsersPage() {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [stores, setStores] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
@@ -86,6 +87,10 @@ export default function UsersPage() {
     });
   };
 
+  const filteredUsers = users.filter(u =>
+    u.username.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <div className="page">
       <div className="page-header">
@@ -93,12 +98,25 @@ export default function UsersPage() {
         <button className="btn btn-primary" onClick={() => { setEditingId(null); setFormData({username:'', password:'', role:'vendeur', storeId: stores[0]?.id || ''}); setIsModalOpen(true); }}><UserPlus size={18} /> Nouveau</button>
       </div>
 
+      <div className="toolbar" style={{ marginBottom: '1.5rem' }}>
+        <div className="search-input-wrapper" style={{ maxWidth: '350px' }}>
+          <Search size={18} className="search-icon" />
+          <input 
+            type="text" 
+            placeholder="Rechercher par identifiant..." 
+            className="form-control" 
+            value={searchTerm} 
+            onChange={(e) => setSearchTerm(e.target.value)} 
+          />
+        </div>
+      </div>
+
       <div className="content-card">
         <div className="table-wrapper">
           <table>
             <thead><tr><th>Utilisateur</th><th>Rôle</th><th>Magasin</th><th>Actions</th></tr></thead>
             <tbody>
-              {users.map(u => (
+              {filteredUsers.map(u => (
                 <tr key={u.id}>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
