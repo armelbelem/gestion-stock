@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Plus, Search, FileText, Download, Trash2, Eye, 
-  Upload, X, Filter, Folder, Calendar, File, CheckCircle2
+  Upload, X, Filter, Folder, Calendar, File, CheckCircle2,
+  ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { storage } from '../../lib/storage';
 import AlertModal from '../../components/AlertModal';
@@ -12,6 +13,9 @@ export default function ArchivesPage() {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({ total: 0, totalPages: 1, page: 1, limit: 12 });
   const [categoryFilter, setCategoryFilter] = useState('Tous');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -25,19 +29,46 @@ export default function ArchivesPage() {
   const showAlert = (type, title, message) => setAlertModal({ open: true, type, title, message, onConfirm: null });
   const closeAlert = () => setAlertModal(prev => ({ ...prev, open: false }));
 
+  // Debounce the search term to avoid excessive API requests
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setCurrentPage(1);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Reset page when other filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [categoryFilter, dateRange]);
+
   useEffect(() => {
     loadDocuments();
-  }, []);
+  }, [currentPage, debouncedSearch, categoryFilter, dateRange]);
 
   const loadDocuments = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/documents', {
-        headers: { 'Authorization': `Bearer ${sessionStorage.getItem('token')}` }
+      const token = sessionStorage.getItem('token');
+      const params = new URLSearchParams({
+        page: currentPage,
+        limit: pagination.limit,
+        _t: Date.now()
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      setDocuments(data);
+      if (debouncedSearch) params.set('search', debouncedSearch);
+      if (categoryFilter && categoryFilter !== 'Tous') params.set('category', categoryFilter);
+      if (dateRange.start) params.set('startDate', dateRange.start);
+      if (dateRange.end) params.set('endDate', dateRange.end);
+
+      const res = await fetch(`/api/documents?${params.toString()}`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error);
+      
+      setDocuments(result.data || []);
+      setPagination(result.pagination || { total: 0, totalPages: 1, page: 1, limit: 12 });
     } catch (err) {
       console.error(err);
       showAlert('error', 'Erreur', 'Impossible de charger les documents');
@@ -87,22 +118,6 @@ export default function ArchivesPage() {
       setIsUploading(false);
     }
   };
-
-  const filteredDocs = documents.filter(doc => {
-    const matchesSearch = doc.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          (doc.notes && doc.notes.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesCategory = categoryFilter === 'Tous' || doc.category === categoryFilter;
-    
-    const docDate = new Date(doc.uploadedAt);
-    const start = dateRange.start ? new Date(dateRange.start) : null;
-    const end = dateRange.end ? new Date(dateRange.end) : null;
-    if (start) start.setHours(0,0,0,0);
-    if (end) end.setHours(23,59,59,999);
-    
-    const matchesDate = (!start || docDate >= start) && (!end || docDate <= end);
-    
-    return matchesSearch && matchesCategory && matchesDate;
-  });
 
   const getFileIcon = (type) => {
     if (type?.includes('pdf')) return <FileText className="text-danger" size={24} />;
@@ -201,57 +216,72 @@ export default function ArchivesPage() {
       {loading ? (
         <div style={{ textAlign: 'center', padding: '4rem' }}>Chargement...</div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
-          {filteredDocs.length === 0 ? (
-            <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '4rem', backgroundColor: 'var(--card-bg)', borderRadius: '12px' }}>
-              <Folder size={48} className="text-muted" style={{ marginBottom: '1rem' }} />
-              <p>Aucun document trouvé.</p>
-            </div>
-          ) : (
-            filteredDocs.map(doc => (
-              <div key={doc.id} className="content-card document-card" style={{ padding: '1.5rem', position: 'relative', transition: 'transform 0.2s' }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1.25rem' }}>
-                  <div style={{ padding: '1rem', backgroundColor: 'var(--bg-faint)', borderRadius: '12px' }}>
-                    {getFileIcon(doc.fileType)}
-                  </div>
-                  <div style={{ flex: 1, overflow: 'hidden' }}>
-                    <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '0.4rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-main)' }}>{doc.name}</h3>
-                    <span className="badge badge-secondary" style={{ fontSize: '0.8rem', padding: '4px 10px' }}>{doc.category}</span>
-                  </div>
-                </div>
-                
-                <div style={{ marginTop: '1.25rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.4rem' }}>
-                    <Calendar size={14} />
-                    {new Date(doc.uploadedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                    <File size={14} />
-                    {formatSize(doc.fileSize)}
-                  </div>
-                </div>
-
-                {doc.notes && (
-                  <p style={{ marginTop: '1rem', fontSize: '0.9rem', color: 'var(--text-muted)', fontStyle: 'italic', borderTop: '1px solid var(--border-light)', paddingTop: '0.75rem', lineHeight: '1.4' }}>
-                    {doc.notes}
-                  </p>
-                )}
-
-                <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.75rem' }}>
-                  <button className="btn btn-secondary btn-sm" style={{ flex: 1, padding: '8px 0' }} onClick={() => setPreviewDoc(doc)}>
-                    <Eye size={16} /> Voir
-                  </button>
-                  <a href={doc.filePath} download={doc.name} className="btn btn-secondary btn-sm" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '8px 0' }}>
-                    <Download size={16} /> Charger
-                  </a>
-                  <button className="btn btn-danger-outline btn-sm" style={{ padding: '8px 12px' }} onClick={() => handleDelete(doc.id)} title="Supprimer">
-                    <Trash2 size={16} />
-                  </button>
-                </div>
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
+            {documents.length === 0 ? (
+              <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '4rem', backgroundColor: 'var(--card-bg)', borderRadius: '12px' }}>
+                <Folder size={48} className="text-muted" style={{ marginBottom: '1rem' }} />
+                <p>Aucun document trouvé.</p>
               </div>
-            ))
+            ) : (
+              documents.map(doc => (
+                <div key={doc.id} className="content-card document-card" style={{ padding: '1.5rem', position: 'relative', transition: 'transform 0.2s' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1.25rem' }}>
+                    <div style={{ padding: '1rem', backgroundColor: 'var(--bg-faint)', borderRadius: '12px' }}>
+                      {getFileIcon(doc.fileType)}
+                    </div>
+                    <div style={{ flex: 1, overflow: 'hidden' }}>
+                      <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '0.4rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-main)' }}>{doc.name}</h3>
+                      <span className="badge badge-secondary" style={{ fontSize: '0.8rem', padding: '4px 10px' }}>{doc.category}</span>
+                    </div>
+                  </div>
+                  
+                  <div style={{ marginTop: '1.25rem', fontSize: '0.9rem', color: 'var(--text-muted)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.4rem' }}>
+                      <Calendar size={14} />
+                      {new Date(doc.uploadedAt).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                      <File size={14} />
+                      {formatSize(doc.fileSize)}
+                    </div>
+                  </div>
+
+                  {doc.notes && (
+                    <p style={{ marginTop: '1rem', fontSize: '0.9rem', color: 'var(--text-muted)', fontStyle: 'italic', borderTop: '1px solid var(--border-light)', paddingTop: '0.75rem', lineHeight: '1.4' }}>
+                      {doc.notes}
+                    </p>
+                  )}
+
+                  <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.75rem' }}>
+                    <button className="btn btn-secondary btn-sm" style={{ flex: 1, padding: '8px 0' }} onClick={() => setPreviewDoc(doc)}>
+                      <Eye size={16} /> Voir
+                    </button>
+                    <a href={doc.filePath} download={doc.name} className="btn btn-secondary btn-sm" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', padding: '8px 0' }}>
+                      <Download size={16} /> Charger
+                    </a>
+                    <button className="btn btn-danger-outline btn-sm" style={{ padding: '8px 12px' }} onClick={() => handleDelete(doc.id)} title="Supprimer">
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {pagination.totalPages > 1 && (
+            <div className="pagination" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.5rem', padding: '1rem', backgroundColor: 'var(--card-bg)', borderRadius: '12px' }}>
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                Affichage de {(currentPage - 1) * pagination.limit + 1} à {Math.min(currentPage * pagination.limit, pagination.total)} sur {pagination.total}
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button className="btn btn-secondary btn-sm" onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1 || loading}><ChevronLeft size={16} /> Précédent</button>
+                <span style={{ padding: '0.25rem 0.75rem', backgroundColor: '#f1f5f9', borderRadius: '4px', fontSize: '0.85rem', fontWeight: 600 }}>{currentPage} / {pagination.totalPages}</span>
+                <button className="btn btn-secondary btn-sm" onClick={() => setCurrentPage(p => Math.min(p + 1, pagination.totalPages))} disabled={currentPage >= pagination.totalPages || loading}>Suivant <ChevronRight size={16} /></button>
+              </div>
+            </div>
           )}
-        </div>
+        </>
       )}
 
       {isUploadModalOpen && (

@@ -5,24 +5,44 @@ import { storage } from '../../lib/storage';
 import { 
   User, Store, Clock, Search, PlusCircle, Trash2, Edit, 
   LogIn, LogOut, ArrowRightLeft, AlertCircle, FileText, 
-  Settings, ShoppingCart, Wallet, Package
+  Settings, ShoppingCart, Wallet, Package,
+  ChevronLeft, ChevronRight
 } from 'lucide-react';
 
 export default function AuditLogsPage() {
   const [logs, setLogs] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({ total: 0, totalPages: 1, page: 1, limit: 50 });
   const [isLoading, setIsLoading] = useState(true);
+
+  // Debounce the search term to avoid excessive API requests
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setCurrentPage(1);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   useEffect(() => {
     loadLogs();
-  }, []);
+  }, [currentPage, debouncedSearch]);
 
   const loadLogs = async () => {
     setIsLoading(true);
     try {
-      const data = await storage.get('logs');
-      const sortedData = [...data].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-      setLogs(sortedData);
+      const params = new URLSearchParams({
+        page: currentPage,
+        limit: pagination.limit
+      });
+      if (debouncedSearch) {
+        params.append('searchTerm', debouncedSearch);
+      }
+      const result = await storage.get(`logs?${params.toString()}`);
+      setLogs(result.data || []);
+      setPagination(result.pagination || { total: 0, totalPages: 1, page: 1, limit: 50 });
     } catch (err) {
       console.error("Error loading logs:", err);
     } finally {
@@ -30,18 +50,9 @@ export default function AuditLogsPage() {
     }
   };
 
-  const filteredLogs = useMemo(() => {
-    return logs.filter(log => 
-      log.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.action?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.storeName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.details?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [logs, searchTerm]);
-
   const groupedLogs = useMemo(() => {
     const groups = {};
-    filteredLogs.forEach(log => {
+    logs.forEach(log => {
       const date = new Date(log.timestamp);
       const today = new Date();
       const yesterday = new Date();
@@ -53,7 +64,7 @@ export default function AuditLogsPage() {
       groups[dateStr].push(log);
     });
     return groups;
-  }, [filteredLogs]);
+  }, [logs]);
 
   const getActionInfo = (action) => {
     const act = action.toLowerCase();
@@ -96,35 +107,50 @@ export default function AuditLogsPage() {
       {isLoading ? (
         <div style={{ textAlign: 'center', padding: '5rem' }}><Clock size={48} className="text-muted" /><p>Chargement...</p></div>
       ) : (
-        <div className="timeline">
-          {Object.entries(groupedLogs).map(([date, items]) => (
-            <div key={date} className="timeline-group">
-              <div className="timeline-date-header">{date}</div>
-              {items.map((log) => {
-                const { icon, color } = getActionInfo(log.action);
-                return (
-                  <div key={log.id} className="timeline-item">
-                    <div className="timeline-icon-wrapper"><div className="timeline-icon" style={{ borderColor: color, color }}>{icon}</div></div>
-                    <div className="timeline-content">
-                      <div className="timeline-header">
-                        <div>
-                          <div className="timeline-action" style={{ color }}>{log.action}</div>
-                          <div className="timeline-user">
-                            <div className="avatar" style={{ width: '20px', height: '20px', fontSize: '0.6rem' }}>{log.username?.[0].toUpperCase()}</div>
-                            <strong>{log.username}</strong>
-                            <span className="timeline-store"><Store size={12} />{log.storeName || 'Système'}</span>
+        <>
+          <div className="timeline">
+            {Object.entries(groupedLogs).map(([date, items]) => (
+              <div key={date} className="timeline-group">
+                <div className="timeline-date-header">{date}</div>
+                {items.map((log) => {
+                  const { icon, color } = getActionInfo(log.action);
+                  return (
+                    <div key={log.id} className="timeline-item">
+                      <div className="timeline-icon-wrapper"><div className="timeline-icon" style={{ borderColor: color, color }}>{icon}</div></div>
+                      <div className="timeline-content">
+                        <div className="timeline-header">
+                          <div>
+                            <div className="timeline-action" style={{ color }}>{log.action}</div>
+                            <div className="timeline-user">
+                              <div className="avatar" style={{ width: '20px', height: '20px', fontSize: '0.6rem' }}>{log.username?.[0].toUpperCase()}</div>
+                              <strong>{log.username}</strong>
+                              <span className="timeline-store"><Store size={12} />{log.storeName || 'Système'}</span>
+                            </div>
                           </div>
+                          <div className="timeline-time">{new Date(log.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</div>
                         </div>
-                        <div className="timeline-time">{new Date(log.timestamp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</div>
+                        {log.details && <div className="timeline-details" style={{ borderLeftColor: color }}>{formatDetails(log.details, log.action)}</div>}
                       </div>
-                      {log.details && <div className="timeline-details" style={{ borderLeftColor: color }}>{formatDetails(log.details, log.action)}</div>}
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+
+          {pagination.totalPages > 1 && (
+            <div className="pagination" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '2rem', padding: '1rem', backgroundColor: 'var(--card-bg)', borderRadius: '12px' }}>
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                Affichage de {(currentPage - 1) * pagination.limit + 1} à {Math.min(currentPage * pagination.limit, pagination.total)} sur {pagination.total}
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button className="btn btn-secondary btn-sm" onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1 || isLoading}><ChevronLeft size={16} /> Précédent</button>
+                <span style={{ padding: '0.25rem 0.75rem', backgroundColor: '#f1f5f9', borderRadius: '4px', fontSize: '0.85rem', fontWeight: 600 }}>{currentPage} / {pagination.totalPages}</span>
+                <button className="btn btn-secondary btn-sm" onClick={() => setCurrentPage(p => Math.min(p + 1, pagination.totalPages))} disabled={currentPage >= pagination.totalPages || isLoading}>Suivant <ChevronRight size={16} /></button>
+              </div>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
     </div>
   );

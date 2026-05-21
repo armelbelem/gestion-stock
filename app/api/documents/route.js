@@ -11,9 +11,63 @@ export async function GET(request) {
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   try {
-    const [rows] = await db.query('SELECT * FROM documents ORDER BY uploadedAt DESC');
-    return NextResponse.json(rows);
+    const { searchParams } = new URL(request.url);
+    const hasPage = searchParams.has('page');
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '50', 10);
+    const offset = (page - 1) * limit;
+
+    const search = searchParams.get('search') || searchParams.get('searchTerm') || '';
+    const category = searchParams.get('category') || '';
+    const startDate = searchParams.get('startDate') || '';
+    const endDate = searchParams.get('endDate') || '';
+
+    let baseQuery = ' FROM documents WHERE 1=1';
+    let params = [];
+
+    if (category && category !== 'Tous') {
+      baseQuery += ' AND category = ?';
+      params.push(category);
+    }
+
+    if (search) {
+      baseQuery += ' AND (name LIKE ? OR notes LIKE ?)';
+      const likeTerm = `%${search}%`;
+      params.push(likeTerm, likeTerm);
+    }
+
+    if (startDate) {
+      baseQuery += ' AND uploadedAt >= ?';
+      params.push(startDate + ' 00:00:00');
+    }
+    if (endDate) {
+      baseQuery += ' AND uploadedAt <= ?';
+      params.push(endDate + ' 23:59:59');
+    }
+
+    if (!hasPage) {
+      const [rows] = await db.query('SELECT * ' + baseQuery + ' ORDER BY uploadedAt DESC', params);
+      return NextResponse.json(rows);
+    }
+
+    const countSql = 'SELECT COUNT(*) as total ' + baseQuery;
+    const [countRows] = await db.query(countSql, params);
+    const totalItems = countRows[0]?.total || 0;
+
+    const dataSql = 'SELECT * ' + baseQuery + ` ORDER BY uploadedAt DESC LIMIT ${limit} OFFSET ${offset}`;
+    const [rows] = await db.query(dataSql, params);
+
+    return NextResponse.json({
+      data: rows,
+      pagination: {
+        total: totalItems,
+        page: page,
+        limit: limit,
+        totalPages: Math.ceil(totalItems / limit)
+      }
+    });
   } catch (err) {
+    console.error('[API DOCUMENTS GET ERROR]', err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
