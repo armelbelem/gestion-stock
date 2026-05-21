@@ -59,6 +59,9 @@ export default function ContractGatewayPage() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('dossiers');
   const [orders, setOrders] = useState([]);
+  const [globalStats, setGlobalStats] = useState({ achatsEnCours: 0, achatsClotures: 0, enDemande: 0, retardLivraison: 0 });
+  const [orderSearch, setOrderSearch] = useState('');
+  const [orderDebouncedSearch, setOrderDebouncedSearch] = useState('');
 
   const formatPrice = (val) => {
     if (val === undefined || val === null) return '0';
@@ -127,6 +130,15 @@ export default function ContractGatewayPage() {
     }, 400);
     return () => clearTimeout(timer);
   }, [catalogSearch]);
+
+  // Debounce recherche dossiers : attend 400ms
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setOrderDebouncedSearch(orderSearch);
+      setCurrentPage(1);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [orderSearch]);
 
   // Reset page quand le partenaire ou le client change
   useEffect(() => {
@@ -336,7 +348,7 @@ export default function ContractGatewayPage() {
     if (selectedPartner) {
       loadData();
     }
-  }, [dateRange.start, dateRange.end, selectedCatalogClient, selectedPartner, selectedMine, currentPage]);
+  }, [dateRange.start, dateRange.end, selectedCatalogClient, selectedPartner, selectedMine, currentPage, orderDebouncedSearch]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -365,9 +377,10 @@ export default function ContractGatewayPage() {
     setLoading(true);
     try {
       const pId = selectedPartner.id;
-      const ordersKey = pId === 'all'
-        ? `contract-orders?startDate=${dateRange.start}&endDate=${dateRange.end}&storeId=all${selectedMine ? `&clientId=${selectedMine}` : ''}&page=${currentPage}&limit=50`
-        : `contract-orders?startDate=${dateRange.start}&endDate=${dateRange.end}&partnerId=${pId}&storeId=all${selectedMine ? `&clientId=${selectedMine}` : ''}&page=${currentPage}&limit=50`;
+      let ordersKey = `contract-orders?startDate=${dateRange.start}&endDate=${dateRange.end}&storeId=all&page=${currentPage}&limit=50`;
+      if (pId !== 'all') ordersKey += `&partnerId=${pId}`;
+      if (selectedMine) ordersKey += `&clientId=${selectedMine}`;
+      if (orderDebouncedSearch) ordersKey += `&search=${encodeURIComponent(orderDebouncedSearch)}`;
 
       const timestamp = Date.now();
       const [ordersData, specialData] = await Promise.all([
@@ -375,6 +388,7 @@ export default function ContractGatewayPage() {
         storage.get(`contract-special-docs?partnerId=${pId}&startDate=${dateRange.start}&endDate=${dateRange.end}&storeId=all&t=${timestamp}`)
       ]);
       setOrders(ordersData?.data || []);
+      setGlobalStats(ordersData?.globalStats || { achatsEnCours: 0, achatsClotures: 0, enDemande: 0, retardLivraison: 0 });
       setPagination(ordersData?.pagination || { total: 0, totalPages: 1, limit: 50 });
       setSpecialDocs(specialData || []);
 
@@ -2068,7 +2082,7 @@ export default function ContractGatewayPage() {
             <div className="stat-card" style={{ borderLeft: '5px solid var(--primary)', position: 'relative', overflow: 'hidden' }}>
               <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>💼 Achats en cours</div>
               <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--primary)' }}>
-                {formatPrice(orders.filter(o => o.status !== 'termine').reduce((sum, o) => sum + (o.contractAmount * (1 + (o.tva_rate || 0) / 100)), 0))}
+                {formatPrice(globalStats.achatsEnCours)}
                 <span style={{ fontSize: '0.9rem', opacity: 0.8 }}> FCFA (TTC)</span>
               </div>
             </div>
@@ -2076,19 +2090,19 @@ export default function ContractGatewayPage() {
               <div className="stat-card" style={{ borderLeft: '5px solid var(--success)', position: 'relative', overflow: 'hidden' }}>
                 <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>💰 Achats Clôturés</div>
                 <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--success)' }}>
-                  {formatPrice(orders.filter(o => o.status === 'termine').reduce((sum, o) => sum + (o.contractAmount * (1 + (o.tva_rate || 0) / 100)), 0))}
+                  {formatPrice(globalStats.achatsClotures)}
                   <span style={{ fontSize: '0.9rem', opacity: 0.8 }}> FCFA (TTC)</span>
                 </div>
               </div>
             )}
             <div className="stat-card" style={{ borderLeft: '5px solid var(--warning)', position: 'relative', overflow: 'hidden' }}>
               <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>⏳ En Demande</div>
-              <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--warning)' }}>{orders.filter(o => o.status === 'demande').length} <span style={{ fontSize: '0.9rem', opacity: 0.8 }}>Dossiers</span></div>
+              <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--warning)' }}>{globalStats.enDemande} <span style={{ fontSize: '0.9rem', opacity: 0.8 }}>Dossiers</span></div>
             </div>
             <div className="stat-card" style={{ borderLeft: '5px solid var(--danger)', position: 'relative', overflow: 'hidden' }}>
               <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>🚨 Retard Livraison</div>
               <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--danger)' }}>
-                {orders.filter(o => o.status !== 'termine' && o.delivery_date && new Date(o.delivery_date) <= new Date()).length} 
+                {globalStats.retardLivraison} 
                 <span style={{ fontSize: '0.9rem', opacity: 0.8 }}> Dossiers</span>
               </div>
             </div>
@@ -2111,7 +2125,18 @@ export default function ContractGatewayPage() {
                 }}><Plus size={18} /> Nouveau Dossier</button>
                 <button className="btn btn-secondary" onClick={exportOrdersToExcel} title="Exporter tous les dossiers affichés"><FileSpreadsheet size={18} /> Excel</button>
               </div>
-
+              
+              <div style={{ position: 'relative', width: '300px' }}>
+                <Search size={16} style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--text-muted)' }} />
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Rechercher par N° dossier ou Client..."
+                  style={{ paddingLeft: '32px' }}
+                  value={orderSearch}
+                  onChange={(e) => setOrderSearch(e.target.value)}
+                />
+              </div>
             </div>
             <div className="table-wrapper">
               <table>

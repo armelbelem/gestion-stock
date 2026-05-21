@@ -21,37 +21,66 @@ export async function GET(request) {
   
   const storeId = getStoreConstraint(auth.user, requestedStoreId);
 
-  try {
-    let baseQuery = `
-      FROM contract_orders co
-      LEFT JOIN clients c ON co.clientId = c.id
-      LEFT JOIN contract_partners p ON co.partner_id = p.id
-      WHERE 1=1
-    `;
-    const params = [];
+    const clientId = searchParams.get('clientId');
+    const search = searchParams.get('search') || '';
 
-    if (storeId) {
-      baseQuery += ` AND co.storeId = ? `;
-      params.push(storeId);
-    }
+    try {
+      let baseQuery = `
+        FROM contract_orders co
+        LEFT JOIN clients c ON co.clientId = c.id
+        LEFT JOIN contract_partners p ON co.partner_id = p.id
+        WHERE 1=1
+      `;
+      const params = [];
 
-    if (startDate && endDate) {
-      baseQuery += ` AND co.createdAt BETWEEN ? AND ? `;
-      params.push(`${startDate} 00:00:00`, `${endDate} 23:59:59`);
-    }
+      if (storeId) {
+        baseQuery += ` AND co.storeId = ? `;
+        params.push(storeId);
+      }
 
-    if (partnerId) {
-      baseQuery += ` AND co.partner_id = ? `;
-      params.push(partnerId);
-    }
+      if (startDate && endDate) {
+        baseQuery += ` AND co.createdAt BETWEEN ? AND ? `;
+        params.push(`${startDate} 00:00:00`, `${endDate} 23:59:59`);
+      }
 
-    // 1. Get total count for pagination
-    const [countRows] = await db.query(`SELECT COUNT(*) as total ${baseQuery}`, params);
-    const totalItems = countRows[0].total;
+      if (partnerId) {
+        baseQuery += ` AND co.partner_id = ? `;
+        params.push(partnerId);
+      }
+      
+      if (clientId) {
+        baseQuery += ` AND co.clientId = ? `;
+        params.push(clientId);
+      }
 
-    // 2. Get paginated data
-    const dataQuery = `SELECT co.*, c.name as clientName, p.name as partnerName ${baseQuery} ORDER BY co.createdAt DESC LIMIT ? OFFSET ?`;
-    const [rows] = await db.query(dataQuery, [...params, limit, offset]);
+      if (search) {
+        baseQuery += ` AND (co.orderNumber LIKE ? OR c.name LIKE ?) `;
+        const searchPat = `%${search}%`;
+        params.push(searchPat, searchPat);
+      }
+
+      // 1. Get global stats for pagination and dashboard
+      const statsQuery = `
+        SELECT 
+          COUNT(*) as total,
+          SUM(CASE WHEN co.status != 'termine' THEN (co.contractAmount * (1 + IFNULL(co.tva_rate, 0) / 100)) ELSE 0 END) as achatsEnCours,
+          SUM(CASE WHEN co.status = 'termine' THEN (co.contractAmount * (1 + IFNULL(co.tva_rate, 0) / 100)) ELSE 0 END) as achatsClotures,
+          SUM(CASE WHEN co.status = 'demande' THEN 1 ELSE 0 END) as enDemande,
+          SUM(CASE WHEN co.status != 'termine' AND co.delivery_date IS NOT NULL AND co.delivery_date <= CURDATE() THEN 1 ELSE 0 END) as retardLivraison
+        ${baseQuery}
+      `;
+      const [statsRows] = await db.query(statsQuery, params);
+      const totalItems = statsRows[0].total || 0;
+      const globalStats = {
+        achatsEnCours: statsRows[0].achatsEnCours || 0,
+        achatsClotures: statsRows[0].achatsClotures || 0,
+        enDemande: statsRows[0].enDemande || 0,
+        retardLivraison: statsRows[0].retardLivraison || 0
+      };
+
+      // 2. Get paginated data
+      const dataQuery = `SELECT co.*, c.name as clientName, p.name as partnerName ${baseQuery} ORDER BY co.createdAt DESC LIMIT ? OFFSET ?`;
+      const [rows] = await db.query(dataQuery, [...params, limit, offset]);
 
     // Filtrage de sécurité côté serveur
     const filteredRows = rows.map(row => {
@@ -73,6 +102,7 @@ export async function GET(request) {
 
     return NextResponse.json({
       data: filteredRows,
+      globalStats,
       pagination: {
         total: totalItems,
         page,
