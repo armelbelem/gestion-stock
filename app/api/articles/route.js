@@ -14,6 +14,8 @@ export async function GET(request) {
     const { searchParams } = request.nextUrl;
     const storeId = getStoreConstraint(auth.user, searchParams.get('storeId'));
     const search = searchParams.get('search') || '';
+    // Si 'page' n'est pas fourni, mode rétrocompatibilité (retourne un tableau simple)
+    const isPaginated = searchParams.has('page');
     const page = parseInt(searchParams.get('page') || '1', 10);
     const limit = parseInt(searchParams.get('limit') || '50', 10);
     const offset = (page - 1) * limit;
@@ -36,18 +38,22 @@ export async function GET(request) {
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
 
-    // Requête de comptage total
-    const [countResult] = await db.query(
-      `SELECT COUNT(*) as total FROM articles a ${whereClause}`,
-      params
-    );
-    const total = countResult[0].total;
-    const totalPages = Math.ceil(total / limit);
+    // Requête de comptage total (uniquement en mode paginé)
+    let total = 0;
+    let totalPages = 1;
+    if (isPaginated) {
+      const [countResult] = await db.query(
+        `SELECT COUNT(*) as total FROM articles a ${whereClause}`,
+        params
+      );
+      total = countResult[0].total;
+      totalPages = Math.ceil(total / limit);
+    }
 
-    // Requête principale paginée
+    // Requête principale
     const queryParams = [...params];
     if (storeId) queryParams.push(storeId); // for the inventory subquery
-    queryParams.push(limit, offset);
+    if (isPaginated) queryParams.push(limit, offset);
 
     const [articles] = await db.query(`
       SELECT a.id, a.code, a.name, a.price, a.minStock, a.barcode, a.storeId, a.createdAt,
@@ -68,7 +74,7 @@ export async function GET(request) {
       FROM articles a
       ${whereClause}
       ORDER BY a.name ASC
-      LIMIT ? OFFSET ?
+      ${isPaginated ? 'LIMIT ? OFFSET ?' : ''}
     `, queryParams);
 
     const cleanedArticles = articles.map(art => {
@@ -79,10 +85,15 @@ export async function GET(request) {
       return cleaned;
     });
 
-    return NextResponse.json({
-      data: cleanedArticles,
-      pagination: { total, totalPages, page, limit }
-    });
+    // Mode paginé : retourne { data, pagination }
+    // Mode simple (rétrocompatibilité) : retourne un tableau directement
+    if (isPaginated) {
+      return NextResponse.json({
+        data: cleanedArticles,
+        pagination: { total, totalPages, page, limit }
+      });
+    }
+    return NextResponse.json(cleanedArticles);
   } catch (err) { 
     console.error('API Error:', err);
     return NextResponse.json({ error: err.message }, { status: 500 }); 
