@@ -70,7 +70,7 @@ export async function POST(request) {
         a.name, 
         a.barcode as reference, 
         a.price as unitPrice,
-        COALESCE(inv.totalQty, 0) as currentStock,
+        COALESCE(MAX(inv.totalQty), 0) as currentStock,
         COALESCE(SUM(CASE WHEN s.date >= DATE_SUB(NOW(), INTERVAL 1 MONTH) THEN si.quantity ELSE 0 END), 0) as qty1m,
         COALESCE(SUM(CASE WHEN s.date >= DATE_SUB(NOW(), INTERVAL 2 MONTH) THEN si.quantity ELSE 0 END), 0) as qty2m,
         COALESCE(SUM(CASE WHEN s.date >= DATE_SUB(NOW(), INTERVAL 3 MONTH) THEN si.quantity ELSE 0 END), 0) as qty3m,
