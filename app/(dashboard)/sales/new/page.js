@@ -392,7 +392,7 @@ export default function NewSalePage() {
                           ) : (
                             <select className="form-control" value={item.articleId} onChange={(e) => updateItem(item.id, 'articleId', e.target.value)}>
                               <option value="">Choisir...</option>
-                              {articles.map(a => <option key={a.id} value={a.id} disabled={a.currentStock <= 0}>{a.name} ({a.currentStock})</option>)}
+                              {articles.map(a => <option key={a.id} value={a.id} disabled={a.currentStock <= 0}>{a.code ? `[Code: ${a.code}] ` : ''}{a.barcode ? `[Réf: ${a.barcode}] ` : ''}{a.name} (Stock: {a.currentStock})</option>)}
                             </select>
                           )}
                         </td>

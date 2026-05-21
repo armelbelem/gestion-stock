@@ -73,7 +73,7 @@ const relations = [
   { table: 'contract_catalog', col: 'clientId', refTable: 'clients', refCol: 'id', onDelete: 'SET NULL', type: 'varchar(191)' },
   { table: 'contract_order_history', col: 'orderId', refTable: 'contract_orders', refCol: 'id', onDelete: 'CASCADE', type: 'varchar(100)' },
   { table: 'contract_order_items', col: 'orderId', refTable: 'contract_orders', refCol: 'id', onDelete: 'CASCADE', type: 'varchar(100)' },
-  { table: 'contract_order_items', col: 'articleId', refTable: 'articles', refCol: 'id', onDelete: 'RESTRICT', type: 'int' },
+
   { table: 'contract_orders', col: 'partner_id', refTable: 'contract_partners', refCol: 'id', onDelete: 'CASCADE', type: 'varchar(100)' },
   { table: 'contract_orders', col: 'clientId', refTable: 'clients', refCol: 'id', onDelete: 'RESTRICT', type: 'varchar(191)' },
   { table: 'contract_orders', col: 'supplierId', refTable: 'fournisseurs', refCol: 'id', onDelete: 'RESTRICT', type: 'varchar(191)' },

@@ -40,7 +40,7 @@ export async function GET(request) {
     const [sales] = await db.query(query, params);
     for (let sale of sales) {
       const [items] = await db.query(
-        'SELECT si.*, COALESCE(a.name, si.description) as articleName FROM sale_items si LEFT JOIN articles a ON si.articleId = a.id WHERE si.saleId = ?',
+        'SELECT si.*, COALESCE(a.name, si.description) as articleName, a.code as articleCode, a.barcode as articleBarcode FROM sale_items si LEFT JOIN articles a ON si.articleId = a.id WHERE si.saleId = ?',
         [sale.id]
       );
       sale.items = items;

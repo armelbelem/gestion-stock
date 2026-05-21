@@ -442,7 +442,7 @@ export default function DashboardPage() {
       {stats.unpaidSales && stats.unpaidSales.length > 0 && (
         <div className="content-card" style={{ marginTop: '2rem' }}>
           <h2 style={{ fontSize: '1.2rem', marginBottom: '1rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Coins size={18} /> Consommations à régler ({stats.unpaidSales.length})
+            <Coins size={18} /> Ventes non réglées ({stats.unpaidSales.length})
             <button className="btn btn-secondary btn-sm" onClick={() => {
               const headers = [
                 { key: 'ref', label: 'Référence' },

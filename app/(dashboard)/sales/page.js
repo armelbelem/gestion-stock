@@ -138,7 +138,7 @@ export default function SalesPage() {
     switch (status) {
       case 'payé': return <span className="badge badge-success">Payé</span>;
       case 'partiel': return <span className="badge badge-warning">Partiel</span>;
-      case 'en_attente': return <span className="badge badge-danger">Consommation</span>;
+      case 'en_attente': return <span className="badge badge-danger">Non réglé</span>;
       case 'annulée': return <span className="badge badge-danger">Annulée</span>;
       case 'proforma': return <span className="badge" style={{ backgroundColor: '#fff7ed', color: '#9a3412', border: '1px solid #fdba74' }}>PROFORMA</span>;
       default: return <span className="badge badge-secondary">{status}</span>;
@@ -187,8 +187,15 @@ export default function SalesPage() {
   };
 
   const filteredSales = sales.filter(sale => {
-    const matchesSearch = sale.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (sale.clientName && sale.clientName.toLowerCase().includes(searchTerm.toLowerCase()));
+    const searchLower = searchTerm.toLowerCase();
+    const matchesSearch = sale.id.toLowerCase().includes(searchLower) ||
+      (sale.clientName && sale.clientName.toLowerCase().includes(searchLower)) ||
+      (sale.notes && sale.notes.toLowerCase().includes(searchLower)) ||
+      (sale.items && sale.items.some(item => 
+        (item.articleName && item.articleName.toLowerCase().includes(searchLower)) ||
+        (item.articleCode && item.articleCode.toLowerCase().includes(searchLower)) ||
+        (item.articleBarcode && item.articleBarcode.toLowerCase().includes(searchLower))
+      ));
     
     if (!matchesSearch) return false;
 
@@ -594,7 +601,15 @@ export default function SalesPage() {
                                 <tbody>
                                   {sale.items.map((item, idx) => (
                                     <tr key={idx}>
-                                      <td>{item.articleName}</td>
+                                      <td>
+                                        <div style={{ fontWeight: 500 }}>{item.articleName}</div>
+                                        {(item.articleCode || item.articleBarcode) && (
+                                          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                            {item.articleCode && <span style={{ marginRight: '8px' }}>Code : {item.articleCode}</span>}
+                                            {item.articleBarcode && <span>Réf : {item.articleBarcode}</span>}
+                                          </div>
+                                        )}
+                                      </td>
                                       <td>{item.quantity}</td>
                                       {(currentUser?.role === 'admin' || currentUser?.role === 'gestionnaire') && (
                                         <>
@@ -609,7 +624,7 @@ export default function SalesPage() {
                              </div>
                              {sale.notes && (
                                <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: '#f8fafc', borderRadius: '8px', borderLeft: '4px solid #cbd5e1' }}>
-                                 <strong style={{ fontSize: '0.8rem', color: '#64748b', textTransform: 'uppercase' }}>Note / Justification :</strong>
+                                 <strong style={{ fontSize: '0.8rem', color: '#64748b', textTransform: 'uppercase' }}>Observations de la vente :</strong>
                                  <p style={{ margin: '4px 0 0 0', fontSize: '0.9rem', color: 'var(--text-main)' }}>{sale.notes}</p>
                                </div>
                              )}
