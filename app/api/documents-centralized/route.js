@@ -270,8 +270,31 @@ export async function GET(request) {
       });
     }
 
+    const isPaginated = searchParams.has('page');
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '50', 10);
+
     // --- 5. TRI FINAL DES RÉSULTATS PAR DATE DESC ---
     allDocuments.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    if (isPaginated) {
+      const total = allDocuments.length;
+      const totalPages = Math.ceil(total / limit);
+      
+      const totalBc = allDocuments.filter(d => d.docType === 'BC').length;
+      const totalBl = allDocuments.filter(d => d.docType === 'BL').length;
+      const signedDocs = allDocuments.filter(d => d.attachment !== null && d.attachment !== '').length;
+      const signedRate = total > 0 ? Math.round((signedDocs / total) * 100) : 0;
+
+      const offset = (page - 1) * limit;
+      const paginatedData = allDocuments.slice(offset, offset + limit);
+
+      return NextResponse.json({
+        data: paginatedData,
+        pagination: { total, totalPages, page, limit },
+        summary: { totalBc, totalBl, totalDocs: total, signedDocs, signedRate }
+      });
+    }
 
     return NextResponse.json(allDocuments);
   } catch (err) {

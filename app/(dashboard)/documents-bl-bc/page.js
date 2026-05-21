@@ -26,10 +26,17 @@ export default function DocumentsCentralizedPage() {
   
   // États pour les filtres
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedPartnerId, setSelectedPartnerId] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all'); // 'all', 'signed', 'pending'
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+
+  // Pagination et Stats
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({ total: 0, totalPages: 1, page: 1, limit: 10 });
+  const [statsObj, setStatsObj] = useState({ totalBc: 0, totalBl: 0, totalDocs: 0, signedDocs: 0, signedRate: 0 });
+  const itemsPerPage = 10;
 
   // États des Modals
   const [selectedDoc, setSelectedDoc] = useState(null);
@@ -50,12 +57,26 @@ export default function DocumentsCentralizedPage() {
     setEndDate(new Date().toISOString().split('T')[0]);
   }, []);
 
-  // Recharger les documents lorsque les filtres ou l'onglet actif changent
+  // Debounce la recherche
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setCurrentPage(1);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Réinitialiser la page si on change d'onglet ou de filtre
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, selectedPartnerId, selectedStatus, startDate, endDate]);
+
+  // Recharger les documents
   useEffect(() => {
     if (startDate && endDate) {
       loadDocuments();
     }
-  }, [activeTab, selectedPartnerId, selectedStatus, startDate, endDate, search]);
+  }, [currentPage, debouncedSearch, activeTab, selectedPartnerId, selectedStatus, startDate, endDate]);
 
   const loadPartners = async () => {
     try {
@@ -78,7 +99,7 @@ export default function DocumentsCentralizedPage() {
   const loadDocuments = async () => {
     setLoading(true);
     try {
-      const url = `/api/documents-centralized?type=${activeTab}&partnerId=${selectedPartnerId}&status=${selectedStatus}&startDate=${startDate}&endDate=${endDate}&search=${encodeURIComponent(search)}&_t=${Date.now()}`;
+      const url = `/api/documents-centralized?page=${currentPage}&limit=${itemsPerPage}&type=${activeTab}&partnerId=${selectedPartnerId}&status=${selectedStatus}&startDate=${startDate}&endDate=${endDate}&search=${encodeURIComponent(debouncedSearch)}&_t=${Date.now()}`;
       
       const token = sessionStorage.getItem('token');
       const res = await fetch(url, {
@@ -87,8 +108,10 @@ export default function DocumentsCentralizedPage() {
       
       if (!res.ok) throw new Error("Échec du chargement des documents");
       
-      const data = await res.json();
-      setDocuments(data || []);
+      const result = await res.json();
+      setDocuments(result.data || []);
+      setPagination(result.pagination || { total: 0, totalPages: 1, page: 1, limit: itemsPerPage });
+      setStatsObj(result.summary || { totalBc: 0, totalBl: 0, totalDocs: 0, signedDocs: 0, signedRate: 0 });
     } catch (err) {
       console.error("Error fetching centralized documents:", err);
       showAlert('error', 'Erreur de chargement', "Impossible de récupérer la liste des documents.");
@@ -115,18 +138,7 @@ export default function DocumentsCentralizedPage() {
     return num.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' F.CFA';
   };
 
-  // Calculer les statistiques sur les documents filtrés
-  const getStats = () => {
-    const totalBc = documents.filter(d => d.docType === 'BC').length;
-    const totalBl = documents.filter(d => d.docType === 'BL').length;
-    const totalDocs = documents.length;
-    const signedDocs = documents.filter(d => d.attachment !== null && d.attachment !== '').length;
-    const signedRate = totalDocs > 0 ? Math.round((signedDocs / totalDocs) * 100) : 0;
-    
-    return { totalBc, totalBl, totalDocs, signedDocs, signedRate };
-  };
 
-  const statsObj = getStats();
 
   // Déclencher l'upload de fichier joint pour un document
   const triggerUpload = (docId) => {
@@ -825,11 +837,23 @@ export default function DocumentsCentralizedPage() {
               </tbody>
             </table>
           )}
-
         </div>
+        
+        {pagination.totalPages > 1 && (
+          <div className="pagination" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', padding: '1rem', borderTop: '1px solid var(--border-color)' }}>
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+              Affichage de {(currentPage - 1) * itemsPerPage + 1} à {Math.min(currentPage * itemsPerPage, pagination.total)} sur {pagination.total}
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button className="btn btn-secondary btn-sm" onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1 || loading}><ChevronLeft size={16} /> Précédent</button>
+              <span style={{ padding: '0.25rem 0.75rem', backgroundColor: '#f1f5f9', borderRadius: '4px', fontSize: '0.85rem', fontWeight: 600 }}>{currentPage} / {pagination.totalPages}</span>
+              <button className="btn btn-secondary btn-sm" onClick={() => setCurrentPage(p => Math.min(p + 1, pagination.totalPages))} disabled={currentPage >= pagination.totalPages || loading}>Suivant <ChevronRight size={16} /></button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Modal Premium Visionneuse de Détails (Glassmorphism Modal) */}
+      {/* Modal Visionneuse de Détails (Glassmorphism Modal) */}
       {isViewModalOpen && selectedDoc && (
         <div className="modal-glass-backdrop" onClick={() => setIsViewModalOpen(false)}>
           <div className="modal-glass-content" onClick={e => e.stopPropagation()}>
