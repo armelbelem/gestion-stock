@@ -51,8 +51,9 @@ export async function GET(request) {
     }
 
     // Requête principale
-    const queryParams = [...params];
-    if (storeId) queryParams.push(storeId); // for the inventory subquery
+    const queryParams = [];
+    if (storeId) queryParams.push(storeId); // for the inventory subquery in SELECT
+    queryParams.push(...params); // for the whereClause
     if (isPaginated) queryParams.push(limit, offset);
 
     const [articles] = await db.query(`

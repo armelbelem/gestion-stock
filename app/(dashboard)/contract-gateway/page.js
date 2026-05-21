@@ -110,16 +110,28 @@ export default function ContractGatewayPage() {
 
   const [alertModal, setAlertModal] = useState({ open: false, type: 'info', title: '', message: '', onConfirm: null });
   const [catalogSearch, setCatalogSearch] = useState('');
+  const [catalogDebouncedSearch, setCatalogDebouncedSearch] = useState('');
   const [catalogCurrentPage, setCatalogCurrentPage] = useState(1);
+  const [catalogPagination, setCatalogPagination] = useState({ total: 0, totalPages: 1, page: 1, limit: 100 });
+  const [catalogLoading, setCatalogLoading] = useState(false);
   const catalogItemsPerPage = 100;
-  
 
   const [selectedCatalogClient, setSelectedCatalogClient] = useState('');
   const [selectedMine, setSelectedMine] = useState(''); // Global mine filter for dossiers
 
+  // Debounce recherche catalogue : attend 400ms
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setCatalogDebouncedSearch(catalogSearch);
+      setCatalogCurrentPage(1);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [catalogSearch]);
+
+  // Reset page quand le partenaire ou le client change
   useEffect(() => {
     setCatalogCurrentPage(1);
-  }, [catalogSearch, selectedCatalogClient, selectedPartner]);
+  }, [selectedCatalogClient, selectedPartner]);
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(true);
 
   const speak = (text) => {
@@ -165,15 +177,31 @@ export default function ContractGatewayPage() {
 
   const loadCatalogData = async () => {
     if (!selectedPartner) return;
-    const pId = selectedPartner.id;
-    const catalogKey = pId === 'all'
-      ? (selectedCatalogClient ? `contract-catalog?clientId=${selectedCatalogClient}&storeId=all` : `contract-catalog?storeId=all`)
-      : (selectedCatalogClient ? `contract-catalog?clientId=${selectedCatalogClient}&partnerId=${pId}&storeId=all` : `contract-catalog?partnerId=${pId}&storeId=all`);
+    setCatalogLoading(true);
     try {
-      const catalogData = await storage.get(catalogKey);
-      setCatalog(catalogData || []);
+      const pId = selectedPartner.id;
+      const token = sessionStorage.getItem('token');
+      const params = new URLSearchParams({
+        page: catalogCurrentPage,
+        limit: catalogItemsPerPage,
+        _t: Date.now()
+      });
+      if (pId !== 'all') params.set('partnerId', pId);
+      if (selectedCatalogClient) params.set('clientId', selectedCatalogClient);
+      if (catalogDebouncedSearch) params.set('search', catalogDebouncedSearch);
+      params.set('storeId', 'all');
+
+      const res = await fetch(`/api/contract-catalog?${params.toString()}`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        cache: 'no-store'
+      });
+      const result = await res.json();
+      setCatalog(result.data || []);
+      setCatalogPagination(result.pagination || { total: 0, totalPages: 1, page: 1, limit: 100 });
     } catch (err) {
-      console.error("Error loading catalog:", err);
+      console.error('Error loading catalog:', err);
+    } finally {
+      setCatalogLoading(false);
     }
   };
 
@@ -181,7 +209,7 @@ export default function ContractGatewayPage() {
     if (activeTab === 'catalogue' || isModalOpen || isCatalogModalOpen) {
       loadCatalogData();
     }
-  }, [activeTab, isModalOpen, isCatalogModalOpen, selectedPartner, selectedCatalogClient]);
+  }, [activeTab, isModalOpen, isCatalogModalOpen, selectedPartner, selectedCatalogClient, catalogCurrentPage, catalogDebouncedSearch]);
 
   const loadInitialData = async () => {
     try {
@@ -2417,77 +2445,59 @@ export default function ContractGatewayPage() {
               <table>
                 <thead><tr><th>Code</th><th>Réf CFAO</th><th>Désignation</th><th>Mine</th>{hasPermission(user, 'stock', 'view_cost_price') && <th>P.A Contrat</th>}<th>Actions</th></tr></thead>
                 <tbody>
-                  {(() => {
-                    const filteredCatalog = catalog.filter(item =>
-                      item.name?.toLowerCase().includes(catalogSearch.toLowerCase()) ||
-                      item.code?.toLowerCase().includes(catalogSearch.toLowerCase()) ||
-                      item.refCfao?.toLowerCase().includes(catalogSearch.toLowerCase())
-                    );
-                    const indexOfLastItem = catalogCurrentPage * catalogItemsPerPage;
-                    const indexOfFirstItem = indexOfLastItem - catalogItemsPerPage;
-                    const currentItems = filteredCatalog.slice(indexOfFirstItem, indexOfLastItem);
-                    
-                    return currentItems.map(item => (
-                      <tr key={item.id}>
-                        <td style={{ fontWeight: 700 }}>{item.code || '-'}</td>
-                        <td style={{ fontWeight: 700, color: 'var(--primary)' }}>{item.refCfao || '-'}</td>
-                        <td>{item.name}</td>
-                        <td>
-                          {item.clientId ? (
-                            <span className="badge badge-info">{clients.find(c => String(c.id) === String(item.clientId))?.name || 'Inconnu'}</span>
-                          ) : (
-                            <span className="badge badge-secondary">Global</span>
-                          )}
-                        </td>
-                        {hasPermission(user, 'stock', 'view_cost_price') && <td style={{ fontWeight: 600 }}>{formatPrice(item.purchasePrice || 0)} FCFA</td>}
-                        <td style={{ textAlign: 'right' }}>
-                          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                            <button className="btn btn-secondary btn-sm" onClick={() => { setCatalogItem(item); setIsCatalogModalOpen(true); }}><Edit size={16} /></button>
-                            <button className="btn btn-danger-outline btn-sm" onClick={() => deleteCatalogItem(item.id)}><Trash2 size={16} /></button>
-                          </div>
-                        </td>
-                      </tr>
-                    ));
-                  })()}
+                  {catalogLoading ? (
+                    <tr>
+                      <td colSpan="6" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem' }}>
+                          <div style={{ width: '20px', height: '20px', border: '3px solid var(--border-color)', borderTopColor: 'var(--primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}></div>
+                          Chargement du catalogue...
+                        </div>
+                      </td>
+                    </tr>
+                  ) : catalog.length === 0 ? (
+                    <tr><td colSpan="6" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>Aucun article trouvé.</td></tr>
+                  ) : catalog.map(item => (
+                    <tr key={item.id}>
+                      <td style={{ fontWeight: 700 }}>{item.code || '-'}</td>
+                      <td style={{ fontWeight: 700, color: 'var(--primary)' }}>{item.refCfao || '-'}</td>
+                      <td>{item.name}</td>
+                      <td>
+                        {item.clientId ? (
+                          <span className="badge badge-info">{clients.find(c => String(c.id) === String(item.clientId))?.name || 'Inconnu'}</span>
+                        ) : (
+                          <span className="badge badge-secondary">Global</span>
+                        )}
+                      </td>
+                      {hasPermission(user, 'stock', 'view_cost_price') && <td style={{ fontWeight: 600 }}>{formatPrice(item.purchasePrice || 0)} FCFA</td>}
+                      <td style={{ textAlign: 'right' }}>
+                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                          <button className="btn btn-secondary btn-sm" onClick={() => { setCatalogItem(item); setIsCatalogModalOpen(true); }}><Edit size={16} /></button>
+                          <button className="btn btn-danger-outline btn-sm" onClick={() => deleteCatalogItem(item.id)}><Trash2 size={16} /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
-              
-              {(() => {
-                const filteredCatalog = catalog.filter(item =>
-                  item.name?.toLowerCase().includes(catalogSearch.toLowerCase()) ||
-                  item.code?.toLowerCase().includes(catalogSearch.toLowerCase()) ||
-                  item.refCfao?.toLowerCase().includes(catalogSearch.toLowerCase())
-                );
-                const totalPages = Math.ceil(filteredCatalog.length / catalogItemsPerPage);
-                if (totalPages <= 1) return null;
-                
-                return (
-                  <div className="pagination" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', padding: '1rem', borderTop: '1px solid var(--border-color)' }}>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                      Affichage de {(catalogCurrentPage - 1) * catalogItemsPerPage + 1} à {Math.min(catalogCurrentPage * catalogItemsPerPage, filteredCatalog.length)} sur {filteredCatalog.length}
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button 
-                        className="btn btn-secondary btn-sm" 
-                        disabled={catalogCurrentPage === 1}
-                        onClick={() => setCatalogCurrentPage(prev => Math.max(1, prev - 1))}
-                      >
-                        Précédent
-                      </button>
-                      <span style={{ padding: '0.25rem 0.75rem', backgroundColor: '#f1f5f9', borderRadius: '4px', fontSize: '0.85rem', fontWeight: 600 }}>
-                        {catalogCurrentPage} / {totalPages}
-                      </span>
-                      <button 
-                        className="btn btn-secondary btn-sm" 
-                        disabled={catalogCurrentPage === totalPages}
-                        onClick={() => setCatalogCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                      >
-                        Suivant
-                      </button>
-                    </div>
+
+              {catalogPagination.totalPages > 1 && (
+                <div className="pagination" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', padding: '1rem', borderTop: '1px solid var(--border-color)' }}>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                    Affichage de {(catalogCurrentPage - 1) * catalogItemsPerPage + 1} à {Math.min(catalogCurrentPage * catalogItemsPerPage, catalogPagination.total)} sur {catalogPagination.total}
                   </div>
-                );
-              })()}
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button className="btn btn-secondary btn-sm" disabled={catalogCurrentPage === 1 || catalogLoading} onClick={() => setCatalogCurrentPage(prev => Math.max(1, prev - 1))}>
+                      Précédent
+                    </button>
+                    <span style={{ padding: '0.25rem 0.75rem', backgroundColor: '#f1f5f9', borderRadius: '4px', fontSize: '0.85rem', fontWeight: 600 }}>
+                      {catalogCurrentPage} / {catalogPagination.totalPages}
+                    </span>
+                    <button className="btn btn-secondary btn-sm" disabled={catalogCurrentPage === catalogPagination.totalPages || catalogLoading} onClick={() => setCatalogCurrentPage(prev => Math.min(catalogPagination.totalPages, prev + 1))}>
+                      Suivant
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )
