@@ -120,7 +120,7 @@ export async function GET(request) {
       historyQuery += ' AND storeId = ?'; 
       historyParams.push(storeId); 
     }
-    historyQuery += ' GROUP BY DATE(date) ORDER BY DATE(date) ASC';
+    historyQuery += " GROUP BY DATE_FORMAT(date, '%Y-%m-%d') ORDER BY DATE_FORMAT(date, '%Y-%m-%d') ASC";
 
     // Execute all fiscal-year statistics and daily history queries concurrently
     const [
