@@ -109,24 +109,18 @@ export async function GET(request) {
     if (storeId) { topCliQuery += ' AND s.storeId = ?'; topCliParams.push(storeId); }
     topCliQuery += ' GROUP BY c.id, c.name ORDER BY spent DESC LIMIT 5';
 
-    // 9. Sales History setup (7 days, executed concurrently using Promise.all)
-    const historyPromises = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const dateStr = d.toISOString().split('T')[0];
-      let dayQuery = `SELECT SUM(totalAmount) as \`dayTotal\` FROM sales 
-         WHERE DATE(date) = ? AND status != "annulée" AND (storeId != "CFAO" OR storeId IS NULL)`;
-      let dayParams = [dateStr];
-      if (storeId) { dayQuery += ' AND storeId = ?'; dayParams.push(storeId); }
-      
-      historyPromises.push(
-        db.query(dayQuery, dayParams).then(([dayRow]) => ({
-          name: d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }),
-          montant: dayRow[0].dayTotal || 0
-        }))
-      );
+    // 9. Sales History setup (30 days, daily totals grouped by date)
+    let historyQuery = `SELECT DATE_FORMAT(date, '%Y-%m-%d') as \`saleDate\`, SUM(totalAmount) as \`dayTotal\` 
+                        FROM sales 
+                        WHERE DATE(date) >= DATE_SUB(CURDATE(), INTERVAL 29 DAY) 
+                          AND status != "annulée" 
+                          AND (storeId != "CFAO" OR storeId IS NULL)`;
+    let historyParams = [];
+    if (storeId) { 
+      historyQuery += ' AND storeId = ?'; 
+      historyParams.push(storeId); 
     }
+    historyQuery += ' GROUP BY DATE(date) ORDER BY DATE(date) ASC';
 
     // Execute all fiscal-year statistics and daily history queries concurrently
     const [
@@ -134,14 +128,37 @@ export async function GET(request) {
       [unpaidSales],
       [topArticlesDetail],
       [topClients],
-      salesHistory
+      [historyRows]
     ] = await Promise.all([
       db.query(revenueQuery, revenueParams),
       db.query(unpaidQuery, unpaidParams),
       db.query(topArtQuery, topArtParams),
       db.query(topCliQuery, topCliParams),
-      Promise.all(historyPromises)
+      db.query(historyQuery, historyParams)
     ]);
+
+    // Create a map of saleDate -> dayTotal for quick lookup
+    const historyMap = {};
+    historyRows.forEach(row => {
+      if (row.saleDate) {
+        historyMap[row.saleDate] = Number(row.dayTotal) || 0;
+      }
+    });
+
+    // Populate the 30 days array
+    const salesHistory = [];
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
+      salesHistory.push({
+        name: d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }),
+        montant: historyMap[dateStr] || 0
+      });
+    }
 
     const revenuePhysical = revenueRow[0].physical || 0;
     const revenueVirtual = revenueRow[0].virtual || 0;

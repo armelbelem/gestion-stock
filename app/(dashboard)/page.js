@@ -333,7 +333,7 @@ export default function DashboardPage() {
 
       <div className="charts-container" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '2rem', marginTop: '2rem' }}>
         <div className="content-card" style={{ height: '400px', minHeight: '400px' }}>
-          <h2 style={{ fontSize: '1.2rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}><BarChart2 /> Ventes (7j)</h2>
+          <h2 style={{ fontSize: '1.2rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}><BarChart2 /> Ventes (30j)</h2>
           {isMounted && (
             <ResponsiveContainer width="100%" height="85%">
               <LineChart data={stats.salesHistory}>
