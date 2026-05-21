@@ -41,9 +41,11 @@ export default function ArticlesPage() {
 
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterCategory, setFilterCategory] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [pagination, setPagination] = useState({ total: 0, totalPages: 1, page: 1, limit: 50 });
+  const [isLoading, setIsLoading] = useState(false);
+  const itemsPerPage = 50;
 
   const [alertModal, setAlertModal] = useState({ open: false, type: 'info', title: '', message: '', onConfirm: null });
 
@@ -55,14 +57,24 @@ export default function ArticlesPage() {
   const showAlert = (type, title, message) => setAlertModal({ open: true, type, title, message, onConfirm: null });
   const showConfirm = (title, message, onConfirm) => setAlertModal({ open: true, type: 'confirm', title, message, onConfirm });
 
+  // Debounce la recherche : attend 400ms après la dernière frappe
   useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, filterCategory]);
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setCurrentPage(1);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   useEffect(() => {
     loadData();
     loadSettings();
   }, []);
+
+  // Recharge les articles quand la page ou la recherche change
+  useEffect(() => {
+    loadArticles();
+  }, [currentPage, debouncedSearch]);
 
   const loadSettings = async () => {
     try {
@@ -71,35 +83,74 @@ export default function ArticlesPage() {
     } catch (err) { console.error(err); }
   };
 
-  const loadData = async () => {
+  const loadArticles = async () => {
+    setIsLoading(true);
     try {
-      const [articlesData, storesData] = await Promise.all([
-        storage.get('articles'),
-        storage.get('stores')
-      ]);
-      setArticles(articlesData);
-      setStores(storesData);
+      const selectedStore = localStorage.getItem('selectedStore');
+      const token = sessionStorage.getItem('token');
+      const params = new URLSearchParams({
+        page: currentPage,
+        limit: itemsPerPage,
+        _t: Date.now()
+      });
+      if (debouncedSearch) params.set('search', debouncedSearch);
+      if (selectedStore) params.set('storeId', selectedStore);
+
+      const res = await fetch(`/api/articles?${params.toString()}`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        cache: 'no-store'
+      });
+      const result = await res.json();
+      setArticles(result.data || []);
+      setPagination(result.pagination || { total: 0, totalPages: 1, page: 1, limit: 50 });
     } catch (err) {
-      console.error("Error loading articles data:", err);
+      console.error('Error loading articles:', err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleExport = () => {
-    const headers = [
-      { key: 'code', label: 'Code' },
-      { key: 'name', label: 'Désignation' },
-      { key: 'barcode', label: 'Code-barres' },
-      { key: 'price', label: 'Prix (XOF)' },
-      { key: 'currentStock', label: 'Stock Actuel' },
-      { key: 'minStock', label: 'Seuil d\'Alerte' }
-    ];
-    
-    exportToExcel(filteredArticles, headers, 'inventaire_stock', {
-      title: "INVENTAIRE DES ARTICLES",
-      companyName: settings?.companyName || "NS AUTO",
-      period: `Le ${new Date().toLocaleDateString('fr-FR')}`
-    });
-    showAlert('success', 'Succès !', "Exportation Excel réussie !");
+  const loadData = async () => {
+    try {
+      const storesData = await storage.get('stores');
+      setStores(storesData);
+    } catch (err) {
+      console.error('Error loading stores:', err);
+    }
+  };
+
+  const handleExport = async () => {
+    // Pour l'export, on récupère tous les articles sans pagination
+    try {
+      showAlert('info', 'Export en cours...', 'Chargement de tous les articles pour l\'export.');
+      const selectedStore = localStorage.getItem('selectedStore');
+      const token = sessionStorage.getItem('token');
+      const params = new URLSearchParams({ page: 1, limit: 9999, _t: Date.now() });
+      if (selectedStore) params.set('storeId', selectedStore);
+      const res = await fetch(`/api/articles?${params.toString()}`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        cache: 'no-store'
+      });
+      const result = await res.json();
+      const allArticles = result.data || [];
+
+      const headers = [
+        { key: 'code', label: 'Code' },
+        { key: 'name', label: 'Désignation' },
+        { key: 'barcode', label: 'Code-barres' },
+        { key: 'price', label: 'Prix (XOF)' },
+        { key: 'currentStock', label: 'Stock Actuel' },
+        { key: 'minStock', label: 'Seuil d\'Alerte' }
+      ];
+      exportToExcel(allArticles, headers, 'inventaire_stock', {
+        title: 'INVENTAIRE DES ARTICLES',
+        companyName: settings?.companyName || 'NS AUTO',
+        period: `Le ${new Date().toLocaleDateString('fr-FR')}`
+      });
+      showAlert('success', 'Succès !', 'Exportation Excel réussie !');
+    } catch (err) {
+      showAlert('error', 'Erreur', 'Impossible d\'exporter les articles.');
+    }
   };
 
   const handlePrintReport = () => {
@@ -152,12 +203,12 @@ export default function ArticlesPage() {
     try {
       if (formData.id) {
         await storage.update('articles', formData.id, newArticle);
-        showAlert('success', 'Succès !', "Produit mis à jour !");
+        showAlert('success', 'Succès !', 'Produit mis à jour !');
       } else {
         await storage.create('articles', newArticle);
-        showAlert('success', 'Succès !', "Produit ajouté avec succès !");
+        showAlert('success', 'Succès !', 'Produit ajouté avec succès !');
       }
-      await loadData();
+      await loadArticles();
       handleCloseModal();
     } catch (error) {
       showAlert('error', 'Erreur', `Erreur lors de l'enregistrement : ${error.message}`);
@@ -166,34 +217,25 @@ export default function ArticlesPage() {
 
   const handleDelete = (id) => {
     showConfirm(
-      "Confirmation",
-      "Êtes-vous sûr de vouloir supprimer cet article ?",
+      'Confirmation',
+      'Êtes-vous sûr de vouloir supprimer cet article ?',
       async () => {
         closeAlert();
         try {
           await storage.remove('articles', id);
-          await loadData();
-          showAlert('success', 'Succès !', "Produit supprimé !");
+          await loadArticles();
+          showAlert('success', 'Succès !', 'Produit supprimé !');
         } catch (error) {
-          console.error("Error deleting article:", error);
+          console.error('Error deleting article:', error);
           showAlert('error', 'Erreur', `Erreur lors de la suppression : ${error.message}`);
         }
       }
     );
   };
 
-  const filteredArticles = articles
-    .filter(article => {
-      return article.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-             (article.code && article.code.toLowerCase().includes(searchTerm.toLowerCase())) ||
-             (article.barcode && article.barcode.toLowerCase().includes(searchTerm.toLowerCase()));
-    })
-    .sort((a, b) => a.name.localeCompare(b.name));
-
-  const totalPages = Math.ceil(filteredArticles.length / itemsPerPage);
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentArticles = filteredArticles.slice(indexOfFirstItem, indexOfLastItem);
+  // Les articles affichés viennent directement du serveur, déjà filtrés et paginés
+  const currentArticles = articles;
+  const totalPages = pagination.totalPages;
 
   if (isReporting) {
     return (
@@ -396,7 +438,16 @@ export default function ArticlesPage() {
               </tr>
             </thead>
             <tbody>
-              {currentArticles.length === 0 ? (
+              {isLoading ? (
+                <tr>
+                  <td colSpan="8" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem' }}>
+                      <div style={{ width: '20px', height: '20px', border: '3px solid var(--border-color)', borderTopColor: 'var(--primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}></div>
+                      Chargement des articles...
+                    </div>
+                  </td>
+                </tr>
+              ) : currentArticles.length === 0 ? (
                 <tr>
                   <td colSpan="8" style={{ textAlign: 'center', padding: '2rem' }}>Aucun article trouvé.</td>
                 </tr>
@@ -442,9 +493,9 @@ export default function ArticlesPage() {
 
         {totalPages > 1 && (
           <div className="pagination">
-            <button className="btn btn-secondary" onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1}><ChevronLeft size={16} /></button>
-            <span>Page {currentPage} / {totalPages}</span>
-            <button className="btn btn-secondary" onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))} disabled={currentPage === totalPages}><ChevronRight size={16} /></button>
+            <button className="btn btn-secondary" onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1 || isLoading}><ChevronLeft size={16} /></button>
+            <span>Page {currentPage} / {totalPages} ({pagination.total} articles)</span>
+            <button className="btn btn-secondary" onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))} disabled={currentPage === totalPages || isLoading}><ChevronRight size={16} /></button>
           </div>
         )}
       </div>

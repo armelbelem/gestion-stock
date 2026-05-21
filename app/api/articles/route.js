@@ -11,9 +11,45 @@ export async function GET(request) {
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   try {
-    const storeId = getStoreConstraint(auth.user, request.nextUrl.searchParams.get('storeId'));
-    
-    let query = `
+    const { searchParams } = request.nextUrl;
+    const storeId = getStoreConstraint(auth.user, searchParams.get('storeId'));
+    const search = searchParams.get('search') || '';
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '50', 10);
+    const offset = (page - 1) * limit;
+
+    let whereConditions = [];
+    let params = [];
+
+    // Filtre par magasin
+    if (storeId) {
+      whereConditions.push('a.id IN (SELECT articleId FROM inventory WHERE storeId = ?)');
+      params.push(storeId);
+    }
+
+    // Filtre recherche
+    if (search) {
+      whereConditions.push('(a.name LIKE ? OR a.code LIKE ? OR a.barcode LIKE ?)');
+      const searchPattern = `%${search}%`;
+      params.push(searchPattern, searchPattern, searchPattern);
+    }
+
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
+    // Requête de comptage total
+    const [countResult] = await db.query(
+      `SELECT COUNT(*) as total FROM articles a ${whereClause}`,
+      params
+    );
+    const total = countResult[0].total;
+    const totalPages = Math.ceil(total / limit);
+
+    // Requête principale paginée
+    const queryParams = [...params];
+    if (storeId) queryParams.push(storeId); // for the inventory subquery
+    queryParams.push(limit, offset);
+
+    const [articles] = await db.query(`
       SELECT a.id, a.code, a.name, a.price, a.minStock, a.barcode, a.storeId, a.createdAt,
              COALESCE((
                  SELECT SUM(quantity) 
@@ -30,41 +66,29 @@ export async function GET(request) {
                  AND s3.status != 'annulée'
              ), 0) as soldLast30Days
       FROM articles a
-    `;
+      ${whereClause}
+      ORDER BY a.name ASC
+      LIMIT ? OFFSET ?
+    `, queryParams);
 
-    let params = [];
-    if (storeId) {
-      params.push(storeId);
-    }
-
-    if (storeId) {
-      query += ' WHERE a.id IN (SELECT articleId FROM inventory WHERE storeId = ?)';
-      params.push(storeId);
-    }
-
-    query += ' ORDER BY a.createdAt DESC';
-
-    const [articles] = await db.query(query, params);
-    
     const cleanedArticles = articles.map(art => {
-      const cleaned = {
-        ...art
-      };
-      
-      // Sécurité : Masquer le prix pour les vendeurs
+      const cleaned = { ...art };
       if (auth.user.role === 'vendeur' || auth.user.role === 'vendeurs') {
         cleaned.price = '***';
       }
-      
       return cleaned;
     });
 
-    return NextResponse.json(cleanedArticles);
+    return NextResponse.json({
+      data: cleanedArticles,
+      pagination: { total, totalPages, page, limit }
+    });
   } catch (err) { 
     console.error('API Error:', err);
     return NextResponse.json({ error: err.message }, { status: 500 }); 
   }
 }
+
 
 export async function POST(request) {
   const auth = authenticateToken(request);
