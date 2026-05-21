@@ -13,20 +13,81 @@ export async function GET(request) {
     const [fyRows] = await db.query("SELECT id FROM fiscal_years WHERE status = 'active'");
     const activeYearId = fyRows[0]?.id;
     const storeId = getStoreConstraint(auth.user, request.nextUrl.searchParams.get('storeId'));
+    const search = request.nextUrl.searchParams.get('search') || '';
+    const type = request.nextUrl.searchParams.get('type') || '';
+    const articleId = request.nextUrl.searchParams.get('articleId') || '';
+    const startDate = request.nextUrl.searchParams.get('startDate') || '';
+    const endDate = request.nextUrl.searchParams.get('endDate') || '';
 
-    let query = 'SELECT m.*, a.name as articleName, s.name as storeName FROM mouvements m JOIN articles a ON m.articleId = a.id LEFT JOIN stores s ON m.storeId = s.id';
+    const isPaginated = request.nextUrl.searchParams.has('page');
+    const page = parseInt(request.nextUrl.searchParams.get('page') || '1', 10);
+    const limit = parseInt(request.nextUrl.searchParams.get('limit') || '50', 10);
+    const offset = (page - 1) * limit;
+
+    let conditions = [];
     let params = [];
     
     if (activeYearId) {
-      query += ' WHERE m.fiscalYearId = ?';
+      conditions.push('m.fiscalYearId = ?');
       params.push(activeYearId);
     } else {
-      query += ' WHERE 1=0';
+      conditions.push('1=0');
     }
 
-    if (storeId) { query += ' AND m.storeId = ?'; params.push(storeId); }
-    query += ' ORDER BY m.date DESC';
-    const [mouv] = await db.query(query, params);
+    if (storeId) { 
+      conditions.push('m.storeId = ?'); 
+      params.push(storeId); 
+    }
+
+    if (type) {
+      conditions.push('m.type = ?');
+      params.push(type);
+    }
+
+    if (articleId) {
+      conditions.push('m.articleId = ?');
+      params.push(articleId);
+    }
+
+    if (startDate) {
+      conditions.push('m.date >= ?');
+      params.push(`${startDate} 00:00:00`);
+    }
+
+    if (endDate) {
+      conditions.push('m.date <= ?');
+      params.push(`${endDate} 23:59:59`);
+    }
+
+    if (search) {
+      conditions.push('(a.name LIKE ? OR a.code LIKE ? OR m.notes LIKE ?)');
+      const searchPat = `%${search}%`;
+      params.push(searchPat, searchPat, searchPat);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    let total = 0;
+    let totalPages = 1;
+    if (isPaginated) {
+      const [countResult] = await db.query(
+        `SELECT COUNT(*) as total FROM mouvements m JOIN articles a ON m.articleId = a.id LEFT JOIN stores s ON m.storeId = s.id ${whereClause}`,
+        params
+      );
+      total = countResult[0].total;
+      totalPages = Math.ceil(total / limit);
+    }
+
+    const queryParams = [...params];
+    if (isPaginated) queryParams.push(limit, offset);
+
+    let query = `SELECT m.*, a.name as articleName, s.name as storeName FROM mouvements m JOIN articles a ON m.articleId = a.id LEFT JOIN stores s ON m.storeId = s.id ${whereClause} ORDER BY m.date DESC ${isPaginated ? 'LIMIT ? OFFSET ?' : ''}`;
+    
+    const [mouv] = await db.query(query, queryParams);
+
+    if (isPaginated) {
+      return NextResponse.json({ data: mouv, pagination: { total, totalPages, page, limit } });
+    }
     return NextResponse.json(mouv);
   } catch (err) { 
     console.error('[MOUVEMENTS GET ERROR]', err);

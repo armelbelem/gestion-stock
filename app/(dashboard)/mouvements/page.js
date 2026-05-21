@@ -25,7 +25,10 @@ export default function MouvementsPage() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState({ total: 0, totalPages: 1, page: 1, limit: 10 });
+  const [isLoading, setIsLoading] = useState(false);
   const itemsPerPage = 10;
 
   const [formData, setFormData] = useState({
@@ -40,9 +43,18 @@ export default function MouvementsPage() {
   const showAlert = (type, title, message) => setAlertModal({ open: true, type, title, message, onConfirm: null });
   const showConfirm = (title, message, onConfirm) => setAlertModal({ open: true, type: 'confirm', title, message, onConfirm });
 
+  // Debounce la recherche : attend 400ms après la dernière frappe
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setCurrentPage(1);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   useEffect(() => {
     setCurrentPage(1);
-  }, [filterArticleId, filterType, startDate, endDate, searchTerm]);
+  }, [filterArticleId, filterType, startDate, endDate]);
 
   const [hasActiveYear, setHasActiveYear] = useState(true);
 
@@ -50,6 +62,10 @@ export default function MouvementsPage() {
     loadData();
     loadSettings();
   }, []);
+
+  useEffect(() => {
+    loadMouvements();
+  }, [currentPage, debouncedSearch, filterArticleId, filterType, startDate, endDate]);
 
   const loadSettings = async () => {
     try {
@@ -60,20 +76,52 @@ export default function MouvementsPage() {
 
   const loadData = async () => {
     try {
-      const movementsData = await storage.get('mouvements');
       const articlesData = await storage.get('articles');
       const suppliersData = await storage.get('fournisseurs');
       const fyData = await storage.get('fiscal-years');
-      setMouvements(movementsData);
       setArticles(articlesData);
       setSuppliers(suppliersData);
       setHasActiveYear(fyData.some(f => f.status === 'active'));
     } catch (err) {
-      console.error("Error loading movements:", err);
+      console.error("Error loading base data:", err);
     }
   };
 
-  const handleExport = () => {
+  const loadMouvements = async () => {
+    setIsLoading(true);
+    try {
+      const selectedStore = localStorage.getItem('selectedStore');
+      const token = sessionStorage.getItem('token');
+      const params = new URLSearchParams({
+        page: currentPage,
+        limit: itemsPerPage,
+        _t: Date.now()
+      });
+      if (debouncedSearch) params.set('search', debouncedSearch);
+      if (filterArticleId) params.set('articleId', filterArticleId);
+      if (filterType) params.set('type', filterType);
+      if (startDate) params.set('startDate', startDate);
+      if (endDate) params.set('endDate', endDate);
+      if (selectedStore) params.set('storeId', selectedStore);
+
+      const res = await fetch(`/api/mouvements?${params.toString()}`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        cache: 'no-store'
+      });
+      const result = await res.json();
+      setMouvements(result.data || []);
+      setPagination(result.pagination || { total: 0, totalPages: 1, page: 1, limit: 10 });
+    } catch (err) {
+      console.error('Error loading mouvements:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleExport = async () => {
+    showAlert('info', 'Exportation', 'Préparation du fichier Excel en cours...');
+    const allData = await fetchAllForExport();
+    
     const headers = [
       { key: 'dateFormatted', label: 'Date' },
       { key: 'typeLabel', label: 'Type' },
@@ -81,12 +129,13 @@ export default function MouvementsPage() {
       { key: 'quantity', label: 'Quantité' },
       { key: 'notes', label: 'Notes' }
     ];
-    const dataToExport = filteredMouvements.map(mov => ({
+    const dataToExport = allData.map(mov => ({
       ...mov,
       dateFormatted: formatDate(mov.date),
       typeLabel: mov.type === 'IN' ? 'Entrée' : 'Sortie',
-      articleName: getArticleName(mov.articleId)
+      articleName: mov.articleName || getArticleName(mov.articleId)
     }));
+    closeAlert();
     exportToExcel(dataToExport, headers, 'rapport_mouvements', {
       title: "RAPPORT DES MOUVEMENTS DE STOCK",
       companyName: settings?.companyName || "NS AUTO",
@@ -143,7 +192,7 @@ export default function MouvementsPage() {
       closeAlert();
       try {
         await storage.create('mouvements', { ...formData, type: modalType, storeId, quantity });
-        await loadData();
+        await loadMouvements(); // Recharger depuis l'API
         setIsModalOpen(false);
         showAlert('success', 'Succès', "Mouvement enregistré !");
       } catch (err) { showAlert('error', 'Erreur', err.message); }
@@ -167,23 +216,31 @@ export default function MouvementsPage() {
   const getArticleName = (id) => articles.find(x => x.id === id)?.name || 'Article Inconnu';
   const formatDate = (iso) => new Date(iso).toLocaleString('fr-FR');
 
-  const filteredMouvements = mouvements.filter(mov => {
-    const matchesArticle = filterArticleId === '' || mov.articleId === filterArticleId;
-    const matchesType = filterType === '' || mov.type === filterType;
-    const matchesSearch = searchTerm === '' || mov.notes?.toLowerCase().includes(searchTerm.toLowerCase()) || getArticleName(mov.articleId).toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const movDate = new Date(mov.date);
-    const start = startDate ? new Date(startDate) : null;
-    const end = endDate ? new Date(endDate) : null;
-    if (start) start.setHours(0, 0, 0, 0);
-    if (end) end.setHours(23, 59, 59, 999);
-    
-    const matchesDate = (!start || movDate >= start) && (!end || movDate <= end);
+  // L'export continue de télécharger toutes les données correspondantes.
+  // Pour une liste très très grande on devrait utiliser un appel API spécifique à l'export,
+  // mais on laisse comme tel pour la démo ou on passe par la liste existante + un fetch spécifique si besoin.
+  const fetchAllForExport = async () => {
+    try {
+      const selectedStore = localStorage.getItem('selectedStore');
+      const token = sessionStorage.getItem('token');
+      const params = new URLSearchParams();
+      if (debouncedSearch) params.set('search', debouncedSearch);
+      if (filterArticleId) params.set('articleId', filterArticleId);
+      if (filterType) params.set('type', filterType);
+      if (startDate) params.set('startDate', startDate);
+      if (endDate) params.set('endDate', endDate);
+      if (selectedStore) params.set('storeId', selectedStore);
 
-    return matchesArticle && matchesType && matchesSearch && matchesDate;
-  });
-
-  const currentMouvements = filteredMouvements.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+      const res = await fetch(`/api/mouvements?${params.toString()}`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
+      const data = await res.json();
+      return Array.isArray(data) ? data : data.data || [];
+    } catch(e) {
+      console.error(e);
+      return [];
+    }
+  };
 
   const [articleSearch, setArticleSearch] = useState('');
   const [suggestions, setSuggestions] = useState([]);
@@ -229,11 +286,11 @@ export default function MouvementsPage() {
             </tr>
           </thead>
           <tbody>
-            {filteredMouvements.map((mov) => (
+            {mouvements.map((mov) => (
               <tr key={mov.id} style={{ borderBottom: '1px solid #eee' }}>
                 <td style={{ padding: '8px' }}>{formatDate(mov.date)}</td>
                 <td style={{ padding: '8px' }}>{mov.type === 'IN' ? 'Entrée' : 'Sortie'}</td>
-                <td style={{ padding: '8px' }}>{getArticleName(mov.articleId)}</td>
+                <td style={{ padding: '8px' }}>{mov.articleName || getArticleName(mov.articleId)}</td>
                 <td style={{ textAlign: 'right', padding: '8px', fontWeight: 'bold' }}>{mov.type === 'IN' ? '+' : '-'}{mov.quantity}</td>
                 <td style={{ padding: '8px', fontSize: '0.9rem' }}>{mov.notes || '-'}</td>
               </tr>
@@ -302,11 +359,22 @@ export default function MouvementsPage() {
           <table>
             <thead><tr><th>Date</th><th>Type</th><th>Article</th><th>Fournisseur</th><th>Qté</th><th>Notes</th></tr></thead>
             <tbody>
-              {currentMouvements.map(mov => (
+              {isLoading ? (
+                <tr>
+                  <td colSpan="6" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem' }}>
+                      <div style={{ width: '20px', height: '20px', border: '3px solid var(--border-color)', borderTopColor: 'var(--primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}></div>
+                      Chargement des mouvements...
+                    </div>
+                  </td>
+                </tr>
+              ) : mouvements.length === 0 ? (
+                <tr><td colSpan="6" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>Aucun mouvement trouvé.</td></tr>
+              ) : mouvements.map(mov => (
                 <tr key={mov.id}>
                   <td>{formatDate(mov.date)}</td>
                   <td><span className={`badge ${mov.type === 'IN' ? 'badge-success' : 'badge-danger'}`}>{mov.type === 'IN' ? 'Entrée' : 'Sortie'}</span></td>
-                  <td style={{ fontWeight: 500 }}>{getArticleName(mov.articleId)}</td>
+                  <td style={{ fontWeight: 500 }}>{mov.articleName || getArticleName(mov.articleId)}</td>
                   <td>{mov.supplierName || '-'}</td>
                   <td style={{ fontWeight: 'bold' }}>{mov.type === 'IN' ? '+' : '-'}{mov.quantity}</td>
                   <td className="text-muted">{mov.notes}</td>
@@ -315,11 +383,16 @@ export default function MouvementsPage() {
             </tbody>
           </table>
         </div>
-        {filteredMouvements.length > itemsPerPage && (
-          <div className="pagination">
-            <button className="btn btn-secondary" onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1}><ChevronLeft size={16} /></button>
-            <span>Page {currentPage}</span>
-            <button className="btn btn-secondary" onClick={() => setCurrentPage(p => Math.min(p + 1, Math.ceil(filteredMouvements.length / itemsPerPage)))} disabled={currentPage >= Math.ceil(filteredMouvements.length / itemsPerPage)}><ChevronRight size={16} /></button>
+        {pagination.totalPages > 1 && (
+          <div className="pagination" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', padding: '1rem', borderTop: '1px solid var(--border-color)' }}>
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+              Affichage de {(currentPage - 1) * itemsPerPage + 1} à {Math.min(currentPage * itemsPerPage, pagination.total)} sur {pagination.total}
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button className="btn btn-secondary btn-sm" onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1 || isLoading}><ChevronLeft size={16} /> Précédent</button>
+              <span style={{ padding: '0.25rem 0.75rem', backgroundColor: '#f1f5f9', borderRadius: '4px', fontSize: '0.85rem', fontWeight: 600 }}>{currentPage} / {pagination.totalPages}</span>
+              <button className="btn btn-secondary btn-sm" onClick={() => setCurrentPage(p => Math.min(p + 1, pagination.totalPages))} disabled={currentPage >= pagination.totalPages || isLoading}>Suivant <ChevronRight size={16} /></button>
+            </div>
           </div>
         )}
       </div>
