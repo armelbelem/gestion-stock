@@ -452,7 +452,9 @@ export default function NewSalePage() {
                 <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
                   <label className="form-label">Mode</label>
                   <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-                    <button type="button" className={`btn ${paymentType === 'complet' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1 }} onClick={() => setPaymentType('complet')}>Complet</button>
+                    {currentUser?.role !== 'vendeur' && (
+                      <button type="button" className={`btn ${paymentType === 'complet' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1 }} onClick={() => setPaymentType('complet')}>Complet</button>
+                    )}
                     <button type="button" className={`btn ${paymentType === 'credit' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1 }} onClick={() => setPaymentType('credit')}>Consommation</button>
                   </div>
                   {currentUser?.role !== 'vendeur' && (
