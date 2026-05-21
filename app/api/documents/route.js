@@ -3,7 +3,7 @@ import db from '../../lib/db';
 import { authenticateToken } from '../../lib/auth';
 import { logAction } from '../../lib/actions';
 import { v4 as uuidv4 } from 'uuid';
-import { writeFile, unlink } from 'fs/promises';
+import { writeFile, unlink, mkdir } from 'fs/promises';
 import path from 'path';
 
 export async function GET(request) {
@@ -53,6 +53,14 @@ export async function POST(request) {
     const fileName = `${uuidv4()}${fileExt}`;
     const relativePath = `/uploads/documents/${fileName}`;
     const absolutePath = path.join(process.cwd(), 'public', 'uploads', 'documents', fileName);
+    const dirPath = path.dirname(absolutePath);
+
+    // Créer le dossier s'il n'existe pas (nécessaire car ignoré dans .gitignore)
+    try {
+      await mkdir(dirPath, { recursive: true });
+    } catch (e) {
+      console.warn('[DOCUMENTS POST] Failed to ensure directory exists:', e.message);
+    }
 
     await writeFile(absolutePath, buffer);
 
