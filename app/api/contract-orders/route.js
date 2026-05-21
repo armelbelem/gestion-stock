@@ -54,8 +54,9 @@ export async function GET(request) {
       }
 
       if (search) {
-        baseQuery += ` AND (co.orderNumber LIKE ? OR c.name LIKE ?) `;
-        const searchPat = `%${search}%`;
+        const cleanSearch = search.replace(/^#/, ''); // Remove leading #
+        baseQuery += ` AND (LPAD(co.orderNumber, 3, '0') LIKE ? OR c.name LIKE ?) `;
+        const searchPat = `%${cleanSearch}%`;
         params.push(searchPat, searchPat);
       }
 
