@@ -1,4 +1,40 @@
 import mysql from 'mysql2/promise';
+import fs from 'fs';
+import path from 'path';
+
+// Fonction robuste de chargement manuel des fichiers .env et .env.local
+function loadEnv() {
+  try {
+    const envPaths = [
+      path.resolve(process.cwd(), '.env'),
+      path.resolve(process.cwd(), '.env.local')
+    ];
+
+    for (const envPath of envPaths) {
+      if (fs.existsSync(envPath)) {
+        const envContent = fs.readFileSync(envPath, 'utf-8');
+        envContent.split(/\r?\n/).forEach(line => {
+          const trimmed = line.trim();
+          if (trimmed && !trimmed.startsWith('#')) {
+            const index = trimmed.indexOf('=');
+            if (index !== -1) {
+              const key = trimmed.slice(0, index).trim();
+              const value = trimmed.slice(index + 1).trim().replace(/^['"]|['"]$/g, '');
+              if (key && !(key in process.env)) {
+                process.env[key] = value;
+              }
+            }
+          }
+        });
+      }
+    }
+  } catch (err) {
+    console.warn("⚠️ Impossible de charger les variables d'environnement (.env) :", err.message);
+  }
+}
+
+// Charger l'environnement avant de définir dbConfig
+loadEnv();
 
 // Configuration dynamique de la base de données (supporte URL unique ou variables séparées)
 const dbConfig = process.env.DATABASE_URL || {
