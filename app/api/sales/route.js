@@ -52,9 +52,19 @@ export async function GET(request) {
 
     if (search) {
       const cleanSearch = search.replace(/^#/, ''); // Remove leading #
-      conditions.push('(s.id LIKE ? OR c.name LIKE ? OR s.notes LIKE ?)');
+      conditions.push(`(
+        s.id LIKE ? 
+        OR c.name LIKE ? 
+        OR s.notes LIKE ? 
+        OR EXISTS (
+          SELECT 1 FROM sale_items si 
+          LEFT JOIN articles a ON si.articleId = a.id 
+          WHERE si.saleId = s.id 
+          AND (a.name LIKE ? OR a.code LIKE ? OR a.barcode LIKE ? OR si.description LIKE ?)
+        )
+      )`);
       const searchPat = `%${cleanSearch}%`;
-      params.push(searchPat, searchPat, searchPat);
+      params.push(searchPat, searchPat, searchPat, searchPat, searchPat, searchPat, searchPat);
     }
 
     // Role admin/gestionnaire checking for proforma
