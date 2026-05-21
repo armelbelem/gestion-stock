@@ -51,8 +51,9 @@ export async function GET(request) {
     }
 
     if (search) {
+      const cleanSearch = search.replace(/^#/, ''); // Remove leading #
       conditions.push('(s.id LIKE ? OR c.name LIKE ? OR s.notes LIKE ?)');
-      const searchPat = `%${search}%`;
+      const searchPat = `%${cleanSearch}%`;
       params.push(searchPat, searchPat, searchPat);
     }
 
