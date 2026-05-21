@@ -110,7 +110,7 @@
       "Field": "storeId",
       "Type": "int",
       "Null": "YES",
-      "Key": "",
+      "Key": "MUL",
       "Default": null,
       "Extra": ""
     },
@@ -158,9 +158,9 @@
     },
     {
       "Field": "storeId",
-      "Type": "varchar(100)",
+      "Type": "int",
       "Null": "YES",
-      "Key": "",
+      "Key": "MUL",
       "Default": null,
       "Extra": ""
     }
@@ -216,9 +216,9 @@
     },
     {
       "Field": "storeId",
-      "Type": "varchar(100)",
+      "Type": "int",
       "Null": "YES",
-      "Key": "",
+      "Key": "MUL",
       "Default": null,
       "Extra": ""
     },
@@ -268,15 +268,15 @@
       "Field": "partner_id",
       "Type": "varchar(100)",
       "Null": "YES",
-      "Key": "",
+      "Key": "MUL",
       "Default": null,
       "Extra": ""
     },
     {
       "Field": "order_id",
-      "Type": "varchar(36)",
+      "Type": "varchar(100)",
       "Null": "YES",
-      "Key": "",
+      "Key": "MUL",
       "Default": null,
       "Extra": ""
     },
@@ -342,13 +342,13 @@
       "Field": "partner_id",
       "Type": "varchar(100)",
       "Null": "YES",
-      "Key": "",
+      "Key": "MUL",
       "Default": null,
       "Extra": ""
     },
     {
       "Field": "clientId",
-      "Type": "varchar(255)",
+      "Type": "varchar(191)",
       "Null": "YES",
       "Key": "MUL",
       "Default": null,
@@ -430,7 +430,7 @@
     },
     {
       "Field": "orderId",
-      "Type": "varchar(255)",
+      "Type": "varchar(100)",
       "Null": "NO",
       "Key": "MUL",
       "Default": null,
@@ -490,7 +490,7 @@
       "Field": "articleId",
       "Type": "int",
       "Null": "YES",
-      "Key": "",
+      "Key": "MUL",
       "Default": null,
       "Extra": ""
     },
@@ -564,7 +564,7 @@
       "Field": "storeId",
       "Type": "varchar(100)",
       "Null": "YES",
-      "Key": "",
+      "Key": "MUL",
       "Default": null,
       "Extra": ""
     },
@@ -572,23 +572,23 @@
       "Field": "partner_id",
       "Type": "varchar(100)",
       "Null": "YES",
-      "Key": "",
+      "Key": "MUL",
       "Default": null,
       "Extra": ""
     },
     {
       "Field": "clientId",
-      "Type": "varchar(100)",
+      "Type": "varchar(191)",
       "Null": "YES",
-      "Key": "",
+      "Key": "MUL",
       "Default": null,
       "Extra": ""
     },
     {
       "Field": "supplierId",
-      "Type": "varchar(100)",
+      "Type": "varchar(191)",
       "Null": "YES",
-      "Key": "",
+      "Key": "MUL",
       "Default": null,
       "Extra": ""
     },
@@ -596,7 +596,7 @@
       "Field": "status",
       "Type": "enum('demande','facture_recue','po_envoye','termine','annule')",
       "Null": "YES",
-      "Key": "",
+      "Key": "MUL",
       "Default": "demande",
       "Extra": ""
     },
@@ -984,7 +984,7 @@
       "Field": "partner_id",
       "Type": "varchar(100)",
       "Null": "YES",
-      "Key": "",
+      "Key": "MUL",
       "Default": null,
       "Extra": ""
     },
@@ -1050,7 +1050,7 @@
       "Field": "order_id",
       "Type": "varchar(100)",
       "Null": "YES",
-      "Key": "",
+      "Key": "MUL",
       "Default": null,
       "Extra": ""
     },
@@ -1148,7 +1148,7 @@
       "Field": "userId",
       "Type": "varchar(191)",
       "Null": "YES",
-      "Key": "",
+      "Key": "MUL",
       "Default": null,
       "Extra": ""
     },
@@ -1164,7 +1164,7 @@
       "Field": "fiscalYearId",
       "Type": "varchar(100)",
       "Null": "YES",
-      "Key": "",
+      "Key": "MUL",
       "Default": null,
       "Extra": ""
     }
@@ -1182,7 +1182,7 @@
       "Field": "externalOrderId",
       "Type": "varchar(36)",
       "Null": "YES",
-      "Key": "",
+      "Key": "MUL",
       "Default": null,
       "Extra": ""
     },
@@ -1230,17 +1230,17 @@
     },
     {
       "Field": "clientId",
-      "Type": "varchar(36)",
+      "Type": "varchar(191)",
       "Null": "YES",
-      "Key": "",
+      "Key": "MUL",
       "Default": null,
       "Extra": ""
     },
     {
       "Field": "supplierId",
-      "Type": "varchar(36)",
+      "Type": "varchar(191)",
       "Null": "YES",
-      "Key": "",
+      "Key": "MUL",
       "Default": null,
       "Extra": ""
     },
@@ -1286,9 +1286,9 @@
     },
     {
       "Field": "saleId",
-      "Type": "varchar(36)",
+      "Type": "varchar(191)",
       "Null": "YES",
-      "Key": "",
+      "Key": "MUL",
       "Default": null,
       "Extra": ""
     },
@@ -1304,7 +1304,7 @@
       "Field": "storeId",
       "Type": "int",
       "Null": "YES",
-      "Key": "",
+      "Key": "MUL",
       "Default": null,
       "Extra": ""
     },
@@ -1326,9 +1326,9 @@
     },
     {
       "Field": "fiscalYearId",
-      "Type": "varchar(255)",
+      "Type": "varchar(100)",
       "Null": "YES",
-      "Key": "",
+      "Key": "MUL",
       "Default": null,
       "Extra": ""
     }
@@ -1526,9 +1526,9 @@
     },
     {
       "Field": "userId",
-      "Type": "varchar(100)",
+      "Type": "varchar(191)",
       "Null": "YES",
-      "Key": "",
+      "Key": "MUL",
       "Default": null,
       "Extra": ""
     },
@@ -1552,7 +1552,7 @@
       "Field": "storeId",
       "Type": "int",
       "Null": "YES",
-      "Key": "",
+      "Key": "MUL",
       "Default": null,
       "Extra": ""
     },
@@ -1626,7 +1626,7 @@
       "Field": "fiscalYearId",
       "Type": "varchar(100)",
       "Null": "YES",
-      "Key": "",
+      "Key": "MUL",
       "Default": null,
       "Extra": ""
     },
@@ -1634,7 +1634,7 @@
       "Field": "storeId",
       "Type": "int",
       "Null": "YES",
-      "Key": "",
+      "Key": "MUL",
       "Default": null,
       "Extra": ""
     }
@@ -1684,7 +1684,7 @@
       "Field": "fiscalYearId",
       "Type": "varchar(100)",
       "Null": "YES",
-      "Key": "",
+      "Key": "MUL",
       "Default": null,
       "Extra": ""
     },
@@ -1840,7 +1840,7 @@
       "Field": "fiscalYearId",
       "Type": "varchar(100)",
       "Null": "YES",
-      "Key": "",
+      "Key": "MUL",
       "Default": null,
       "Extra": ""
     },
@@ -1856,7 +1856,7 @@
       "Field": "storeId",
       "Type": "int",
       "Null": "YES",
-      "Key": "",
+      "Key": "MUL",
       "Default": null,
       "Extra": ""
     }
@@ -2182,23 +2182,23 @@
       "Field": "articleId",
       "Type": "int",
       "Null": "YES",
-      "Key": "",
+      "Key": "MUL",
       "Default": null,
       "Extra": ""
     },
     {
       "Field": "fromStoreId",
-      "Type": "varchar(100)",
+      "Type": "int",
       "Null": "NO",
-      "Key": "",
+      "Key": "MUL",
       "Default": null,
       "Extra": ""
     },
     {
       "Field": "toStoreId",
-      "Type": "varchar(100)",
+      "Type": "int",
       "Null": "NO",
-      "Key": "",
+      "Key": "MUL",
       "Default": null,
       "Extra": ""
     },
@@ -2212,9 +2212,9 @@
     },
     {
       "Field": "userId",
-      "Type": "varchar(100)",
+      "Type": "varchar(191)",
       "Null": "NO",
-      "Key": "",
+      "Key": "MUL",
       "Default": null,
       "Extra": ""
     },
@@ -2288,7 +2288,7 @@
       "Field": "storeId",
       "Type": "int",
       "Null": "YES",
-      "Key": "",
+      "Key": "MUL",
       "Default": null,
       "Extra": ""
     },

@@ -8,7 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "db:reset": "node scripts/reset_database.js"
+    "db:reset": "node scripts/reset_database.js",
+    "db:indexes": "node scripts/apply_performance_indexes.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
