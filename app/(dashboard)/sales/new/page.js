@@ -368,7 +368,7 @@ export default function NewSalePage() {
                     <tr>
                       <th>Article</th>
                       <th>Qté</th>
-                      {currentUser?.role !== 'vendeur' && (
+                      {currentUser?.role !== 'vendeur' && currentUser?.role !== 'vendeurs' && (
                         <>
                           <th>Prix</th>
                           <th>Total</th>
@@ -397,7 +397,7 @@ export default function NewSalePage() {
                           )}
                         </td>
                         <td><input type="number" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} min="0" className="form-control" value={item.quantity} onChange={(e) => updateItem(item.id, 'quantity', e.target.value === '' ? '' : parseInt(e.target.value))} /></td>
-                        {currentUser?.role !== 'vendeur' && (
+                        {currentUser?.role !== 'vendeur' && currentUser?.role !== 'vendeurs' && (
                           <>
                             <td><input type="number" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} min="0" className="form-control" value={item.unitPrice} onChange={(e) => updateItem(item.id, 'unitPrice', e.target.value === '' ? '' : parseFloat(e.target.value))} /></td>
                             <td style={{ fontWeight: 600 }}>{formatPrice(item.quantity * item.unitPrice)}</td>
@@ -416,7 +416,7 @@ export default function NewSalePage() {
             <div className="content-card">
               <h3>Résumé</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
-                {currentUser?.role !== 'vendeur' && (
+                {currentUser?.role !== 'vendeur' && currentUser?.role !== 'vendeurs' && (
                   <>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span className="text-muted">Sous-total HT</span>
@@ -449,18 +449,18 @@ export default function NewSalePage() {
                   </>
                 )}
                 
-                <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
-                  <label className="form-label">Mode</label>
-                  <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-                    {currentUser?.role !== 'vendeur' && (
+                {currentUser?.role !== 'vendeur' && currentUser?.role !== 'vendeurs' && (
+                  <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
+                    <label className="form-label">Mode</label>
+                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
                       <button type="button" className={`btn ${paymentType === 'complet' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1 }} onClick={() => setPaymentType('complet')}>Complet</button>
-                    )}
-                    <button type="button" className={`btn ${paymentType === 'credit' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1 }} onClick={() => setPaymentType('credit')}>Consommation</button>
-                  </div>
-                  {currentUser?.role !== 'vendeur' && (
+                      <button type="button" className={`btn ${paymentType === 'credit' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1 }} onClick={() => setPaymentType('credit')}>Consommation</button>
+                    </div>
                     <div className="form-group"><label className="form-label">Versement</label><input type="number" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} min="0" className="form-control" value={initialPayment} onChange={(e) => setInitialPayment(Number(e.target.value) || 0)} disabled={paymentType === 'credit'} /></div>
-                  )}
-                  <div className="form-group" style={{ marginTop: '1rem' }}>
+                  </div>
+                )}
+                <div style={{ borderTop: (currentUser?.role === 'vendeur' || currentUser?.role === 'vendeurs') ? 'none' : '1px solid var(--border-color)', paddingTop: '1rem' }}>
+                  <div className="form-group">
                     <label className="form-label" style={{ fontSize: '0.85rem', fontWeight: 600 }}>Notes / Justificatif</label>
                     <textarea 
                       className="form-control" 
