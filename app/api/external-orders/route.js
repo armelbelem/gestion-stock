@@ -59,9 +59,10 @@ export async function POST(request) {
     const activeYear = fyRows[0];
     if (!activeYear) throw new Error("Action impossible : Aucun exercice fiscal n'est ouvert. Veuillez ouvrir un exercice pour les commandes spéciales.");
     
+    const formattedDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
     await connection.query(
       'INSERT INTO external_orders (id, clientId, supplierId, date, storeId, fiscalYearId) VALUES (?, ?, ?, ?, ?, ?)',
-      [orderId, clientId, supplierId, new Date().toISOString(), storeId, activeYear.id]
+      [orderId, clientId, supplierId, formattedDate, storeId, activeYear.id]
     );
     
     for (const item of items) {
