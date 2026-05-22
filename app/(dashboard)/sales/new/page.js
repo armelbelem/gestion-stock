@@ -100,6 +100,10 @@ export default function NewSalePage() {
         if (field === 'quantity') {
           const article = articles.find(a => String(a.id) === String(item.articleId));
           if (article) {
+            if (value > article.currentStock) {
+              showAlert('error', 'Action bloquée', `Stock insuffisant pour "${article.name}". Stock disponible : ${article.currentStock}.`);
+              return item;
+            }
             const remainingStockAfter = article.currentStock - value;
             if (remainingStockAfter <= article.minStock) {
               showAlert('info', 'Stock Faible', `Attention : Suite à cet ajout, le stock de "${article.name}" sera au niveau critique (${remainingStockAfter} restant).`);
@@ -210,6 +214,9 @@ export default function NewSalePage() {
 
     const invalidQty = saleItems.find(item => !item.quantity || Number(item.quantity) <= 0);
     if (invalidQty && !isProforma) return showAlert('error', 'Erreur', "Toutes les quantités doivent être supérieures à 0.");
+
+    const exceedStockItem = saleItems.find(item => !item.isManual && Number(item.quantity) > Number(item.maxStock));
+    if (exceedStockItem && !isProforma) return showAlert('error', 'Erreur', `Stock insuffisant pour l'article "${exceedStockItem.description || 'sélectionné'}".`);
 
     const totalAmount = calculateTotal();
     const storeId = isAdminOrManager ? selectedStore : currentUser?.storeId;
