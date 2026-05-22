@@ -26,6 +26,7 @@ export default function DashboardPage() {
     mouvementsCount: 0,
     totalSales: 0,
     lowStockArticles: [],
+    lowStockTotal: 0,
     unpaidSales: [],
     totalStockValue: 0,
     salesHistory: [],
@@ -96,9 +97,10 @@ export default function DashboardPage() {
     setIsMounted(true);
   }, []);
 
-  const loadStats = async () => {
+  const loadStats = async (page = 1) => {
+    const targetPage = typeof page === 'number' ? page : 1;
     try {
-      const apiStats = await storage.get('stats');
+      const apiStats = await storage.get(`stats?lowStockPage=${targetPage}&lowStockLimit=${itemsPerPageLowStock}`);
       
       setStats({
         totalArticles: apiStats.totalArticles || 0,
@@ -107,6 +109,7 @@ export default function DashboardPage() {
         revenuePhysical: apiStats.revenuePhysical || 0,
         purchaseVirtual: apiStats.purchaseVirtual || 0,
         lowStockArticles: apiStats.lowStockArticles || [],
+        lowStockTotal: apiStats.lowStockTotal || 0,
         unpaidSales: apiStats.unpaidSales || [],
         totalStockValue: apiStats.totalStockValue || 0,
         salesHistory: apiStats.salesHistory || [],
@@ -119,25 +122,37 @@ export default function DashboardPage() {
     } catch (err) { 
       console.error("Dashboard data load error:", err);
       // Fallback empty stats to prevent crash
-      setStats(prev => ({ ...prev, lowStockArticles: [], unpaidSales: [] }));
+      setStats(prev => ({ ...prev, lowStockArticles: [], lowStockTotal: 0, unpaidSales: [] }));
     }
   };
 
-  const handleExportLowStock = () => {
-    const headers = [
-      { key: 'code', label: 'Code' },
-      { key: 'name', label: 'Article' },
-      { key: 'currentStock', label: 'Stock Actuel' },
-      { key: 'minStock', label: 'Seuil d\'Alerte' }
-    ];
-    exportToExcel(stats.lowStockArticles, headers, 'articles_a_reapprovisionner');
+  const handleExportLowStock = async () => {
+    try {
+      // Fetch full list of low stock articles specifically for on-demand Excel export
+      const data = await storage.get(`stats?lowStockPage=1&lowStockLimit=10000`);
+      const allLowStock = data.lowStockArticles || [];
+      const headers = [
+        { key: 'code', label: 'Code' },
+        { key: 'name', label: 'Article' },
+        { key: 'currentStock', label: 'Stock Actuel' },
+        { key: 'minStock', label: 'Seuil d\'Alerte' }
+      ];
+      exportToExcel(allLowStock, headers, 'articles_a_reapprovisionner');
+    } catch (err) {
+      console.error("Failed to export low stock articles:", err);
+    }
   };
 
-  const totalPagesLowStock = Math.ceil(stats.lowStockArticles.length / itemsPerPageLowStock);
-  const currentLowStock = stats.lowStockArticles.slice((currentPageLowStock - 1) * itemsPerPageLowStock, currentPageLowStock * itemsPerPageLowStock);
+  const totalPagesLowStock = Math.ceil(stats.lowStockTotal / itemsPerPageLowStock);
+  const currentLowStock = stats.lowStockArticles;
+
+  const handleLowStockPageChange = async (newPage) => {
+    setCurrentPageLowStock(newPage);
+    await loadStats(newPage);
+  };
 
   return (
-    <div className={`page ${stats.lowStockArticles.length > 0 ? 'page-critical-alert' : ''}`}>
+    <div className={`page ${stats.lowStockTotal > 0 ? 'page-critical-alert' : ''}`}>
       {showWelcome && (
         <div className="welcome-overlay">
           <div className="welcome-card">
@@ -239,9 +254,9 @@ export default function DashboardPage() {
         <div className="stat-card stat-card-premium bg-gradient-red">
           <div className="stat-icon-bg"><AlertTriangle size={48} /></div>
           <div className="stat-label">Ruptures Imminentes</div>
-          <div className="stat-value">{stats.lowStockArticles.length}</div>
+          <div className="stat-value">{stats.lowStockTotal}</div>
           <div className="card-progress-container">
-            <div className="card-progress-bar" style={{ width: stats.lowStockArticles.length > 0 ? '100%' : '0%' }}></div>
+            <div className="card-progress-bar" style={{ width: stats.lowStockTotal > 0 ? '100%' : '0%' }}></div>
           </div>
           <div className="card-trend">
             <ArrowDown size={14} /> <span>Action requise</span>
@@ -249,11 +264,11 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {stats.lowStockArticles.length > 0 && (
+      {stats.lowStockTotal > 0 && (
         <div className="content-card" style={{ marginBottom: '2rem', border: '2px solid var(--danger)' }}>
           <div style={{ backgroundColor: 'var(--danger)', padding: '1rem', color: 'white', borderTopLeftRadius: '6px', borderTopRightRadius: '6px', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <AlertTriangle size={24} />
-            <h2 style={{ margin: 0, fontSize: '1.2rem', color: 'white' }}>ARTICLES À RÉAPPROVISIONNER ({stats.lowStockArticles.length})</h2>
+            <h2 style={{ margin: 0, fontSize: '1.2rem', color: 'white' }}>ARTICLES À RÉAPPROVISIONNER ({stats.lowStockTotal})</h2>
             <button className="btn btn-secondary btn-sm" onClick={handleExportLowStock} style={{ marginLeft: 'auto', backgroundColor: 'rgba(255,255,255,0.2)', border: 'none', color: 'white' }}>
               <Download size={14} /> Exporter
             </button>
@@ -282,9 +297,9 @@ export default function DashboardPage() {
           </div>
           {totalPagesLowStock > 1 && (
             <div className="pagination" style={{ padding: '1rem', borderTop: '1px solid var(--border)' }}>
-              <button className="btn btn-secondary" onClick={() => setCurrentPageLowStock(p => Math.max(p - 1, 1))} disabled={currentPageLowStock === 1}><ChevronLeft size={16} /></button>
+              <button className="btn btn-secondary" onClick={() => handleLowStockPageChange(currentPageLowStock - 1)} disabled={currentPageLowStock === 1}><ChevronLeft size={16} /></button>
               <span>Page {currentPageLowStock} / {totalPagesLowStock}</span>
-              <button className="btn btn-secondary" onClick={() => setCurrentPageLowStock(p => Math.min(p + 1, totalPagesLowStock))} disabled={currentPageLowStock === totalPagesLowStock}><ChevronRight size={16} /></button>
+              <button className="btn btn-secondary" onClick={() => handleLowStockPageChange(currentPageLowStock + 1)} disabled={currentPageLowStock === totalPagesLowStock}><ChevronRight size={16} /></button>
             </div>
           )}
         </div>

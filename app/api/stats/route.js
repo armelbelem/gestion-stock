@@ -16,6 +16,11 @@ export async function GET(request) {
   try {
     const storeId = getStoreConstraint(user, request.nextUrl.searchParams.get('storeId'));
     
+    // Pagination parameters for Low Stock Alerts
+    const lowStockPage = parseInt(request.nextUrl.searchParams.get('lowStockPage') || '1', 10);
+    const lowStockLimit = parseInt(request.nextUrl.searchParams.get('lowStockLimit') || '5', 10);
+    const lowStockOffset = (lowStockPage - 1) * lowStockLimit;
+    
     // Get active fiscal year
     const [fyRows] = await db.query("SELECT * FROM fiscal_years WHERE status = 'active'");
     const activeYear = fyRows[0];
@@ -34,11 +39,20 @@ export async function GET(request) {
     if (storeId) { stockQuery += ' WHERE i.storeId = ?'; stockParams.push(storeId); }
 
     // 3. Low Stock Articles setup
-    let lowStockQuery = 'SELECT a.id, a.code, a.name, a.currentStock, a.minStock FROM articles a WHERE a.currentStock <= a.minStock';
-    let lowStockParams = [];
+    // 3a. Total Count of Low Stock Articles (needed for alerts/badges)
+    let lowStockCountQuery = 'SELECT COUNT(*) as `count` FROM articles a WHERE a.currentStock <= a.minStock';
+    let lowStockCountParams = [];
     if (storeId) {
-      lowStockQuery = 'SELECT a.id, a.code, a.name, i.quantity as `currentStock`, a.minStock FROM articles a JOIN inventory i ON i.articleId = a.id WHERE i.storeId = ? AND i.quantity <= a.minStock';
-      lowStockParams.push(storeId);
+      lowStockCountQuery = 'SELECT COUNT(*) as `count` FROM articles a JOIN inventory i ON i.articleId = a.id WHERE i.storeId = ? AND i.quantity <= a.minStock';
+      lowStockCountParams.push(storeId);
+    }
+
+    // 3b. Paginated slice of Low Stock Articles (needed for display in page table)
+    let lowStockQuery = 'SELECT a.id, a.code, a.name, a.currentStock, a.minStock FROM articles a WHERE a.currentStock <= a.minStock ORDER BY a.name ASC LIMIT ? OFFSET ?';
+    let lowStockParams = [lowStockLimit, lowStockOffset];
+    if (storeId) {
+      lowStockQuery = 'SELECT a.id, a.code, a.name, i.quantity as `currentStock`, a.minStock FROM articles a JOIN inventory i ON i.articleId = a.id WHERE i.storeId = ? AND i.quantity <= a.minStock ORDER BY a.name ASC LIMIT ? OFFSET ?';
+      lowStockParams = [storeId, lowStockLimit, lowStockOffset];
     }
 
     // 4. Mouvements count (this month) setup
@@ -53,22 +67,25 @@ export async function GET(request) {
       [articlesRow],
       [stockRow],
       [lowStockArticles],
+      [lowStockCountRow],
       [mouvRow]
     ] = await Promise.all([
       db.query(articlesCountQuery, articlesCountParams),
       db.query(stockQuery, stockParams),
       db.query(lowStockQuery, lowStockParams),
+      db.query(lowStockCountQuery, lowStockCountParams),
       db.query(mouvementsQuery, mouvementsParams)
     ]);
 
     const totalArticles = articlesRow[0].count;
     const totalStockValue = stockRow[0].totalValue || 0;
+    const lowStockTotal = lowStockCountRow[0].count;
     const mouvementsCount = mouvRow[0].count;
 
     if (!activeYear) {
       return NextResponse.json({ 
         hasActiveYear: false,
-        totalArticles, totalStockValue, lowStockArticles, mouvementsCount,
+        totalArticles, totalStockValue, lowStockArticles, lowStockTotal, mouvementsCount,
         totalRevenue: 0, revenuePhysical: 0, purchaseVirtual: 0, salesHistory: [], topArticles: [], topClients: [], unpaidSales: []
       });
     }
@@ -168,6 +185,7 @@ export async function GET(request) {
       totalArticles,
       totalStockValue,
       lowStockArticles,
+      lowStockTotal,
       mouvementsCount,
       totalRevenue: revenuePhysical,
       revenuePhysical,
