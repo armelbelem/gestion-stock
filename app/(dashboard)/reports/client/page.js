@@ -72,6 +72,7 @@ export default function ClientReportPage() {
     if (!data) return;
     const headers = [
       { key: 'code', label: 'Code' },
+      { key: 'barcode', label: 'Référence' },
       { key: 'name', label: 'Article' },
       { key: 'unitPrice', label: 'Prix Unitaire' },
       { key: 'totalQuantity', label: 'Quantité Vendue' },
@@ -92,9 +93,9 @@ export default function ClientReportPage() {
         companyName: settings?.companyName || "NS AUTO",
         period: `Du ${new Date(startDate).toLocaleDateString()} au ${new Date(endDate).toLocaleDateString()}`,
         summary: [
-          ['', 'TOTAL BRUT (HT)', '', data.summary.totalQuantity, `${formatPrice(data.summary.totalGrossAmount)} FCFA`],
-          ['', `MONTANT TVA (${Math.round((data.summary.totalTva / (data.summary.totalGrossAmount - data.summary.totalDiscount)) * 100)}%)`, '', '', `${formatPrice(data.summary.totalTva)} FCFA`],
-          ['', 'TOTAL NET (TTC)', '', '', `${formatPrice(data.summary.totalAmount)} FCFA`]
+          ['', '', 'TOTAL BRUT (HT)', '', data.summary.totalQuantity, `${formatPrice(data.summary.totalGrossAmount)} FCFA`],
+          ['', '', `MONTANT TVA (${Math.round((data.summary.totalTva / (data.summary.totalGrossAmount - data.summary.totalDiscount)) * 100)}%)`, '', '', `${formatPrice(data.summary.totalTva)} FCFA`],
+          ['', '', 'TOTAL NET (TTC)', '', '', `${formatPrice(data.summary.totalAmount)} FCFA`]
         ]
       }
     );
@@ -173,6 +174,7 @@ export default function ClientReportPage() {
           <thead>
             <tr style={{ backgroundColor: '#f0f0f0', borderBottom: '2px solid #000' }}>
               <th style={{ textAlign: 'left', padding: '10px', border: '1px solid #000' }}>CODE</th>
+              <th style={{ textAlign: 'left', padding: '10px', border: '1px solid #000' }}>RÉFÉRENCE</th>
               <th style={{ textAlign: 'left', padding: '10px', border: '1px solid #000' }}>DÉSIGNATION ARTICLE</th>
               <th style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>P.U (FCFA)</th>
               <th style={{ textAlign: 'center', padding: '10px', border: '1px solid #000' }}>QTÉ</th>
@@ -183,6 +185,7 @@ export default function ClientReportPage() {
             {data.items.map((item, idx) => (
               <tr key={idx}>
                 <td style={{ padding: '10px', border: '1px solid #000' }}>{item.code || '-'}</td>
+                <td style={{ padding: '10px', border: '1px solid #000' }}>{item.barcode || '-'}</td>
                 <td style={{ padding: '10px', border: '1px solid #000' }}>{item.name}</td>
                 <td style={{ padding: '10px', border: '1px solid #000' }}>{formatPrice(item.unitPrice)}</td>
                 <td style={{ textAlign: 'center', padding: '10px', border: '1px solid #000' }}>{item.totalQuantity}</td>
@@ -192,26 +195,26 @@ export default function ClientReportPage() {
           </tbody>
           <tfoot>
             <tr style={{ backgroundColor: '#f0f0f0', fontWeight: 'bold' }}>
-              <td colSpan="3" style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>TOTAL BRUT</td>
+              <td colSpan="4" style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>TOTAL BRUT</td>
               <td style={{ textAlign: 'center', padding: '10px', border: '1px solid #000' }}>{data.summary.totalQuantity}</td>
               <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>{formatPrice(data.summary.totalGrossAmount)} FCFA</td>
             </tr>
             {data.summary.totalDiscount > 0 && (
               <tr style={{ fontWeight: 'bold' }}>
-                <td colSpan="4" style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>TOTAL REMISES</td>
+                <td colSpan="5" style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>TOTAL REMISES</td>
                 <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>-{formatPrice(data.summary.totalDiscount)} FCFA</td>
               </tr>
             )}
             {data.summary.totalTva > 0 && (
               <tr style={{ fontWeight: 'bold' }}>
-                <td colSpan="4" style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>
+                <td colSpan="5" style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>
                   MONTANT TVA ({Math.round((data.summary.totalTva / (data.summary.totalGrossAmount - data.summary.totalDiscount)) * 100)}%)
                 </td>
                 <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>{formatPrice(data.summary.totalTva)} FCFA</td>
               </tr>
             )}
             <tr style={{ backgroundColor: '#e0e0e0', fontWeight: 'bold' }}>
-              <td colSpan="4" style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>TOTAL NET À RÉGLER</td>
+              <td colSpan="5" style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>TOTAL NET À RÉGLER</td>
               <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000', fontSize: '18px' }}>{formatPrice(data.summary.totalAmount)} FCFA</td>
             </tr>
           </tfoot>
@@ -303,6 +306,7 @@ export default function ClientReportPage() {
               <thead>
                 <tr>
                   <th>Code</th>
+                  <th>Référence</th>
                   <th>Article</th>
                   <th style={{ textAlign: 'right' }}>P.U</th>
                   <th style={{ textAlign: 'center' }}>Qté Vendue</th>
@@ -313,6 +317,7 @@ export default function ClientReportPage() {
                 {data.items.map((item, idx) => (
                   <tr key={idx}>
                     <td style={{ fontWeight: 500 }}>{item.code || '-'}</td>
+                    <td style={{ fontWeight: 500 }}>{item.barcode || '-'}</td>
                     <td>{item.name}</td>
                     <td style={{ textAlign: 'right' }}>{formatPrice(item.unitPrice)}</td>
                     <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{item.totalQuantity}</td>
@@ -322,26 +327,26 @@ export default function ClientReportPage() {
               </tbody>
               <tfoot style={{ backgroundColor: 'var(--bg-light)', fontWeight: 'bold' }}>
                 <tr>
-                  <td colSpan="3" style={{ textAlign: 'right' }}>TOTAL BRUT</td>
+                  <td colSpan="4" style={{ textAlign: 'right' }}>TOTAL BRUT</td>
                   <td style={{ textAlign: 'center' }}>{data.summary.totalQuantity}</td>
                   <td style={{ textAlign: 'right' }}>{formatPrice(data.summary.totalGrossAmount)} FCFA</td>
                 </tr>
                 {data.summary.totalDiscount > 0 && (
                   <tr>
-                    <td colSpan="4" style={{ textAlign: 'right', color: 'var(--danger)' }}>REMISES ACCORDÉES</td>
+                    <td colSpan="5" style={{ textAlign: 'right', color: 'var(--danger)' }}>REMISES ACCORDÉES</td>
                     <td style={{ textAlign: 'right', color: 'var(--danger)' }}>-{formatPrice(data.summary.totalDiscount)} FCFA</td>
                   </tr>
                 )}
                 {data.summary.totalTva > 0 && (
                   <tr>
-                    <td colSpan="4" style={{ textAlign: 'right', color: 'var(--primary)' }}>
+                    <td colSpan="5" style={{ textAlign: 'right', color: 'var(--primary)' }}>
                       MONTANT TVA ({Math.round((data.summary.totalTva / (data.summary.totalGrossAmount - data.summary.totalDiscount)) * 100)}%)
                     </td>
                     <td style={{ textAlign: 'right', color: 'var(--primary)' }}>{formatPrice(data.summary.totalTva)} FCFA</td>
                   </tr>
                 )}
                 <tr style={{ fontSize: '1.2rem', borderTop: '2px solid var(--primary)' }}>
-                  <td colSpan="4" style={{ textAlign: 'right' }}>TOTAL NET</td>
+                  <td colSpan="5" style={{ textAlign: 'right' }}>TOTAL NET</td>
                   <td style={{ textAlign: 'right', color: 'var(--primary)' }}>{formatPrice(data.summary.totalAmount)} FCFA</td>
                 </tr>
               </tfoot>

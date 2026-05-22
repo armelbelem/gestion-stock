@@ -601,9 +601,6 @@ export default function SalesPage() {
                                   <ShoppingCart size={14} />
                                 </button>
                               )}
-                              {sale.status !== 'payé' && sale.status !== 'annulée' && sale.status !== 'proforma' && (
-                                <button className="btn btn-primary btn-sm" onClick={(e) => { e.stopPropagation(); setPaymentModal({ open: true, saleId: sale.id, total: sale.totalAmount, paid: sale.amountPaid }); setNewPayment({ amount: sale.totalAmount - sale.amountPaid, notes: '' }); }}><DollarSign size={14} /></button>
-                              )}
                               {sale.status !== 'annulée' && (
                                 <button className="btn btn-danger-outline btn-sm" onClick={(e) => { e.stopPropagation(); handleCancelSale(sale.id); }}><XCircle size={14} /></button>
                               )}
