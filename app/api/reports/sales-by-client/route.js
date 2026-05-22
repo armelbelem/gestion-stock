@@ -25,6 +25,7 @@ export async function GET(request) {
     const query = `
       SELECT 
         a.code, 
+        a.barcode,
         COALESCE(a.name, si.description, 'Article Inconnu') as name, 
         si.unitPrice, 
         SUM(si.quantity) as totalQuantity, 
@@ -38,7 +39,7 @@ export async function GET(request) {
         AND s.status != 'annulée'
         ${storeId ? 'AND s.storeId = ?' : ''}
         ${!includeContracts ? "AND s.storeId != 0 AND s.storeId != 'CFAO'" : ''}
-      GROUP BY a.code, COALESCE(a.name, si.description, 'Article Inconnu'), si.unitPrice
+      GROUP BY a.code, a.barcode, COALESCE(a.name, si.description, 'Article Inconnu'), si.unitPrice
       ORDER BY name ASC
     `;
 
