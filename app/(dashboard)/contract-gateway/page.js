@@ -109,7 +109,9 @@ export default function ContractGatewayPage() {
   const [catalogItem, setCatalogItem] = useState({ code: '', refCfao: '', name: '', purchasePrice: 0, clientId: '' });
 
   const [itemSearch, setItemSearch] = useState('');
+  const [itemDebouncedSearch, setItemDebouncedSearch] = useState('');
   const [suggestions, setSuggestions] = useState([]);
+  const [isSearchingItem, setIsSearchingItem] = useState(false);
 
   const [alertModal, setAlertModal] = useState({ open: false, type: 'info', title: '', message: '', onConfirm: null });
   const [catalogSearch, setCatalogSearch] = useState('');
@@ -139,6 +141,14 @@ export default function ContractGatewayPage() {
     }, 400);
     return () => clearTimeout(timer);
   }, [orderSearch]);
+
+  // Debounce recherche article dans le modal : attend 300ms
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setItemDebouncedSearch(itemSearch);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [itemSearch]);
 
   // Reset page quand le partenaire ou le client change
   useEffect(() => {
@@ -1112,23 +1122,42 @@ export default function ContractGatewayPage() {
   // --- ORDER MANAGEMENT ---
   const handleItemSearch = (val) => {
     setItemSearch(val);
-    if (val.length > 1) {
-      const filtered = catalog.filter(a => {
-        const matchesSearch = a.name.toLowerCase().includes(val.toLowerCase()) ||
-          (a.code && a.code.toLowerCase().includes(val.toLowerCase())) ||
-          (a.refCfao && a.refCfao.toLowerCase().includes(val.toLowerCase()));
-
-        // Si un client est sélectionné pour le dossier, on filtre aussi par clientId
-        // On garde aussi les articles "globaux" (clientId null)
-        const matchesClient = !newOrder.clientId || !a.clientId || String(a.clientId) === String(newOrder.clientId);
-
-        return matchesSearch && matchesClient;
-      }).slice(0, 5);
-      setSuggestions(filtered);
-    } else {
-      setSuggestions([]);
-    }
   };
+
+  useEffect(() => {
+    const searchItems = async () => {
+      if (itemDebouncedSearch.length > 1) {
+        setIsSearchingItem(true);
+        try {
+          const token = sessionStorage.getItem('token');
+          const pId = selectedPartner?.id;
+          const params = new URLSearchParams({
+            page: 1,
+            limit: 10,
+            search: itemDebouncedSearch,
+            storeId: 'all'
+          });
+          if (pId && pId !== 'all') params.set('partnerId', pId);
+          if (newOrder.clientId) params.set('clientId', newOrder.clientId);
+          
+          const res = await fetch(`/api/contract-catalog?${params.toString()}`, {
+            headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+            cache: 'no-store'
+          });
+          const result = await res.json();
+          setSuggestions(result.data || []);
+        } catch (err) {
+          console.error('Error fetching suggestions:', err);
+          setSuggestions([]);
+        } finally {
+          setIsSearchingItem(false);
+        }
+      } else {
+        setSuggestions([]);
+      }
+    };
+    searchItems();
+  }, [itemDebouncedSearch, selectedPartner, newOrder.clientId]);
 
   const addItemFromCatalog = (article) => {
     const item = {
@@ -3281,7 +3310,12 @@ export default function ContractGatewayPage() {
                       });
                     }}>Ajout Manuel</button>
                   </div>
-                  {suggestions.length > 0 && (
+                  {isSearchingItem && (
+                    <div className="search-suggestions" style={{ top: '65px', padding: '8px 12px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                      Recherche en cours...
+                    </div>
+                  )}
+                  {!isSearchingItem && suggestions.length > 0 && (
                     <div className="search-suggestions" style={{ top: '65px' }}>
                       {suggestions.map(a => (
                         <div key={a.id} className="suggestion-item" onClick={() => addItemFromCatalog(a)} style={{ padding: '8px 12px' }}>
