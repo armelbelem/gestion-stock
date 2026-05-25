@@ -103,6 +103,14 @@ export default function ClientReportPage() {
       supervisorName: settings?.supervisorName || 'Guy Roland TONDE',
       supervisorTitle: settings?.supervisorTitle || 'SUPERVISEUR',
       notes: '',
+      colHeaders: {
+        code: 'CODE',
+        barcode: 'RÉFÉRENCE',
+        name: 'DÉSIGNATION ARTICLE',
+        unitPrice: 'P.U (FCFA)',
+        qty: 'QTÉ',
+        total: 'TOTAL (FCFA)'
+      },
       items: JSON.parse(JSON.stringify(data.items)),
       summary: JSON.parse(JSON.stringify(data.summary)),
       tvaRate: tvaRate
@@ -326,7 +334,7 @@ export default function ClientReportPage() {
               border-top: 1pt solid #b91c1c !important;
             }
             .red-footer p { color: white !important; }
-            .no-print-border { border: none !important; }
+            .receipt-print-only td.no-print-border { border: none !important; }
             /* Règles pour la pagination */
             table { page-break-inside: auto; }
             tr { page-break-inside: avoid; page-break-after: auto; }
@@ -388,12 +396,12 @@ export default function ClientReportPage() {
         <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '30px' }}>
           <thead>
             <tr style={{ backgroundColor: '#f0f0f0', borderBottom: '2px solid #000' }}>
-              <th style={{ textAlign: 'left', padding: '10px', border: '1px solid #000' }}>CODE</th>
-              <th style={{ textAlign: 'left', padding: '10px', border: '1px solid #000' }}>RÉFÉRENCE</th>
-              <th style={{ textAlign: 'left', padding: '10px', border: '1px solid #000' }}>DÉSIGNATION ARTICLE</th>
-              <th style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>P.U (FCFA)</th>
-              <th style={{ textAlign: 'center', padding: '10px', border: '1px solid #000' }}>QTÉ</th>
-              <th style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>TOTAL (FCFA)</th>
+              <th style={{ textAlign: 'left', padding: '10px', border: '1px solid #000' }}>{printData?.colHeaders?.code || 'CODE'}</th>
+              <th style={{ textAlign: 'left', padding: '10px', border: '1px solid #000' }}>{printData?.colHeaders?.barcode || 'RÉFÉRENCE'}</th>
+              <th style={{ textAlign: 'left', padding: '10px', border: '1px solid #000' }}>{printData?.colHeaders?.name || 'DÉSIGNATION ARTICLE'}</th>
+              <th style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>{printData?.colHeaders?.unitPrice || 'P.U (FCFA)'}</th>
+              <th style={{ textAlign: 'center', padding: '10px', border: '1px solid #000' }}>{printData?.colHeaders?.qty || 'QTÉ'}</th>
+              <th style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>{printData?.colHeaders?.total || 'TOTAL (FCFA)'}</th>
             </tr>
           </thead>
           <tbody>
@@ -431,72 +439,6 @@ export default function ClientReportPage() {
               <td colSpan="5" style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>TOTAL NET À RÉGLER</td>
               <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000', fontSize: '18px' }}>{formatPrice(printData?.summary?.totalAmount)} FCFA</td>
             </tr>
-            {/* SIGNATURE BLOCK IN TBODY SO TFOOT PROTECTS IT */}
-            <tr>
-              <td colSpan="6" className="no-print-border" style={{ border: 'none', padding: '0' }}>
-                <div className="avoid-page-break" style={{ paddingTop: '20px', paddingBottom: '20px' }}>
-                  {printData?.notes && (
-                    <div style={{ marginTop: '10px', marginBottom: '15px', padding: '10px', border: '1px solid #000', fontSize: '12px' }}>
-                      <strong>Notes / Conditions Particulières :</strong><br/>
-                      {printData.notes.split('\n').map((line, i) => <React.Fragment key={i}>{line}<br/></React.Fragment>)}
-                    </div>
-                  )}
-                  <div style={{ marginTop: '20px', fontSize: '11px' }}>
-                    <p style={{ margin: '0 0 5px 0' }}>Arrêtée la présente facture à la somme de :</p>
-                    <p style={{ margin: 0, fontWeight: 'bold', fontSize: '12px', marginLeft: '40px' }}>
-                      {numberToWords(Math.trunc(printData?.summary?.totalAmount || 0))} ( {formatPrice(printData?.summary?.totalAmount)} Francs CFA TTC )
-                    </p>
-                  </div>
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px' }}>
-                    {/* Cachet Area */}
-                    <div style={{ textAlign: 'center', width: '220px' }}>
-                      {stamp && (
-                        <div style={{
-                          width: '150px',
-                          height: '110px',
-                          margin: '0 auto',
-                          overflow: 'hidden',
-                          position: 'relative'
-                        }}>
-                          <img src={stamp} alt="Cachet" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Signature Area */}
-                    <div style={{ textAlign: 'right', minWidth: '250px' }}>
-                      <p style={{ fontStyle: 'italic', fontSize: '13px', marginBottom: '5px' }}>Fait à {printData?.city || settings?.city || 'Ouagadougou'} le {new Date(printData?.date || new Date()).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
-
-                      <div style={{ position: 'relative', marginTop: '10px', height: '100px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                        {sig && (
-                          <img
-                            src={sig}
-                            alt="Signature"
-                            style={{
-                              maxHeight: '80px',
-                              maxWidth: '200px',
-                              objectFit: 'contain',
-                              marginBottom: '-20px',
-                              zIndex: 1
-                            }}
-                          />
-                        )}
-
-                        <div style={{ marginTop: sig ? '0' : '50px', zIndex: 2 }}>
-                          <p style={{ fontWeight: 'bold', textDecoration: 'underline', fontSize: '15px', margin: 0 }}>
-                            {printData?.supervisorName || settings?.supervisorName || 'Guy Roland TONDE'}
-                          </p>
-                          <p style={{ margin: 0, fontSize: '12px' }}>
-                            {printData?.supervisorTitle || settings?.supervisorTitle || 'SUPERVISEUR'}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </td>
-            </tr>
           </tbody>
           {/* Un tfoot vide garantit un espace libre à la fin de CHAQUE page pour ne pas chevaucher le bandeau rouge fixe */}
           <tfoot>
@@ -505,6 +447,70 @@ export default function ClientReportPage() {
             </tr>
           </tfoot>
         </table>
+
+        <div className="avoid-page-break" style={{ paddingTop: '20px', paddingBottom: '20px' }}>
+          {printData?.notes && (
+            <div style={{ marginTop: '10px', marginBottom: '15px', padding: '10px', border: '1px solid #000', fontSize: '12px' }}>
+              <strong>Notes / Conditions Particulières :</strong><br/>
+              {printData.notes.split('\n').map((line, i) => <React.Fragment key={i}>{line}<br/></React.Fragment>)}
+            </div>
+          )}
+          <div style={{ marginTop: '20px', fontSize: '11px' }}>
+            <p style={{ margin: '0 0 5px 0' }}>Arrêtée la présente facture à la somme de :</p>
+            <p style={{ margin: 0, fontWeight: 'bold', fontSize: '12px', marginLeft: '40px' }}>
+              {numberToWords(Math.trunc(printData?.summary?.totalAmount || 0))} ( {formatPrice(printData?.summary?.totalAmount)} Francs CFA TTC )
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px' }}>
+            {/* Cachet Area */}
+            <div style={{ textAlign: 'center', width: '220px' }}>
+              {stamp && (
+                <div style={{
+                  width: '150px',
+                  height: '110px',
+                  margin: '0 auto',
+                  overflow: 'hidden',
+                  position: 'relative'
+                }}>
+                  <img src={stamp} alt="Cachet" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                </div>
+              )}
+            </div>
+
+            {/* Signature Area */}
+            <div style={{ textAlign: 'right', minWidth: '250px' }}>
+              <p style={{ fontStyle: 'italic', fontSize: '13px', marginBottom: '5px' }}>Fait à {printData?.city || settings?.city || 'Ouagadougou'} le {new Date(printData?.date || new Date()).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
+
+              <div style={{ position: 'relative', marginTop: '10px', height: '100px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                {sig && (
+                  <img
+                    src={sig}
+                    alt="Signature"
+                    style={{
+                      maxHeight: '80px',
+                      maxWidth: '200px',
+                      objectFit: 'contain',
+                      marginBottom: '-20px',
+                      zIndex: 1
+                    }}
+                  />
+                )}
+
+                <div style={{ marginTop: sig ? '0' : '50px', zIndex: 2 }}>
+                  <p style={{ fontWeight: 'bold', textDecoration: 'underline', fontSize: '15px', margin: 0 }}>
+                    {printData?.supervisorName || settings?.supervisorName || 'Guy Roland TONDE'}
+                  </p>
+                  <p style={{ margin: 0, fontSize: '12px' }}>
+                    {printData?.supervisorTitle || settings?.supervisorTitle || 'SUPERVISEUR'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        {/* Espace physique pour "pousser" la signature à la page suivante si on est trop proche du bas, le padding n'étant pas toujours pris en compte par Chrome pour les sauts de page */}
+        <div style={{ height: '120px', width: '100%' }}></div>
         </div>
 
         {/* Pied de page rouge (Universel) */}
@@ -729,6 +735,36 @@ export default function ClientReportPage() {
                   onChange={e => setPrintData({...printData, notes: e.target.value})}
                   placeholder="Notes optionnelles qui s'afficheront en bas du document..."
                 ></textarea>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '1.5rem', backgroundColor: '#f9f9f9', padding: '1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <label className="form-label" style={{ fontWeight: 'bold', fontSize: '0.85rem', color: 'var(--primary)' }}>Personnalisation des Noms de Colonnes</label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', color: '#666' }}>Code</label>
+                    <input type="text" className="form-control" style={{ padding: '0.4rem', fontSize: '0.85rem' }} value={printData.colHeaders?.code || ''} onChange={e => setPrintData({...printData, colHeaders: {...printData.colHeaders, code: e.target.value}})} placeholder="CODE" />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', color: '#666' }}>Référence</label>
+                    <input type="text" className="form-control" style={{ padding: '0.4rem', fontSize: '0.85rem' }} value={printData.colHeaders?.barcode || ''} onChange={e => setPrintData({...printData, colHeaders: {...printData.colHeaders, barcode: e.target.value}})} placeholder="RÉFÉRENCE" />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', color: '#666' }}>Désignation</label>
+                    <input type="text" className="form-control" style={{ padding: '0.4rem', fontSize: '0.85rem' }} value={printData.colHeaders?.name || ''} onChange={e => setPrintData({...printData, colHeaders: {...printData.colHeaders, name: e.target.value}})} placeholder="DÉSIGNATION ARTICLE" />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', color: '#666' }}>Prix Unitaire</label>
+                    <input type="text" className="form-control" style={{ padding: '0.4rem', fontSize: '0.85rem' }} value={printData.colHeaders?.unitPrice || ''} onChange={e => setPrintData({...printData, colHeaders: {...printData.colHeaders, unitPrice: e.target.value}})} placeholder="P.U (FCFA)" />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', color: '#666' }}>Quantité</label>
+                    <input type="text" className="form-control" style={{ padding: '0.4rem', fontSize: '0.85rem' }} value={printData.colHeaders?.qty || ''} onChange={e => setPrintData({...printData, colHeaders: {...printData.colHeaders, qty: e.target.value}})} placeholder="QTÉ" />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.75rem', color: '#666' }}>Total</label>
+                    <input type="text" className="form-control" style={{ padding: '0.4rem', fontSize: '0.85rem' }} value={printData.colHeaders?.total || ''} onChange={e => setPrintData({...printData, colHeaders: {...printData.colHeaders, total: e.target.value}})} placeholder="TOTAL (FCFA)" />
+                  </div>
+                </div>
               </div>
 
               <div className="form-group" style={{ marginBottom: '1rem' }}>
