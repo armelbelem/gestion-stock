@@ -1713,3 +1713,18 @@ input[type=number] {
     display: none !important;
   }
 }
+
+/* --- Fix pour l'impression Multi-pages --- */
+@media print {
+  html, body, .app-container, .main-content, .page-content {
+    height: auto !important;
+    min-height: 100% !important;
+    overflow: visible !important;
+    position: static !important;
+  }
+  
+  /* Cacher la sidebar et le top header pendant l'impression globale si ce n'est pas déjà géré par isPrinting */
+  .sidebar, .top-header, .sticky-alert-banner, .toast-container {
+    display: none !important;
+  }
+}

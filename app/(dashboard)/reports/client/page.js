@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { storage } from '../../../lib/storage';
-import { User, Calendar, FileText, Printer, ChevronLeft, Package, Coins, Download, TrendingUp, Clock } from 'lucide-react';
+import { User, Calendar, FileText, Printer, ChevronLeft, Package, Coins, Download, TrendingUp, Clock, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { exportToExcel } from '../../../utils/excelExport';
@@ -16,7 +16,10 @@ export default function ClientReportPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [printData, setPrintData] = useState(null);
   const [settings, setSettings] = useState(null);
+  const [partners, setPartners] = useState([]);
   const [alertModal, setAlertModal] = useState({ open: false, type: 'info', title: '', message: '', onConfirm: null });
   const pathname = usePathname();
 
@@ -37,6 +40,11 @@ export default function ClientReportPage() {
     };
     loadClients();
     loadSettings();
+    const loadPartners = async () => {
+      const p = await storage.get('contract-partners');
+      setPartners(p || []);
+    };
+    loadPartners();
   }, []);
 
   const loadSettings = async () => {
@@ -60,7 +68,80 @@ export default function ClientReportPage() {
     }
   };
 
-  const handlePrint = () => {
+  const handlePrintClick = () => {
+    const defaultCompany = `${settings?.companyName || 'NS AUTO'} ${selectedClient?.clientCode ? `/ Code client : ${selectedClient.clientCode}` : ''}\n` +
+      [
+        settings?.address,
+        settings?.rccm ? `RCCM : ${settings.rccm}` : '',
+        settings?.nif ? `IFU : ${settings.nif}` : '',
+        settings?.bp,
+        settings?.division,
+        settings?.taxSystem
+      ].filter(Boolean).join('\n');
+
+    const defaultClient = `${selectedClient?.name}\n` +
+      [
+        selectedClient?.address,
+        selectedClient?.bp ? `BP : ${selectedClient.bp}` : '',
+        selectedClient?.phone ? `Tél : ${selectedClient.phone}` : '',
+        selectedClient?.rccm ? `RCCM : ${selectedClient.rccm}` : '',
+        selectedClient?.nif ? `IFU : ${selectedClient.nif}` : ''
+      ].filter(Boolean).join('\n');
+
+    const defaultPeriod = `DU ${new Date(startDate).toLocaleDateString()} AU ${new Date(endDate).toLocaleDateString()}`;
+    const tvaRate = data.summary.totalGrossAmount > 0 
+      ? data.summary.totalTva / (data.summary.totalGrossAmount - data.summary.totalDiscount) 
+      : 0;
+
+    setPrintData({
+      title: `BILAN DE CONSOMMATION : ${selectedClient?.name}`,
+      companyDetails: defaultCompany,
+      clientDetails: defaultClient,
+      periodText: defaultPeriod,
+      date: new Date().toISOString().split('T')[0],
+      city: settings?.city || 'Ouagadougou',
+      supervisorName: settings?.supervisorName || 'Guy Roland TONDE',
+      supervisorTitle: settings?.supervisorTitle || 'SUPERVISEUR',
+      notes: '',
+      items: JSON.parse(JSON.stringify(data.items)),
+      summary: JSON.parse(JSON.stringify(data.summary)),
+      tvaRate: tvaRate
+    });
+    setIsPrintModalOpen(true);
+  };
+
+  const updatePrintItem = (index, field, value) => {
+    const newItems = [...printData.items];
+    newItems[index][field] = value;
+    if (field === 'unitPrice' || field === 'totalQuantity') {
+      newItems[index].totalAmount = Number(newItems[index].unitPrice || 0) * Number(newItems[index].totalQuantity || 0);
+    }
+    recalculatePrintSummary(newItems);
+  };
+
+  const addPrintItem = () => {
+    const newItems = [...printData.items, { code: '', barcode: '', name: '', unitPrice: 0, totalQuantity: 1, totalAmount: 0 }];
+    recalculatePrintSummary(newItems);
+  };
+
+  const removePrintItem = (index) => {
+    const newItems = printData.items.filter((_, i) => i !== index);
+    recalculatePrintSummary(newItems);
+  };
+
+  const recalculatePrintSummary = (newItems) => {
+    setPrintData(prev => {
+      const totalQuantity = newItems.reduce((sum, item) => sum + Number(item.totalQuantity || 0), 0);
+      const totalGrossAmount = newItems.reduce((sum, item) => sum + Number(item.totalAmount || 0), 0);
+      const totalDiscount = prev.summary.totalDiscount || 0;
+      const totalTva = Math.round((totalGrossAmount - totalDiscount) * prev.tvaRate);
+      const totalAmount = totalGrossAmount - totalDiscount + totalTva;
+      return { ...prev, items: newItems, summary: { ...prev.summary, totalQuantity, totalGrossAmount, totalDiscount, totalTva, totalAmount } };
+    });
+  };
+
+  const executePrint = () => {
+    setIsPrintModalOpen(false);
     setIsPrinting(true);
     setTimeout(() => {
       window.print();
@@ -141,33 +222,167 @@ export default function ClientReportPage() {
     });
   };
 
+  const numberToWords = (n) => {
+    const units = ['', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf'];
+    const tens = ['', 'dix', 'vingt', 'trente', 'quarante', 'cinquante', 'soixante', 'soixante-dix', 'quatre-vingt', 'quatre-vingt-dix'];
+
+    if (n === 0) return 'zéro';
+
+    const convert = (num) => {
+      if (num < 10) return units[num];
+      if (num < 20) {
+        if (num === 10) return 'dix';
+        if (num === 11) return 'onze';
+        if (num === 12) return 'douze';
+        if (num === 13) return 'treize';
+        if (num === 14) return 'quatorze';
+        if (num === 15) return 'quinze';
+        if (num === 16) return 'seize';
+        return 'dix-' + units[num % 10];
+      }
+      if (num < 100) {
+        const t = Math.floor(num / 10);
+        const u = num % 10;
+        if (u === 0) return tens[t];
+        if (u === 1 && t < 8) return tens[t] + ' et un';
+        if (t === 7 || t === 9) return tens[t - 1] + '-' + convert(u + 10);
+        return tens[t] + '-' + units[u];
+      }
+      if (num < 1000) {
+        const c = Math.floor(num / 100);
+        const r = num % 100;
+        let s = (c === 1 ? '' : units[c] + ' ') + 'cent';
+        if (r === 0) return s + (c > 1 ? 's' : '');
+        return s + ' ' + convert(r);
+      }
+      if (num < 1000000) {
+        const m = Math.floor(num / 1000);
+        const r = num % 1000;
+        let s = (m === 1 ? '' : convert(m) + ' ') + 'mille';
+        if (r === 0) return s;
+        return s + ' ' + convert(r);
+      }
+      if (num < 1000000000) {
+        const mill = Math.floor(num / 1000000);
+        const r = num % 1000000;
+        let s = convert(mill) + ' million';
+        if (mill > 1) s += 's';
+        if (r === 0) return s;
+        return s + ' ' + convert(r);
+      }
+      return num.toLocaleString();
+    };
+
+    const res = convert(n);
+    return res.charAt(0).toUpperCase() + res.slice(1);
+  };
+
   const selectedClient = clients.find(c => c.id === selectedClientId);
 
   if (isPrinting && data) {
+    const stamp = settings?.stampImage || partners.find(p => p.stamp_image)?.stamp_image;
+    const sig = settings?.signatureImage || partners.find(p => p.signature_image)?.signature_image;
+
     return (
-      <div className="receipt-print-only" style={{ display: 'block', padding: '40px', backgroundColor: 'white', minHeight: '100vh', color: 'black' }}>
-        <div style={{ textAlign: 'center', marginBottom: '30px', borderBottom: '2px solid #000', paddingBottom: '15px' }}>
-          {settings?.logo ? (
-            <img src={settings.logo} alt="Logo" style={{ maxHeight: '100px', marginBottom: '15px' }} />
-          ) : (
-            <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 'bold', textTransform: 'uppercase' }}>{settings?.companyName || 'MINING AUTOLOG'}</h1>
-          )}
-          {settings?.address && <p style={{ margin: '2px 0' }}>{settings.address}</p>}
-          {settings?.phone && <p style={{ margin: '2px 0' }}>Tél : {settings.phone}</p>}
-          <h2 style={{ margin: '15px 0 5px 0', fontSize: '18px', textTransform: 'uppercase' }}>BILAN DE CONSOMMATION</h2>
-          <p style={{ margin: 0 }}>Période : Du {new Date(startDate).toLocaleDateString()} au {new Date(endDate).toLocaleDateString()}</p>
+      <div className="receipt-print-only" style={{
+        padding: '0',
+        color: '#000',
+        fontFamily: '"Times New Roman", Times, serif',
+        backgroundColor: '#fff',
+        width: '21cm',
+        minHeight: '28.5cm',
+        margin: '0 auto',
+        position: 'relative',
+        WebkitPrintColorAdjust: 'exact',
+        printColorAdjust: 'exact'
+      }}>
+        {/* CSS FORCÉ POUR L'IMPRESSION */}
+        <style dangerouslySetInnerHTML={{
+          __html: `
+          @page { margin: 0 !important; }
+          @media print {
+            .receipt-print-only { 
+              width: 21cm !important; 
+              min-height: 29.7cm !important; 
+              padding: 0 !important; 
+              margin: 0 !important; 
+              position: relative !important;
+              top: -60px !important;
+            }
+            .receipt-print-only table { border-collapse: collapse !important; width: 100% !important; }
+            .receipt-print-only th, .receipt-print-only td { border: 1.5pt solid black !important; -webkit-print-color-adjust: exact !important; }
+            .red-footer { 
+              position: fixed !important; 
+              bottom: 0 !important; 
+              left: 0 !important; 
+              right: 0 !important; 
+              width: 21cm !important;
+              margin: 0 auto !important;
+              background-color: #b91c1c !important;
+              color: white !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+              z-index: 9999 !important;
+              border-top: 1pt solid #b91c1c !important;
+            }
+            .red-footer p { color: white !important; }
+            .no-print-border { border: none !important; }
+            /* Règles pour la pagination */
+            table { page-break-inside: auto; }
+            tr { page-break-inside: avoid; page-break-after: auto; }
+            thead { display: table-header-group; }
+            tfoot { display: table-footer-group; }
+            .avoid-page-break { page-break-inside: avoid; break-inside: avoid; }
+          }
+        `}} />
+        <div style={{ padding: '0px 40px 20px 40px' }}>
+          {/* Header Rebrand - Perfect Alignment */}
+          <div style={{ display: 'flex', alignItems: 'flex-end', marginBottom: '32px' }}>
+            {settings?.logo ? (
+              <img
+                src={settings?.logo}
+                alt="Logo"
+                style={{ maxHeight: '120px', marginRight: '2px', position: 'relative', top: '34px' }}
+              />
+            ) : (
+              <h1 style={{ margin: '0', fontSize: '24px', fontWeight: '800', textTransform: 'uppercase', marginRight: '15px' }}>
+                {settings?.companyName || 'NS AUTO'}
+              </h1>
+            )}
+            <div style={{ flex: 1, height: '2.5pt', backgroundColor: '#b91c1c', marginBottom: '13px', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}></div>
+          </div>
+
+        {/* Titre central */}
+        <div style={{ border: '2px solid black', padding: '10px', textAlign: 'center', marginBottom: '15px', backgroundColor: '#f9f9f9' }}>
+          <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', textTransform: 'uppercase' }}>
+            {printData?.title || `BILAN DE CONSOMMATION : ${selectedClient?.name}`}
+          </h2>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '30px' }}>
-          <div>
-            <h3 style={{ margin: '0 0 5px 0', fontSize: '14px', textDecoration: 'underline' }}>COORDONNÉES CLIENT :</h3>
-            <p style={{ margin: 0, fontWeight: 'bold', fontSize: '16px' }}>{selectedClient?.name}</p>
-            <p style={{ margin: 0 }}>{selectedClient?.phone || ''}</p>
-            <p style={{ margin: 0 }}>{selectedClient?.address || ''}</p>
+        {/* Blocs d'informations */}
+        <div style={{ display: 'flex', border: '2px solid black', marginBottom: '20px' }}>
+          {/* Bloc Entreprise (NS AUTO) */}
+          <div style={{ flex: 1, borderRight: '2px solid black', padding: '10px', fontSize: '12px', lineHeight: '1.5' }}>
+            {(printData?.companyDetails || '').split('\n').map((line, idx) => (
+              idx === 0 
+                ? <strong key={idx} style={{ fontSize: '14px', display: 'block', marginBottom: '5px' }}>{line}</strong> 
+                : <div key={idx} style={{ marginBottom: '2px' }}>{line}</div>
+            ))}
           </div>
-          <div style={{ textAlign: 'right' }}>
-            <p style={{ margin: 0 }}>Édité le : {new Date().toLocaleDateString('fr-FR')}</p>
+
+          {/* Bloc Client */}
+          <div style={{ flex: 1, padding: '10px', fontSize: '12px', lineHeight: '1.5' }}>
+            {(printData?.clientDetails || '').split('\n').map((line, idx) => (
+              idx === 0 
+                ? <strong key={idx} style={{ fontSize: '14px', display: 'block', marginBottom: '5px' }}>{line}</strong> 
+                : <div key={idx} style={{ marginBottom: '2px' }}>{line}</div>
+            ))}
           </div>
+        </div>
+
+        {/* Bandeau Période */}
+        <div style={{ backgroundColor: '#e0e0e0', border: '1px solid black', borderBottom: 'none', padding: '5px', textAlign: 'center', fontWeight: 'bold', fontSize: '12px' }}>
+          PÉRIODE : {printData?.periodText || `DU ${new Date(startDate).toLocaleDateString()} AU ${new Date(endDate).toLocaleDateString()}`}
         </div>
 
         <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '30px' }}>
@@ -182,7 +397,7 @@ export default function ClientReportPage() {
             </tr>
           </thead>
           <tbody>
-            {data.items.map((item, idx) => (
+            {printData?.items?.map((item, idx) => (
               <tr key={idx}>
                 <td style={{ padding: '10px', border: '1px solid #000' }}>{item.code || '-'}</td>
                 <td style={{ padding: '10px', border: '1px solid #000' }}>{item.barcode || '-'}</td>
@@ -192,42 +407,120 @@ export default function ClientReportPage() {
                 <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000', fontWeight: 'bold' }}>{formatPrice(item.totalAmount)}</td>
               </tr>
             ))}
-          </tbody>
-          <tfoot>
+            {/* Déplacement des totaux dans tbody pour qu'ils n'apparaissent qu'à la toute fin */}
             <tr style={{ backgroundColor: '#f0f0f0', fontWeight: 'bold' }}>
               <td colSpan="4" style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>TOTAL BRUT</td>
-              <td style={{ textAlign: 'center', padding: '10px', border: '1px solid #000' }}>{data.summary.totalQuantity}</td>
-              <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>{formatPrice(data.summary.totalGrossAmount)} FCFA</td>
+              <td style={{ textAlign: 'center', padding: '10px', border: '1px solid #000' }}>{printData?.summary?.totalQuantity}</td>
+              <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>{formatPrice(printData?.summary?.totalGrossAmount)} FCFA</td>
             </tr>
-            {data.summary.totalDiscount > 0 && (
+            {printData?.summary?.totalDiscount > 0 && (
               <tr style={{ fontWeight: 'bold' }}>
                 <td colSpan="5" style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>TOTAL REMISES</td>
-                <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>-{formatPrice(data.summary.totalDiscount)} FCFA</td>
+                <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>-{formatPrice(printData?.summary?.totalDiscount)} FCFA</td>
               </tr>
             )}
-            {data.summary.totalTva > 0 && (
+            {printData?.summary?.totalTva > 0 && (
               <tr style={{ fontWeight: 'bold' }}>
                 <td colSpan="5" style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>
-                  MONTANT TVA ({Math.round((data.summary.totalTva / (data.summary.totalGrossAmount - data.summary.totalDiscount)) * 100)}%)
+                  MONTANT TVA ({Math.round((printData?.summary?.totalTva / (printData?.summary?.totalGrossAmount - printData?.summary?.totalDiscount)) * 100)}%)
                 </td>
-                <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>{formatPrice(data.summary.totalTva)} FCFA</td>
+                <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>{formatPrice(printData?.summary?.totalTva)} FCFA</td>
               </tr>
             )}
             <tr style={{ backgroundColor: '#e0e0e0', fontWeight: 'bold' }}>
               <td colSpan="5" style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>TOTAL NET À RÉGLER</td>
-              <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000', fontSize: '18px' }}>{formatPrice(data.summary.totalAmount)} FCFA</td>
+              <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000', fontSize: '18px' }}>{formatPrice(printData?.summary?.totalAmount)} FCFA</td>
+            </tr>
+            {/* SIGNATURE BLOCK IN TBODY SO TFOOT PROTECTS IT */}
+            <tr>
+              <td colSpan="6" className="no-print-border" style={{ border: 'none', padding: '0' }}>
+                <div className="avoid-page-break" style={{ paddingTop: '20px', paddingBottom: '20px' }}>
+                  {printData?.notes && (
+                    <div style={{ marginTop: '10px', marginBottom: '15px', padding: '10px', border: '1px solid #000', fontSize: '12px' }}>
+                      <strong>Notes / Conditions Particulières :</strong><br/>
+                      {printData.notes.split('\n').map((line, i) => <React.Fragment key={i}>{line}<br/></React.Fragment>)}
+                    </div>
+                  )}
+                  <div style={{ marginTop: '20px', fontSize: '11px' }}>
+                    <p style={{ margin: '0 0 5px 0' }}>Arrêtée la présente facture à la somme de :</p>
+                    <p style={{ margin: 0, fontWeight: 'bold', fontSize: '12px', marginLeft: '40px' }}>
+                      {numberToWords(Math.trunc(printData?.summary?.totalAmount || 0))} ( {formatPrice(printData?.summary?.totalAmount)} Francs CFA TTC )
+                    </p>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px' }}>
+                    {/* Cachet Area */}
+                    <div style={{ textAlign: 'center', width: '220px' }}>
+                      {stamp && (
+                        <div style={{
+                          width: '150px',
+                          height: '110px',
+                          margin: '0 auto',
+                          overflow: 'hidden',
+                          position: 'relative'
+                        }}>
+                          <img src={stamp} alt="Cachet" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Signature Area */}
+                    <div style={{ textAlign: 'right', minWidth: '250px' }}>
+                      <p style={{ fontStyle: 'italic', fontSize: '13px', marginBottom: '5px' }}>Fait à {printData?.city || settings?.city || 'Ouagadougou'} le {new Date(printData?.date || new Date()).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
+
+                      <div style={{ position: 'relative', marginTop: '10px', height: '100px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                        {sig && (
+                          <img
+                            src={sig}
+                            alt="Signature"
+                            style={{
+                              maxHeight: '80px',
+                              maxWidth: '200px',
+                              objectFit: 'contain',
+                              marginBottom: '-20px',
+                              zIndex: 1
+                            }}
+                          />
+                        )}
+
+                        <div style={{ marginTop: sig ? '0' : '50px', zIndex: 2 }}>
+                          <p style={{ fontWeight: 'bold', textDecoration: 'underline', fontSize: '15px', margin: 0 }}>
+                            {printData?.supervisorName || settings?.supervisorName || 'Guy Roland TONDE'}
+                          </p>
+                          <p style={{ margin: 0, fontSize: '12px' }}>
+                            {printData?.supervisorTitle || settings?.supervisorTitle || 'SUPERVISEUR'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+          {/* Un tfoot vide garantit un espace libre à la fin de CHAQUE page pour ne pas chevaucher le bandeau rouge fixe */}
+          <tfoot>
+            <tr>
+              <td colSpan="6" className="no-print-border" style={{ border: 'none', height: '100px' }}></td>
             </tr>
           </tfoot>
         </table>
+        </div>
 
-        <div style={{ marginTop: '60px', display: 'flex', justifyContent: 'space-between' }}>
-          <div style={{ textAlign: 'center', width: '200px' }}>
-            <p style={{ margin: 0, textDecoration: 'underline' }}>Le Comptable</p>
-            <div style={{ height: '80px' }}></div>
-          </div>
-          <div style={{ textAlign: 'center', width: '200px' }}>
-            <p style={{ margin: 0, textDecoration: 'underline' }}>La Direction</p>
-            <div style={{ height: '80px' }}></div>
+        {/* Pied de page rouge (Universel) */}
+        <div className="red-footer" style={{
+          height: '80px', backgroundColor: '#b91c1c', color: '#fff', fontSize: '10px', textAlign: 'center', lineHeight: '1.4',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'absolute', bottom: '0', left: '0', right: '0',
+          WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', borderTop: '2px solid #000'
+        }}>
+          <div style={{ position: 'absolute', left: '0', top: '0', bottom: '0', width: '70px', backgroundColor: '#000', clipPath: 'polygon(0 0, 100% 0, 70% 100%, 0% 100%)' }}></div>
+          <div style={{ padding: '0 20px', width: '100%', position: 'relative', zIndex: 2 }}>
+            <p style={{ margin: '0', fontWeight: 'bold', fontSize: '10px' }}>
+              {settings?.footerLine1 || `${settings?.companyName || 'NS-AUTO'} - RCCM ${settings?.rccm || 'BF BBD 2018 B 0372'} - IFU ${settings?.nif || '00102506 K'} - RNI - Direction des Moyennes Entreprises`}
+            </p>
+            <p style={{ margin: '1px 0', fontSize: '10px' }}>{settings?.footerLine2 || '01 BP 1245 Bobo Dioulasso 01 - Secteur 05 - Parcelle C - Lot 131ter - Tél.: +226 25 37 62 62'}</p>
+            <p style={{ margin: '1px 0', fontSize: '10px' }}>{settings?.footerLine3 || `E-mail : ${settings?.email || 'commercial@nsautobf.com'} - Site web : ${settings?.website || 'www.nsauto.com'}`}</p>
+            <p style={{ margin: '1px 0', fontWeight: 'bold', fontSize: '10px' }}>{settings?.footerLine4 || 'IB bank 001193300101 / ECOBANK N°281753286301 - 74'}</p>
           </div>
         </div>
       </div>
@@ -292,7 +585,7 @@ export default function ClientReportPage() {
               <button className="btn btn-secondary" onClick={handleExport}>
                 <Download size={18} /> Exporter Excel
               </button>
-              <button className="btn btn-secondary" onClick={handlePrint}>
+              <button className="btn btn-secondary" onClick={handlePrintClick}>
                 <Printer size={18} /> Imprimer / PDF
               </button>
               <button className="btn btn-success" onClick={handleSettle} disabled={loading}>
@@ -354,6 +647,133 @@ export default function ClientReportPage() {
           </div>
         </div>
       )}
+      {/* MODAL PREPARATION IMPRESSION */}
+      {isPrintModalOpen && printData && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '850px' }}>
+            <div className="modal-header">
+              <h3>Préparation Impression Bilan</h3>
+              <button className="modal-close" onClick={() => setIsPrintModalOpen(false)}><X size={20} /></button>
+            </div>
+            <div className="modal-body" style={{ padding: '1.5rem', maxHeight: '70vh', overflowY: 'auto' }}>
+              <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div className="form-group">
+                  <label className="form-label" style={{ fontWeight: 'bold', fontSize: '0.85rem' }}>Titre du document</label>
+                  <input 
+                    type="text" 
+                    className="form-control" 
+                    value={printData.title || ''} 
+                    onChange={e => setPrintData({...printData, title: e.target.value})} 
+                    style={{ fontWeight: 'bold', color: 'var(--primary)' }}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label" style={{ fontWeight: 'bold', fontSize: '0.85rem', color: 'var(--primary)' }}>Période (Bandeau gris)</label>
+                  <input 
+                    type="text" 
+                    className="form-control" 
+                    value={printData.periodText || ''} 
+                    onChange={e => setPrintData({...printData, periodText: e.target.value})} 
+                    style={{ fontWeight: 'bold', borderColor: 'var(--primary)' }}
+                  />
+                </div>
+              </div>
+              <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div className="form-group">
+                  <label className="form-label" style={{ fontWeight: 'bold', fontSize: '0.85rem' }}>Détails Expéditeur (Bloc de gauche)</label>
+                  <textarea 
+                    className="form-control" 
+                    rows="5" 
+                    value={printData.companyDetails || ''} 
+                    onChange={e => setPrintData({...printData, companyDetails: e.target.value})}
+                    style={{ fontSize: '0.85rem', resize: 'vertical' }}
+                  ></textarea>
+                </div>
+                <div className="form-group">
+                  <label className="form-label" style={{ fontWeight: 'bold', fontSize: '0.85rem', color: 'var(--primary)' }}>Détails Client (Bloc de droite)</label>
+                  <textarea 
+                    className="form-control" 
+                    rows="5" 
+                    value={printData.clientDetails || ''} 
+                    onChange={e => setPrintData({...printData, clientDetails: e.target.value})}
+                    style={{ fontSize: '0.85rem', borderColor: 'var(--primary)', resize: 'vertical' }}
+                  ></textarea>
+                </div>
+              </div>
+              <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div className="form-group">
+                  <label className="form-label" style={{ fontWeight: 'bold', fontSize: '0.85rem' }}>Date</label>
+                  <input type="date" className="form-control" value={printData.date || ''} onChange={e => setPrintData({...printData, date: e.target.value})} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label" style={{ fontWeight: 'bold', fontSize: '0.85rem' }}>Lieu (Ville)</label>
+                  <input type="text" className="form-control" value={printData.city || ''} onChange={e => setPrintData({...printData, city: e.target.value})} />
+                </div>
+              </div>
+              <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div className="form-group">
+                  <label className="form-label" style={{ fontWeight: 'bold', fontSize: '0.85rem' }}>Signataire (Nom)</label>
+                  <input type="text" className="form-control" value={printData.supervisorName || ''} onChange={e => setPrintData({...printData, supervisorName: e.target.value})} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label" style={{ fontWeight: 'bold', fontSize: '0.85rem' }}>Titre</label>
+                  <input type="text" className="form-control" value={printData.supervisorTitle || ''} onChange={e => setPrintData({...printData, supervisorTitle: e.target.value})} />
+                </div>
+              </div>
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label className="form-label" style={{ fontWeight: 'bold', fontSize: '0.85rem' }}>Notes / Conditions Particulières</label>
+                <textarea 
+                  className="form-control" 
+                  rows="2" 
+                  value={printData.notes || ''} 
+                  onChange={e => setPrintData({...printData, notes: e.target.value})}
+                  placeholder="Notes optionnelles qui s'afficheront en bas du document..."
+                ></textarea>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label className="form-label" style={{ fontWeight: 'bold', fontSize: '0.85rem', color: 'var(--primary)' }}>Articles (Modifiables avant impression)</label>
+                <div style={{ maxHeight: '250px', overflowY: 'auto', border: '1px solid #ddd', borderRadius: '4px', padding: '10px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid #ddd', textAlign: 'left' }}>
+                        <th style={{ padding: '4px' }}>Code</th>
+                        <th style={{ padding: '4px' }}>Réf.</th>
+                        <th style={{ padding: '4px' }}>Désignation / Article</th>
+                        <th style={{ padding: '4px', width: '80px' }}>Qté</th>
+                        <th style={{ padding: '4px', width: '100px' }}>P.U</th>
+                        <th style={{ padding: '4px', width: '40px' }}></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {printData.items && printData.items.map((item, idx) => (
+                        <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
+                          <td style={{ padding: '4px' }}><input type="text" className="form-control" style={{ padding: '4px', fontSize: '0.8rem' }} value={item.code || ''} onChange={(e) => updatePrintItem(idx, 'code', e.target.value)} /></td>
+                          <td style={{ padding: '4px' }}><input type="text" className="form-control" style={{ padding: '4px', fontSize: '0.8rem' }} value={item.barcode || ''} onChange={(e) => updatePrintItem(idx, 'barcode', e.target.value)} /></td>
+                          <td style={{ padding: '4px' }}><input type="text" className="form-control" style={{ padding: '4px', fontSize: '0.8rem' }} value={item.name || ''} onChange={(e) => updatePrintItem(idx, 'name', e.target.value)} /></td>
+                          <td style={{ padding: '4px' }}><input type="number" className="form-control" style={{ padding: '4px', fontSize: '0.8rem' }} value={item.totalQuantity || 0} onChange={(e) => updatePrintItem(idx, 'totalQuantity', parseFloat(e.target.value) || 0)} /></td>
+                          <td style={{ padding: '4px' }}><input type="number" className="form-control" style={{ padding: '4px', fontSize: '0.8rem' }} value={item.unitPrice || 0} onChange={(e) => updatePrintItem(idx, 'unitPrice', parseFloat(e.target.value) || 0)} /></td>
+                          <td style={{ padding: '4px', textAlign: 'center' }}>
+                            <button className="btn btn-sm" style={{ color: 'red', padding: '0', background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => removePrintItem(idx)}><X size={16} /></button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <button className="btn btn-sm btn-secondary" style={{ marginTop: '10px' }} onClick={addPrintItem}>+ Ajouter une ligne</button>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem', padding: '1rem 1.5rem', borderTop: '1px solid #eee' }}>
+              <button className="btn btn-secondary" onClick={() => setIsPrintModalOpen(false)}>Annuler</button>
+              <button className="btn btn-primary" onClick={executePrint} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Printer size={18} /> Lancer l'impression
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <AlertModal 
         isOpen={alertModal.open} 
         type={alertModal.type} 
