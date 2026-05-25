@@ -89,8 +89,9 @@ export default function ClientReportPage() {
       ].filter(Boolean).join('\n');
 
     const defaultPeriod = `DU ${new Date(startDate).toLocaleDateString()} AU ${new Date(endDate).toLocaleDateString()}`;
-    const tvaRate = data.summary.totalGrossAmount > 0 
-      ? data.summary.totalTva / (data.summary.totalGrossAmount - data.summary.totalDiscount) 
+    const tvaBase = (data.summary.totalGrossAmount || 0) - (data.summary.totalDiscount || 0);
+    const tvaRate = tvaBase > 0 && data.summary.totalTva > 0
+      ? data.summary.totalTva / tvaBase
       : 0;
 
     setPrintData({
@@ -183,7 +184,11 @@ export default function ClientReportPage() {
         period: `Du ${new Date(startDate).toLocaleDateString()} au ${new Date(endDate).toLocaleDateString()}`,
         summary: [
           ['', '', 'TOTAL BRUT (HT)', '', data.summary.totalQuantity, `${formatPrice(data.summary.totalGrossAmount)} FCFA`],
-          ['', '', `MONTANT TVA (${Math.round((data.summary.totalTva / (data.summary.totalGrossAmount - data.summary.totalDiscount)) * 100)}%)`, '', '', `${formatPrice(data.summary.totalTva)} FCFA`],
+          (() => {
+            const base = (data.summary.totalGrossAmount || 0) - (data.summary.totalDiscount || 0);
+            const pct = base > 0 && data.summary.totalTva > 0 ? Math.round((data.summary.totalTva / base) * 100) : 0;
+            return ['', '', `MONTANT TVA (${pct}%)`, '', '', `${formatPrice(data.summary.totalTva)} FCFA`];
+          })(),
           ['', '', 'TOTAL NET (TTC)', '', '', `${formatPrice(data.summary.totalAmount)} FCFA`]
         ]
       }
@@ -427,14 +432,18 @@ export default function ClientReportPage() {
                 <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>-{formatPrice(printData?.summary?.totalDiscount)} FCFA</td>
               </tr>
             )}
-            {printData?.summary?.totalTva > 0 && (
-              <tr style={{ fontWeight: 'bold' }}>
-                <td colSpan="5" style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>
-                  MONTANT TVA ({Math.round((printData?.summary?.totalTva / (printData?.summary?.totalGrossAmount - printData?.summary?.totalDiscount)) * 100)}%)
-                </td>
-                <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>{formatPrice(printData?.summary?.totalTva)} FCFA</td>
-              </tr>
-            )}
+            {printData?.summary?.totalTva > 0 && (() => {
+              const base = (printData?.summary?.totalGrossAmount || 0) - (printData?.summary?.totalDiscount || 0);
+              const pct = base > 0 ? Math.round((printData.summary.totalTva / base) * 100) : 0;
+              return (
+                <tr style={{ fontWeight: 'bold' }}>
+                  <td colSpan="5" style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>
+                    MONTANT TVA ({pct}%)
+                  </td>
+                  <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>{formatPrice(printData.summary.totalTva)} FCFA</td>
+                </tr>
+              );
+            })()}
             <tr style={{ backgroundColor: '#e0e0e0', fontWeight: 'bold' }}>
               <td colSpan="5" style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>TOTAL NET À RÉGLER</td>
               <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000', fontSize: '18px' }}>{formatPrice(printData?.summary?.totalAmount)} FCFA</td>
@@ -636,14 +645,18 @@ export default function ClientReportPage() {
                     <td style={{ textAlign: 'right', color: 'var(--danger)' }}>-{formatPrice(data.summary.totalDiscount)} FCFA</td>
                   </tr>
                 )}
-                {data.summary.totalTva > 0 && (
-                  <tr>
-                    <td colSpan="5" style={{ textAlign: 'right', color: 'var(--primary)' }}>
-                      MONTANT TVA ({Math.round((data.summary.totalTva / (data.summary.totalGrossAmount - data.summary.totalDiscount)) * 100)}%)
-                    </td>
-                    <td style={{ textAlign: 'right', color: 'var(--primary)' }}>{formatPrice(data.summary.totalTva)} FCFA</td>
-                  </tr>
-                )}
+                {data.summary.totalTva > 0 && (() => {
+                  const base = (data.summary.totalGrossAmount || 0) - (data.summary.totalDiscount || 0);
+                  const pct = base > 0 ? Math.round((data.summary.totalTva / base) * 100) : 0;
+                  return (
+                    <tr>
+                      <td colSpan="5" style={{ textAlign: 'right', color: 'var(--primary)' }}>
+                        MONTANT TVA ({pct}%)
+                      </td>
+                      <td style={{ textAlign: 'right', color: 'var(--primary)' }}>{formatPrice(data.summary.totalTva)} FCFA</td>
+                    </tr>
+                  );
+                })()}
                 <tr style={{ fontSize: '1.2rem', borderTop: '2px solid var(--primary)' }}>
                   <td colSpan="5" style={{ textAlign: 'right' }}>TOTAL NET</td>
                   <td style={{ textAlign: 'right', color: 'var(--primary)' }}>{formatPrice(data.summary.totalAmount)} FCFA</td>

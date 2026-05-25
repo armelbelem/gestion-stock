@@ -157,12 +157,18 @@ export default function ContractGatewayPage() {
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(true);
 
   const speak = (text) => {
-    if (!window.speechSynthesis) return;
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'fr-FR';
-    utterance.rate = 1;
-    utterance.pitch = 1;
-    window.speechSynthesis.speak(utterance);
+    try {
+      if (!window.speechSynthesis) return;
+      // Annuler tout message en attente pour éviter l'accumulation dans la queue
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'fr-FR';
+      utterance.rate = 1;
+      utterance.pitch = 1;
+      window.speechSynthesis.speak(utterance);
+    } catch (err) {
+      console.warn('speechSynthesis indisponible:', err);
+    }
   };
   const [dateRange, setDateRange] = useState({
     start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
@@ -369,7 +375,9 @@ export default function ContractGatewayPage() {
       const data = await storage.get('contract-partners');
       setPartners(data || []);
       if (data && data.length > 0) {
-        const saved = localStorage.getItem('selectedPartnerId');
+        // localStorage peut être bloqué en mode navigation privée (Safari, Firefox)
+        let saved = null;
+        try { saved = localStorage.getItem('selectedPartnerId'); } catch (_) {}
         if (saved === 'all') {
           setSelectedPartner({ id: 'all', name: 'Tous les partenaires' });
         } else {
