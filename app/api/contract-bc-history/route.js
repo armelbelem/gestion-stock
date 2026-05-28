@@ -46,14 +46,23 @@ export async function POST(request) {
 
   if (!partnerId) return NextResponse.json({ error: 'Partner ID requis' }, { status: 400 });
 
-  const id = uuidv4();
-
   try {
-    await db.query(
-      'INSERT INTO contract_bc_history (id, order_id, bc_number, title, request_ref, items, partner_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [id, orderId, bcNumber, title, requestRef, JSON.stringify(items), partnerId]
-    );
-    return NextResponse.json({ success: true, id }, { status: 201 });
+    const [existing] = await db.query('SELECT id FROM contract_bc_history WHERE order_id = ? LIMIT 1', [orderId]);
+    
+    if (existing && existing.length > 0) {
+      await db.query(
+        'UPDATE contract_bc_history SET bc_number = ?, title = ?, request_ref = ?, items = ?, partner_id = ? WHERE order_id = ?',
+        [bcNumber, title, requestRef, JSON.stringify(items), partnerId, orderId]
+      );
+      return NextResponse.json({ success: true, id: existing[0].id }, { status: 200 });
+    } else {
+      const id = uuidv4();
+      await db.query(
+        'INSERT INTO contract_bc_history (id, order_id, bc_number, title, request_ref, items, partner_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [id, orderId, bcNumber, title, requestRef, JSON.stringify(items), partnerId]
+      );
+      return NextResponse.json({ success: true, id }, { status: 201 });
+    }
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

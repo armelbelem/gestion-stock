@@ -544,6 +544,20 @@ export default function ContractGatewayPage() {
   };
 
   // --- IMPRESSION LOGIC ---
+  const formatDocumentNumber = (seqData, formatString, clientName = '') => {
+    if (!formatString) return seqData.documentNumber;
+    const seqPadded = String(seqData.sequence).padStart(3, '0');
+    const dateFormatted = seqData.date;
+    const year = dateFormatted.split('-')[1];
+    const client = clientName ? clientName.substring(0, 3).toUpperCase() : 'GEN';
+
+    return formatString
+      .replace(/{ID}/g, seqPadded)
+      .replace(/{DATE}/g, dateFormatted)
+      .replace(/{YEAR}/g, year)
+      .replace(/{CLIENT}/g, client);
+  };
+
   const handlePrint = async (orderId) => {
     try {
       setLoading(true);
@@ -551,10 +565,36 @@ export default function ContractGatewayPage() {
       if (!fullOrder || fullOrder.error) throw new Error(fullOrder?.error || "Dossier introuvable");
 
       const client = clients.find(c => String(c.id) === String(fullOrder.clientId));
+
+      // Vérifier si un BC existe déjà dans l'historique
+      const historyRes = await fetch(`/api/contract-bc-history?orderId=${orderId}`);
+      const historyData = await historyRes.json();
+      const existingBc = historyData && historyData.length > 0 ? historyData[0] : null;
+
+      let generatedNumber = '';
+      if (existingBc && existingBc.bc_number) {
+        generatedNumber = existingBc.bc_number;
+        // Correction des anciens numéros mal formatés (ex: "BC-002" sans la date)
+        if (generatedNumber.split('-').length === 2) {
+           const idPart = generatedNumber.split('-')[1];
+           const seqData = { sequence: idPart, date: new Date().toISOString().split('T')[0] };
+           generatedNumber = formatDocumentNumber(seqData, settings?.bcNumberFormat, client?.name);
+        }
+      } else {
+        // Obtenir un nouveau numéro séquentiel
+        const seqRes = await fetch('/api/sequence?type=BC');
+        const seqData = await seqRes.json();
+        generatedNumber = formatDocumentNumber(seqData, settings?.bcNumberFormat, client?.name);
+      }
+
       const partner = partners.find(p => String(p.id) === String(fullOrder.partnerId)) || (selectedPartner?.id !== 'all' ? selectedPartner : null);
+
+      const baseBcTitle = partner?.bc_prefix || settings?.bcTitlePrefix || `BON DE COMMANDE N°NSA-${partner?.name?.toUpperCase() || 'PARTENAIRE'}`;
 
       setPrintData({
         ...fullOrder,
+        docNumber: generatedNumber,
+        customDocNumber: generatedNumber,
         clientName: client?.name || fullOrder.clientName || 'Client Non Défini',
         clientCode: client ? client.clientCode : 'Non Défini',
         supplierName: (partner?.name) || 'Fournisseur Non Défini',
@@ -564,7 +604,7 @@ export default function ContractGatewayPage() {
         supplierMyClientCode: (partner?.my_client_code) || 'CL-001',
         supplierRCCM: (partner?.rccm) || '',
         supplierNIF: (partner?.nif) || '',
-        bcTitleOverride: partner?.bc_prefix || settings?.bcTitlePrefix || `BON DE COMMANDE N°NSA-${partner?.name?.toUpperCase() || 'PARTENAIRE'}`,
+        bcTitleOverride: baseBcTitle,
         sectionTitle: 'FOURNITURE DE PIECES DE RECHANGE',
         requestRef: `REQUEST ${client ? client.name.toUpperCase() : 'GENERAL'}`,
         customDate: new Date().toISOString().split('T')[0],
@@ -611,14 +651,7 @@ export default function ContractGatewayPage() {
         const token = sessionStorage.getItem('token');
         const dateObj = printData.customDate ? new Date(printData.customDate) : new Date();
 
-        // Custom Numbering logic
-        const format = settings?.bcNumberFormat || 'BC-{ID}-{DATE}';
-        const dateStr = dateObj.toLocaleDateString('fr-FR').replace(/\//g, '-');
-        const bcNumber = format
-          .replace('{ID}', String(printData.orderNumber || 'SPEC').padStart(3, '0'))
-          .replace('{DATE}', dateStr)
-          .replace('{YEAR}', dateObj.getFullYear())
-          .replace('{CLIENT}', (printData.clientName || 'GEN').substring(0, 3).toUpperCase());
+        const bcNumber = printData.customDocNumber || `BC-${String(printData.orderNumber || 'SPEC').padStart(3, '0')}`;
 
         await fetch('/api/contract-bc-history', {
           method: 'POST',
@@ -646,23 +679,71 @@ export default function ContractGatewayPage() {
     }
 
     setIsPrinting(true);
+    const originalTitle = document.title;
+    if (printData?.customDocNumber) {
+       document.title = printData.customDocNumber;
+    } else if (printData?.docNumber) {
+       document.title = printData.docNumber;
+    } else if (printData?.bc_number) {
+       document.title = printData.bc_number;
+    }
     setTimeout(() => {
       window.print();
+      document.title = originalTitle;
       setIsPrinting(false);
       setPrintData(null);
     }, 800);
   };
 
-  const handlePrintSpecial = (doc, type) => {
-    setPrintData({
-      ...doc,
-      status: type === 'BC' ? 'demande' : 'termine', // Pour déclencher les bons blocs du template
-      isSpecial: true,
-      specialType: type,
-      orderNumber: doc.orderNumber || (doc.id ? String(doc.id).substring(0, 8) : Date.now().toString().slice(-6)),
-      bcTitleOverride: type === 'BC' ? (doc.title || selectedPartner?.bc_prefix || 'BON DE COMMANDE SPÉCIAL') : '',
-      sectionTitle: type === 'BC' ? 'FOURNITURE DE PIECES DE RECHANGE' : '',
-      blTitleOverride: type === 'BL' ? (doc.title || selectedPartner?.bl_prefix || 'BORDEREAU DE LIVRAISON SPÉCIAL') : '',
+  const handlePrintSpecial = async (doc, type) => {
+    try {
+      setLoading(true);
+
+      let finalBcTitle = doc.bcTitleOverride || '';
+      let finalBlTitle = doc.blTitleOverride || '';
+      let generatedNumber = doc.docNumber || '';
+
+      // Nettoie l'ancien titre s'il contient déjà des numéros ajoutés (ex: doublons)
+      if (finalBcTitle.includes(': BC-') || finalBcTitle.includes(': BL-')) {
+         const match = finalBcTitle.match(/:\s*(BC|BL)-.*/);
+         if (match && !generatedNumber) {
+            generatedNumber = match[0].replace(/:\s*/, '');
+         }
+         finalBcTitle = finalBcTitle.replace(/:\s*(BC|BL)-.*/, '');
+      }
+      if (finalBlTitle.includes(': BC-') || finalBlTitle.includes(': BL-')) {
+         const match = finalBlTitle.match(/:\s*(BC|BL)-.*/);
+         if (match && !generatedNumber) {
+            generatedNumber = match[0].replace(/:\s*/, '');
+         }
+         finalBlTitle = finalBlTitle.replace(/:\s*(BC|BL)-.*/, '');
+      }
+
+      if (!generatedNumber) {
+        const seqRes = await fetch(`/api/sequence?type=${type}`);
+        const seqData = await seqRes.json();
+        const formatSetting = type === 'BC' ? settings?.bcNumberFormat : settings?.blNumberFormat;
+        generatedNumber = formatDocumentNumber(seqData, formatSetting, doc.clientName);
+      }
+
+      if (type === 'BC' && !finalBcTitle) {
+        finalBcTitle = doc.title || selectedPartner?.bc_prefix || 'BON DE COMMANDE SPÉCIAL';
+      }
+      if (type === 'BL' && !finalBlTitle) {
+        finalBlTitle = doc.title || selectedPartner?.bl_prefix || 'BORDEREAU DE LIVRAISON SPÉCIAL';
+      }
+
+      setPrintData({
+        ...doc,
+        docNumber: generatedNumber,
+        customDocNumber: generatedNumber,
+        status: type === 'BC' ? 'demande' : 'termine', // Pour déclencher les bons blocs du template
+        isSpecial: true,
+        specialType: type,
+        orderNumber: doc.orderNumber || (doc.id ? String(doc.id).substring(0, 8) : Date.now().toString().slice(-6)),
+        bcTitleOverride: type === 'BC' ? finalBcTitle : '',
+        sectionTitle: type === 'BC' ? 'FOURNITURE DE PIECES DE RECHANGE' : '',
+        blTitleOverride: type === 'BL' ? finalBlTitle : '',
       requestRef: doc.requestRef || `REQUEST ${(doc.clientName || 'GENERAL').toUpperCase()}`,
       customDate: new Date().toISOString().split('T')[0],
       customCity: settings?.city || 'Ouagadougou',
@@ -690,6 +771,11 @@ export default function ContractGatewayPage() {
       setIsBCPrintModalOpen(true);
     } else {
       setIsBLModalOpen(true);
+    }
+    setLoading(false);
+    } catch (err) {
+      setLoading(false);
+      showAlert('error', 'Erreur', err.message);
     }
   };
 
@@ -893,8 +979,30 @@ export default function ContractGatewayPage() {
       const fallbackName = client?.name || fullOrder.clientName || '';
       const defaultPrefix = selectedPartner?.bl_prefix || settings?.blTitlePrefix || (fallbackName ? `BORDEREAU NSA-${fallbackName.substring(0, 8).toUpperCase()}` : 'BORDEREAU DE LIVRAISON');
 
+      // Vérifier si un BL existe déjà
+      const deliveryRes = await fetch(`/api/deliveries?orderId=${orderId}`);
+      const existingDeliveryData = await deliveryRes.json();
+      const existingDelivery = existingDeliveryData && existingDeliveryData.length > 0 ? existingDeliveryData[0] : null;
+
+      let generatedNumber = '';
+      if (existingDelivery && existingDelivery.bl_number) {
+        generatedNumber = existingDelivery.bl_number;
+        // Correction des anciens numéros mal formatés (ex: "BL-002" sans la date)
+        if (generatedNumber.split('-').length === 2) {
+           const idPart = generatedNumber.split('-')[1];
+           const seqData = { sequence: idPart, date: new Date().toISOString().split('T')[0] };
+           generatedNumber = formatDocumentNumber(seqData, settings?.blNumberFormat, fallbackName);
+        }
+      } else {
+        const seqRes = await fetch('/api/sequence?type=BL');
+        const seqData = await seqRes.json();
+        generatedNumber = formatDocumentNumber(seqData, settings?.blNumberFormat, fallbackName);
+      }
+
       setPrintData({
         ...fullOrder,
+        docNumber: generatedNumber,
+        customDocNumber: generatedNumber,
         client: client || null,
         clientName: fallbackName || 'Client Non Défini',
         clientCode: client ? client.clientCode : 'Non Défini',
@@ -941,13 +1049,7 @@ export default function ContractGatewayPage() {
       const token = sessionStorage.getItem('token');
 
       const dateObj = deliveryData.customDate ? new Date(deliveryData.customDate) : new Date();
-      const format = settings?.blNumberFormat || 'BL-{ID}-{DATE}';
-      const dateStr = dateObj.toLocaleDateString('fr-FR').replace(/\//g, '-');
-      const blNumber = format
-        .replace('{ID}', String(deliveryData.orderNumber).padStart(3, '0'))
-        .replace('{DATE}', dateStr)
-        .replace('{YEAR}', dateObj.getFullYear())
-        .replace('{CLIENT}', (deliveryData.clientName || 'GEN').substring(0, 3).toUpperCase());
+      const blNumber = deliveryData.customDocNumber || `BL-${String(deliveryData.orderNumber || 'SPEC').padStart(3, '0')}`;
 
       const res = await fetch('/api/deliveries', {
         method: 'POST',
@@ -974,8 +1076,18 @@ export default function ContractGatewayPage() {
       setIsBLModalOpen(false);
       setLoading(false);
 
+      const originalTitle = document.title;
+      if (deliveryData?.customDocNumber) {
+         document.title = deliveryData.customDocNumber;
+      } else if (deliveryData?.docNumber) {
+         document.title = deliveryData.docNumber;
+      } else if (blNumber) {
+         document.title = blNumber;
+      }
+
       setTimeout(() => {
         window.print();
+        document.title = originalTitle;
         setIsPrintingBL(false);
         setPrintData(null);
       }, 800);
@@ -985,16 +1097,44 @@ export default function ContractGatewayPage() {
     }
   };
 
-  const handlePrintBL = (deliveryData) => {
-    setPrintData(deliveryData);
-    setIsPrintingBL(true);
-    setIsBLModalOpen(false);
+  const handlePrintBL = async (deliveryData) => {
+    try {
+      setLoading(true);
+      // Vérifier si un BL existe déjà
+      const deliveryRes = await fetch(`/api/deliveries?orderId=${deliveryData.id}`);
+      const existingDeliveryData = await deliveryRes.json();
+      const existingDelivery = existingDeliveryData && existingDeliveryData.length > 0 ? existingDeliveryData[0] : null;
 
-    setTimeout(() => {
-      window.print();
-      setIsPrintingBL(false);
-      setPrintData(null);
-    }, 800);
+      let generatedNumber = '';
+      if (existingDelivery && existingDelivery.bl_number) {
+        generatedNumber = existingDelivery.bl_number;
+      } else {
+        const seqRes = await fetch('/api/sequence?type=BL');
+        const seqData = await seqRes.json();
+        generatedNumber = formatDocumentNumber(seqData, settings?.blNumberFormat, deliveryData.clientName);
+      }
+
+      const baseBlTitle = selectedPartner?.bl_prefix || settings?.blTitlePrefix || 'BORDEREAU DE LIVRAISON';
+
+      setPrintData({
+        ...deliveryData,
+        docNumber: generatedNumber,
+        customDocNumber: generatedNumber,
+        blTitleOverride: baseBlTitle
+      });
+      setIsPrintingBL(true);
+      setIsBLModalOpen(false);
+
+      setTimeout(() => {
+        window.print();
+        setIsPrintingBL(false);
+        setPrintData(null);
+        setLoading(false);
+      }, 800);
+    } catch (err) {
+      setLoading(false);
+      showAlert('error', 'Erreur', err.message);
+    }
   };
 
   const handlePrintCatalog = () => {
@@ -1812,9 +1952,13 @@ export default function ContractGatewayPage() {
             <div style={{ flex: 1, height: '2.5pt', backgroundColor: '#b91c1c', marginBottom: '13px', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}></div>
           </div>
 
-          <div style={{ border: '1.5pt solid #000', padding: '10px', textAlign: 'center', marginBottom: '15px', backgroundColor: '#f3f4f6' }}>
+          <div style={{
+            border: '1.5pt solid #000', padding: '10px', textAlign: 'center', marginBottom: '15px',
+            backgroundColor: '#d1d5db',
+            WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'
+          }}>
             <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', letterSpacing: '0.5px' }}>
-              {printData.blTitleOverride || settings?.blTitlePrefix || 'BORDEREAU DE LIVRAISON'} : &nbsp;&nbsp;
+              <span style={{ textDecoration: 'underline' }}>{printData.blTitleOverride || settings?.blTitlePrefix || 'BORDEREAU DE LIVRAISON'} :</span> &nbsp;&nbsp;
               {printData.customDocNumber || (() => {
                 const d = new Date(printData.customDate || Date.now());
                 const jjmm = `${String(d.getDate()).padStart(2, '0')}${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -1870,39 +2014,95 @@ export default function ContractGatewayPage() {
             </tbody>
           </table>
 
-          {/* Table avec structure type BC mais sans prix */}
+          {/* Table avec structure type BL - format cible */}
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                <th rowSpan="3" style={{ ...tableHeaderStyle, width: '30px' }}>{printData.blColNo || 'N°'}</th>
-                <th colSpan="4" style={{ ...tableHeaderStyle, fontSize: '9px', letterSpacing: '1px', padding: '4px' }}>DESIGNATION</th>
-                <th style={{ ...tableHeaderStyle, width: '60px' }}>{printData.blColQty || 'Quantité'}</th>
+                <th rowSpan="3" style={{ ...tableHeaderStyle, width: '30px', backgroundColor: '#d1d5db', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>{printData.blColNo || 'N°'}</th>
+                <th colSpan="4" style={{
+                  ...tableHeaderStyle, fontSize: '9px', letterSpacing: '1px', padding: '4px',
+                  backgroundColor: '#d1d5db',
+                  WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'
+                }}>DESIGNATION</th>
+                <th style={{
+                  ...tableHeaderStyle, width: '70px',
+                  backgroundColor: '#d1d5db',
+                  WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'
+                }}>{printData.blColQty || 'Quantité'}</th>
               </tr>
               <tr>
                 <th colSpan="4" style={{ ...cellStyle, textAlign: 'left', fontWeight: 'bold', fontSize: '9px', paddingLeft: '8px', backgroundColor: '#fff' }}>
                   {printData.sectionTitle || 'FOURNITURE DE PIECES DE RECHANGE'}
                 </th>
-                <th style={{ ...cellStyle, backgroundColor: '#fff' }}></th>
+                <th style={{
+                  ...cellStyle,
+                  backgroundColor: '#fff',
+                  WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'
+                }}></th>
               </tr>
               <tr>
-                <th style={{ ...tableHeaderStyle, width: '80px' }}>{printData.blColCode || 'Code'}</th>
-                <th style={{ ...tableHeaderStyle, width: '60px' }}>{printData.blColSite || 'Site'}</th>
-                <th style={{ ...tableHeaderStyle, textAlign: 'left' }}>{printData.blColDesc || 'Article'}</th>
-                <th style={{ ...tableHeaderStyle, width: '90px' }}>{printData.blColRef || 'Ref'}</th>
-                <th style={tableHeaderStyle}></th>
+                <th style={{ ...tableHeaderStyle, width: '80px', verticalAlign: 'top', padding: '3px 4px' }}>
+                  <div style={{ textDecoration: 'underline' }}>{printData.blColCode || 'Ref.'}</div>
+                  <div style={{ fontWeight: 'normal', fontSize: '8px', marginTop: '1px' }}>
+                    {printData.customSite || (printData.clientName || '').substring(0, 4).toUpperCase()}
+                  </div>
+                </th>
+                <th style={{ ...tableHeaderStyle, width: '60px', textDecoration: 'underline' }}>{printData.blColSite || 'Site'}</th>
+                <th style={{ ...tableHeaderStyle, textAlign: 'left', textDecoration: 'underline' }}>{printData.blColDesc || 'Article'}</th>
+                <th style={{ ...tableHeaderStyle, width: '90px', textDecoration: 'underline' }}>{printData.blColRef || 'Ref. NSA'}</th>
+                <th style={{
+                  ...tableHeaderStyle,
+                  backgroundColor: '#d1d5db',
+                  WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'
+                }}></th>
               </tr>
             </thead>
             <tbody>
               {printData.items.map((item, i) => (
                 <tr key={i}>
-                  <td style={{ ...cellStyle, textAlign: 'center' }}>{i + 1}</td>
-                  <td style={{ ...cellStyle, textAlign: 'center' }}>{item.code || '-'}</td>
+                  <td style={{
+                    ...cellStyle, textAlign: 'center',
+                    backgroundColor: '#d1d5db',
+                    WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'
+                  }}>{i + 1}</td>
+                  <td style={{ ...cellStyle, textAlign: 'center' }}>{item.code || 'NA'}</td>
                   <td style={{ ...cellStyle, textAlign: 'center' }}>{printData.customSite || (printData.clientName || 'SPEC').substring(0, 4).toUpperCase()}</td>
                   <td style={{ ...cellStyle, fontWeight: 'bold' }}>{item.description}</td>
                   <td style={{ ...cellStyle, textAlign: 'center' }}>{item.refCfao || '-'}</td>
                   <td style={{ ...cellStyle, textAlign: 'center', fontWeight: 'bold' }}>{item.quantity}</td>
                 </tr>
               ))}
+              <tr>
+                <td style={{
+                  ...cellStyle,
+                  backgroundColor: '#d1d5db',
+                  WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'
+                }}></td>
+                <td colSpan="5" style={{
+                  ...cellStyle,
+                  fontSize: '9px',
+                  padding: '4px 8px',
+                  verticalAlign: 'top',
+                  backgroundColor: '#fff',
+                  WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'
+                }}>
+                  <div style={{ fontWeight: 'bold' }}>Délais de livraison</div>
+                  <div style={{ fontWeight: 'bold' }}>sur site :</div>
+                </td>
+              </tr>
+              <tr>
+                <td style={{
+                  ...cellStyle,
+                  backgroundColor: '#d1d5db',
+                  WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'
+                }}></td>
+                <td colSpan="5" style={{
+                  ...cellStyle,
+                  padding: '8px',
+                  backgroundColor: '#d1d5db',
+                  WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'
+                }}></td>
+              </tr>
             </tbody>
           </table>
 
@@ -1914,17 +2114,14 @@ export default function ContractGatewayPage() {
           )}
 
           <div style={{ marginTop: '20px', paddingTop: '10px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <p style={{ fontWeight: 'bold', fontSize: '12px', margin: 0 }}>RECEPTION</p>
-              <p style={{ fontStyle: 'italic', fontSize: '11px', margin: 0 }}>Fait à {printData.customCity || 'Ouagadougou'} le {new Date(printData.customDate || Date.now()).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
-            </div>
-
             <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px' }}>
-              <div style={{ textAlign: 'center', width: '300px', padding: '5px', minHeight: '80px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
+              <div style={{ width: '300px', padding: '5px', minHeight: '80px', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start' }}>
+                <p style={{ fontWeight: 'bold', fontSize: '12px', margin: 0, textDecoration: 'underline' }}>RECEPTION WAREHOUSE</p>
               </div>
 
               <div style={{ textAlign: 'center', width: '300px', padding: '5px', minHeight: '80px', position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+                <p style={{ fontStyle: 'italic', fontSize: '11px', margin: 0, marginBottom: '5px' }}>Fait à {printData.customCity || 'Ouagadougou'} le {new Date(printData.customDate || Date.now()).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', width: '100%', minHeight: '50px', margin: '5px 0' }}>
                   {(selectedPartner?.bl_stamp_image || settings?.blStampImage) && <img src={selectedPartner?.bl_stamp_image || settings.blStampImage} alt="Cachet BL" style={{ maxHeight: '80px', objectFit: 'contain', opacity: 0.8 }} />}
                   {(selectedPartner?.bl_signature_image || settings?.blSignatureImage) && (
                     <img
@@ -1934,9 +2131,9 @@ export default function ContractGatewayPage() {
                     />
                   )}
                 </div>
-                <div style={{ marginTop: '10px', zIndex: 1 }}>
-                  <p style={{ fontWeight: 'bold', fontSize: '12px', margin: 0 }}>{printData.customSupervisorName || settings?.blSupervisorName || 'Huges Christian SOW'}</p>
-                  <p style={{ fontSize: '10px', margin: 0 }}>{printData.customSupervisorTitle || settings?.blSupervisorTitle || 'Responsable Logistique Adjoint'}</p>
+                <div style={{ zIndex: 1 }}>
+                  <p style={{ fontWeight: 'bold', fontSize: '12px', margin: 0, textTransform: 'uppercase' }}>{printData.customSupervisorName || settings?.blSupervisorName || 'Huges Christian SOW'}</p>
+                  <p style={{ fontSize: '10px', margin: 0, textTransform: 'uppercase' }}>{printData.customSupervisorTitle || settings?.blSupervisorTitle || 'Responsable Logistique Adjoint'}</p>
                 </div>
               </div>
             </div>
@@ -3357,13 +3554,13 @@ export default function ContractGatewayPage() {
                   <tbody>
                     {newOrder.items.map((item, idx) => (
                       <tr key={idx}>
-                        <td><input type="text" className="form-control" style={{ fontSize: '0.8rem', height: '30px', padding: '4px 8px' }} value={item.code} onChange={e => { const val = e.target.value; setNewOrder(prev => { const ni = [...prev.items]; ni[idx].code = val; return { ...prev, items: ni }; }); }} /></td>
-                        <td><input type="text" className="form-control" style={{ fontSize: '0.8rem', height: '30px', padding: '4px 8px' }} value={item.refCfao} onChange={e => { const val = e.target.value; setNewOrder(prev => { const ni = [...prev.items]; ni[idx].refCfao = val; return { ...prev, items: ni }; }); }} /></td>
-                        <td><input type="text" className="form-control" style={{ fontSize: '0.8rem', height: '30px', padding: '4px 8px' }} value={item.description} onChange={e => { const val = e.target.value; setNewOrder(prev => { const ni = [...prev.items]; ni[idx].description = val; return { ...prev, items: ni }; }); }} /></td>
-                        <td><input type="number" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} min="0" className="form-control" style={{ textAlign: 'center', padding: '2px', height: '30px', fontSize: '0.85rem' }} value={item.quantity} onChange={e => { const val = e.target.value; setNewOrder(prev => { const ni = [...prev.items]; ni[idx].quantity = val; return { ...prev, items: ni }; }); }} /></td>
+                        <td><input type="text" className="form-control" style={{ fontSize: '0.8rem', height: '30px', padding: '4px 8px' }} value={item.code ?? ''} onChange={e => { const val = e.target.value; setNewOrder(prev => { const ni = [...prev.items]; ni[idx].code = val; return { ...prev, items: ni }; }); }} /></td>
+                        <td><input type="text" className="form-control" style={{ fontSize: '0.8rem', height: '30px', padding: '4px 8px' }} value={item.refCfao ?? ''} onChange={e => { const val = e.target.value; setNewOrder(prev => { const ni = [...prev.items]; ni[idx].refCfao = val; return { ...prev, items: ni }; }); }} /></td>
+                        <td><input type="text" className="form-control" style={{ fontSize: '0.8rem', height: '30px', padding: '4px 8px' }} value={item.description ?? ''} onChange={e => { const val = e.target.value; setNewOrder(prev => { const ni = [...prev.items]; ni[idx].description = val; return { ...prev, items: ni }; }); }} /></td>
+                        <td><input type="number" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} min="0" className="form-control" style={{ textAlign: 'center', padding: '2px', height: '30px', fontSize: '0.85rem' }} value={item.quantity ?? ''} onChange={e => { const val = e.target.value; setNewOrder(prev => { const ni = [...prev.items]; ni[idx].quantity = val; return { ...prev, items: ni }; }); }} /></td>
                         {hasPermission(user, 'stock', 'view_cost_price') && (
                           <>
-                            <td><input type="number" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} min="0" className="form-control" style={{ height: '30px', padding: '4px 8px', fontSize: '0.85rem' }} value={item.purchasePrice} onChange={e => { const val = e.target.value; setNewOrder(prev => { const ni = [...prev.items]; ni[idx].purchasePrice = val; return { ...prev, items: ni }; }); }} /></td>
+                            <td><input type="number" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} min="0" className="form-control" style={{ height: '30px', padding: '4px 8px', fontSize: '0.85rem' }} value={item.purchasePrice ?? ''} onChange={e => { const val = e.target.value; setNewOrder(prev => { const ni = [...prev.items]; ni[idx].purchasePrice = val; return { ...prev, items: ni }; }); }} /></td>
                             <td style={{ fontWeight: 600, textAlign: 'right', fontSize: '0.85rem' }}>{formatPrice(item.quantity * item.purchasePrice)}</td>
                             <td style={{ fontWeight: 700, textAlign: 'right', color: 'var(--primary)', fontSize: '0.85rem' }}>
                               {formatPrice(item.quantity * item.purchasePrice * (1 + (newOrder.tvaRate ?? settings?.tvaRate ?? 18) / 100))}
@@ -3813,10 +4010,22 @@ export default function ContractGatewayPage() {
                                   orderNumber: del.bl_number.split('-')[1],
                                   clientName: client?.name || 'Client',
                                   blNumber: del.bl_number,
+                                  customDocNumber: del.bl_number.split('-').length === 2 
+                                    ? `BL-${del.bl_number.split('-')[1]}-${new Date(del.created_at || Date.now()).toISOString().split('T')[0].split('-')[2]}${new Date(del.created_at || Date.now()).toISOString().split('T')[0].split('-')[1]}-${new Date(del.created_at || Date.now()).toISOString().split('T')[0].split('-')[0]}`
+                                    : del.bl_number,
                                   customDate: del.created_at ? new Date(del.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
                                 });
                                 setIsPrintingBL(true);
-                                setTimeout(() => { window.print(); setIsPrintingBL(false); setPrintData(null); }, 800);
+                                setTimeout(() => { 
+                                  const originalTitle = document.title;
+                                  document.title = del.bl_number.split('-').length === 2 
+                                    ? `BL-${del.bl_number.split('-')[1]}-${new Date(del.created_at || Date.now()).toISOString().split('T')[0].split('-')[2]}${new Date(del.created_at || Date.now()).toISOString().split('T')[0].split('-')[1]}-${new Date(del.created_at || Date.now()).toISOString().split('T')[0].split('-')[0]}`
+                                    : del.bl_number;
+                                  window.print(); 
+                                  document.title = originalTitle;
+                                  setIsPrintingBL(false); 
+                                  setPrintData(null); 
+                                }, 800);
                               }}><Printer size={16} /></button>
                               <button className="btn btn-secondary btn-sm" onClick={() => handleFileUpload(del.id, 'bl')} title={del.attachment ? "Changer le scan" : "Joindre un scan/fichier"} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '32px' }}>
                                 <Paperclip size={16} style={{ color: del.attachment ? 'var(--primary)' : '#64748b' }} />
@@ -3887,10 +4096,22 @@ export default function ContractGatewayPage() {
                                   supplierMyClientCode: supplier?.myClientCode,
                                   supplierRCCM: supplier?.rccm,
                                   supplierNIF: supplier?.nif,
+                                  customDocNumber: bc.bc_number.split('-').length === 2
+                                    ? `BC-${bc.bc_number.split('-')[1]}-${new Date(bc.created_at || Date.now()).toISOString().split('T')[0].split('-')[2]}${new Date(bc.created_at || Date.now()).toISOString().split('T')[0].split('-')[1]}-${new Date(bc.created_at || Date.now()).toISOString().split('T')[0].split('-')[0]}`
+                                    : bc.bc_number,
                                   customDate: bc.created_at ? new Date(bc.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
                                 });
                                 setIsPrinting(true);
-                                setTimeout(() => { window.print(); setIsPrinting(false); setPrintData(null); }, 800);
+                                setTimeout(() => { 
+                                  const originalTitle = document.title;
+                                  document.title = bc.bc_number.split('-').length === 2
+                                    ? `BC-${bc.bc_number.split('-')[1]}-${new Date(bc.created_at || Date.now()).toISOString().split('T')[0].split('-')[2]}${new Date(bc.created_at || Date.now()).toISOString().split('T')[0].split('-')[1]}-${new Date(bc.created_at || Date.now()).toISOString().split('T')[0].split('-')[0]}`
+                                    : bc.bc_number;
+                                  window.print(); 
+                                  document.title = originalTitle;
+                                  setIsPrinting(false); 
+                                  setPrintData(null); 
+                                }, 800);
                               }}><Printer size={16} /></button>
                               <button className="btn btn-secondary btn-sm" onClick={() => handleFileUpload(bc.id, 'bc')} title={bc.attachment ? "Changer le scan" : "Joindre un scan/fichier"} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '32px' }}>
                                 <Paperclip size={16} style={{ color: bc.attachment ? 'var(--primary)' : '#64748b' }} />

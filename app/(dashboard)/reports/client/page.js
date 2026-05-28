@@ -394,42 +394,42 @@ export default function ClientReportPage() {
         </div>
 
         {/* Bandeau Période */}
-        <div style={{ backgroundColor: '#e0e0e0', border: '1px solid black', borderBottom: 'none', padding: '5px', textAlign: 'center', fontWeight: 'bold', fontSize: '12px' }}>
+        <div style={{ backgroundColor: '#e0e0e0', border: '1px solid black', borderBottom: 'none', padding: '5px', textAlign: 'center', fontWeight: 'bold', fontSize: '9px' }}>
           PÉRIODE : {printData?.periodText || `DU ${new Date(startDate).toLocaleDateString()} AU ${new Date(endDate).toLocaleDateString()}`}
         </div>
 
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '30px' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '30px', fontSize: '8px' }}>
           <thead>
             <tr style={{ backgroundColor: '#f0f0f0', borderBottom: '2px solid #000' }}>
-              <th style={{ textAlign: 'left', padding: '10px', border: '1px solid #000' }}>{printData?.colHeaders?.code || 'CODE'}</th>
-              <th style={{ textAlign: 'left', padding: '10px', border: '1px solid #000' }}>{printData?.colHeaders?.barcode || 'RÉFÉRENCE'}</th>
-              <th style={{ textAlign: 'left', padding: '10px', border: '1px solid #000' }}>{printData?.colHeaders?.name || 'DÉSIGNATION ARTICLE'}</th>
-              <th style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>{printData?.colHeaders?.unitPrice || 'P.U (FCFA)'}</th>
-              <th style={{ textAlign: 'center', padding: '10px', border: '1px solid #000' }}>{printData?.colHeaders?.qty || 'QTÉ'}</th>
-              <th style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>{printData?.colHeaders?.total || 'TOTAL (FCFA)'}</th>
+              <th style={{ textAlign: 'left', padding: '4px', border: '1px solid #000' }}>{printData?.colHeaders?.code || 'CODE'}</th>
+              <th style={{ textAlign: 'left', padding: '4px', border: '1px solid #000' }}>{printData?.colHeaders?.barcode || 'RÉFÉRENCE'}</th>
+              <th style={{ textAlign: 'left', padding: '4px', border: '1px solid #000' }}>{printData?.colHeaders?.name || 'DÉSIGNATION ARTICLE'}</th>
+              <th style={{ textAlign: 'right', padding: '4px', border: '1px solid #000' }}>{printData?.colHeaders?.unitPrice || 'P.U (FCFA)'}</th>
+              <th style={{ textAlign: 'center', padding: '4px', border: '1px solid #000' }}>{printData?.colHeaders?.qty || 'QTÉ'}</th>
+              <th style={{ textAlign: 'right', padding: '4px', border: '1px solid #000' }}>{printData?.colHeaders?.total || 'TOTAL (FCFA)'}</th>
             </tr>
           </thead>
           <tbody>
             {printData?.items?.map((item, idx) => (
               <tr key={idx}>
-                <td style={{ padding: '10px', border: '1px solid #000' }}>{item.code || '-'}</td>
-                <td style={{ padding: '10px', border: '1px solid #000' }}>{item.barcode || '-'}</td>
-                <td style={{ padding: '10px', border: '1px solid #000' }}>{item.name}</td>
-                <td style={{ padding: '10px', border: '1px solid #000' }}>{formatPrice(item.unitPrice)}</td>
-                <td style={{ textAlign: 'center', padding: '10px', border: '1px solid #000' }}>{item.totalQuantity}</td>
-                <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000', fontWeight: 'bold' }}>{formatPrice(item.totalAmount)}</td>
+                <td style={{ padding: '4px', border: '1px solid #000' }}>{item.code || '-'}</td>
+                <td style={{ padding: '4px', border: '1px solid #000' }}>{item.barcode || '-'}</td>
+                <td style={{ padding: '4px', border: '1px solid #000' }}>{item.name}</td>
+                <td style={{ padding: '4px', border: '1px solid #000' }}>{formatPrice(item.unitPrice)}</td>
+                <td style={{ textAlign: 'center', padding: '4px', border: '1px solid #000' }}>{item.totalQuantity}</td>
+                <td style={{ textAlign: 'right', padding: '4px', border: '1px solid #000', fontWeight: 'bold' }}>{formatPrice(item.totalAmount)}</td>
               </tr>
             ))}
             {/* Déplacement des totaux dans tbody pour qu'ils n'apparaissent qu'à la toute fin */}
             <tr style={{ backgroundColor: '#f0f0f0', fontWeight: 'bold' }}>
-              <td colSpan="4" style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>TOTAL BRUT</td>
-              <td style={{ textAlign: 'center', padding: '10px', border: '1px solid #000' }}>{printData?.summary?.totalQuantity}</td>
-              <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>{formatPrice(printData?.summary?.totalGrossAmount)} FCFA</td>
+              <td colSpan="4" style={{ textAlign: 'right', padding: '4px', border: '1px solid #000' }}>TOTAL BRUT</td>
+              <td style={{ textAlign: 'center', padding: '4px', border: '1px solid #000' }}>{printData?.summary?.totalQuantity}</td>
+              <td style={{ textAlign: 'right', padding: '4px', border: '1px solid #000' }}>{formatPrice(printData?.summary?.totalGrossAmount)} FCFA</td>
             </tr>
             {printData?.summary?.totalDiscount > 0 && (
               <tr style={{ fontWeight: 'bold' }}>
-                <td colSpan="5" style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>TOTAL REMISES</td>
-                <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>-{formatPrice(printData?.summary?.totalDiscount)} FCFA</td>
+                <td colSpan="5" style={{ textAlign: 'right', padding: '4px', border: '1px solid #000' }}>TOTAL REMISES</td>
+                <td style={{ textAlign: 'right', padding: '4px', border: '1px solid #000' }}>-{formatPrice(printData?.summary?.totalDiscount)} FCFA</td>
               </tr>
             )}
             {printData?.summary?.totalTva > 0 && (() => {
@@ -437,16 +437,16 @@ export default function ClientReportPage() {
               const pct = base > 0 ? Math.round((printData.summary.totalTva / base) * 100) : 0;
               return (
                 <tr style={{ fontWeight: 'bold' }}>
-                  <td colSpan="5" style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>
+                  <td colSpan="5" style={{ textAlign: 'right', padding: '4px', border: '1px solid #000' }}>
                     MONTANT TVA ({pct}%)
                   </td>
-                  <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>{formatPrice(printData.summary.totalTva)} FCFA</td>
+                  <td style={{ textAlign: 'right', padding: '4px', border: '1px solid #000' }}>{formatPrice(printData.summary.totalTva)} FCFA</td>
                 </tr>
               );
             })()}
             <tr style={{ backgroundColor: '#e0e0e0', fontWeight: 'bold' }}>
-              <td colSpan="5" style={{ textAlign: 'right', padding: '10px', border: '1px solid #000' }}>TOTAL NET À RÉGLER</td>
-              <td style={{ textAlign: 'right', padding: '10px', border: '1px solid #000', fontSize: '18px' }}>{formatPrice(printData?.summary?.totalAmount)} FCFA</td>
+              <td colSpan="5" style={{ textAlign: 'right', padding: '4px', border: '1px solid #000' }}>TOTAL NET À RÉGLER</td>
+              <td style={{ textAlign: 'right', padding: '4px', border: '1px solid #000', fontSize: '14px' }}>{formatPrice(printData?.summary?.totalAmount)} FCFA</td>
             </tr>
           </tbody>
           {/* Un tfoot vide garantit un espace libre à la fin de CHAQUE page pour ne pas chevaucher le bandeau rouge fixe */}
