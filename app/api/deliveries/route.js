@@ -27,14 +27,23 @@ export async function POST(request) {
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   const { orderId, blNumber, items } = await request.json();
-  const id = uuidv4();
-
   try {
-    await db.query(
-      'INSERT INTO deliveries (id, order_id, bl_number, items) VALUES (?, ?, ?, ?)',
-      [id, orderId, blNumber, JSON.stringify(items)]
-    );
-    return NextResponse.json({ success: true, id }, { status: 201 });
+    const [existing] = await db.query('SELECT id FROM deliveries WHERE order_id = ? LIMIT 1', [orderId]);
+    
+    if (existing && existing.length > 0) {
+      await db.query(
+        'UPDATE deliveries SET bl_number = ?, items = ? WHERE order_id = ?',
+        [blNumber, JSON.stringify(items), orderId]
+      );
+      return NextResponse.json({ success: true, id: existing[0].id }, { status: 200 });
+    } else {
+      const id = uuidv4();
+      await db.query(
+        'INSERT INTO deliveries (id, order_id, bl_number, items) VALUES (?, ?, ?, ?)',
+        [id, orderId, blNumber, JSON.stringify(items)]
+      );
+      return NextResponse.json({ success: true, id }, { status: 201 });
+    }
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

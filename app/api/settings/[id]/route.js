@@ -17,7 +17,8 @@ export async function PUT(request, { params }) {
     supervisorName, supervisorTitle, stampImage, signatureImage, tvaRate,
     website, bankInfo, taxSystem, secondaryAddress, blSupervisorName, blSupervisorTitle,
     blStampImage, blSignatureImage, bcTitlePrefix, blTitlePrefix, bp, division,
-    footerLine1, footerLine2, footerLine3, footerLine4, roundAmounts
+    footerLine1, footerLine2, footerLine3, footerLine4, roundAmounts,
+    bcNumberFormat, blNumberFormat
   } = body;
 
   try {
@@ -34,7 +35,7 @@ export async function PUT(request, { params }) {
         bcTitlePrefix = ?, blTitlePrefix = ?,
         bp = ?, division = ?,
         footerLine1 = ?, footerLine2 = ?, footerLine3 = ?, footerLine4 = ?,
-        roundAmounts = ?
+        roundAmounts = ?, bcNumberFormat = ?, blNumberFormat = ?
       WHERE id = 1
     `, [
       companyName, address, phone, email, nif, rccm, logo, currency, footerMessage, receiptFormat,
@@ -42,7 +43,8 @@ export async function PUT(request, { params }) {
       website, bankInfo, taxSystem, secondaryAddress, blSupervisorName, blSupervisorTitle,
       blStampImage, blSignatureImage, bcTitlePrefix, blTitlePrefix, bp, division,
       footerLine1, footerLine2, footerLine3, footerLine4,
-      roundAmounts === undefined ? true : roundAmounts
+      roundAmounts === undefined ? true : roundAmounts,
+      bcNumberFormat, blNumberFormat
     ]);
 
     await logAction(auth.user.id, auth.user.storeId, 'Mise à jour paramètres', { companyName });
