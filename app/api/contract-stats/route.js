@@ -44,7 +44,7 @@ export async function GET(request) {
         SUM(o.contractAmount * (1 + o.tva_rate / 100)) as totalAmount,
         COUNT(o.id) as orderCount
       FROM contract_partners p
-      LEFT JOIN contract_orders o ON p.id = o.partner_id ${dateFilter} ${partnerFilter}
+      LEFT JOIN contract_orders o ON p.id = o.partner_id ${dateFilter} ${partnerFilter} AND o.status != 'annule'
       GROUP BY p.id, p.name
     `, getQueryParams());
 
@@ -56,7 +56,7 @@ export async function GET(request) {
         SUM(o.contractAmount * (1 + o.tva_rate / 100)) as totalAmount
       FROM contract_partners p
       JOIN contract_orders o ON p.id = o.partner_id
-      WHERE 1=1 ${dateFilter} ${partnerFilter}
+      WHERE o.status != 'annule' ${dateFilter} ${partnerFilter}
       GROUP BY p.id, p.name, month
       ORDER BY month ASC
     `, getQueryParams());
@@ -71,7 +71,7 @@ export async function GET(request) {
       FROM contract_partners p
       JOIN contract_orders o ON p.id = o.partner_id
       JOIN contract_order_items oi ON o.id = oi.orderId
-      WHERE 1=1 ${dateFilter} ${partnerFilter}
+      WHERE o.status != 'annule' ${dateFilter} ${partnerFilter}
       GROUP BY p.id, p.name, oi.description
       ORDER BY p.name, totalQuantity DESC
     `, getQueryParams());
@@ -83,7 +83,7 @@ export async function GET(request) {
         SUM(o.contractAmount * (1 + o.tva_rate / 100)) as totalAmount
       FROM clients c
       JOIN contract_orders o ON c.id = o.clientId
-      WHERE 1=1 ${dateFilter} ${partnerFilter}
+      WHERE o.status != 'annule' ${dateFilter} ${partnerFilter}
       GROUP BY c.id, c.name
       ORDER BY totalAmount DESC
     `, getQueryParams());
@@ -96,7 +96,7 @@ export async function GET(request) {
       FROM contract_partners p
       JOIN contract_orders o ON p.id = o.partner_id
       JOIN contract_order_history h ON o.id = h.orderId
-      WHERE h.newStatus = 'termine' ${dateFilter} ${partnerFilter}
+      WHERE h.newStatus = 'termine' AND o.status != 'annule' ${dateFilter} ${partnerFilter}
       GROUP BY p.id, p.name
     `, getQueryParams());
 

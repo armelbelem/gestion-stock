@@ -1,5 +1,6 @@
 import db from '../../lib/db';
 import { authenticateToken, hasPermission, isManager } from '../../lib/auth';
+import { logAction } from '../../lib/actions';
 import { NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -61,6 +62,7 @@ export async function POST(request) {
         'INSERT INTO contract_bc_history (id, order_id, bc_number, title, request_ref, items, partner_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
         [id, orderId, bcNumber, title, requestRef, JSON.stringify(items), partnerId]
       );
+      await logAction(auth.user.id, auth.user.storeId, 'Impression BC', { orderId, bcNumber });
       return NextResponse.json({ success: true, id }, { status: 201 });
     }
   } catch (err) {

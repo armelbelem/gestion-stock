@@ -1,5 +1,6 @@
 import db from '../../lib/db';
 import { authenticateToken } from '../../lib/auth';
+import { logAction } from '../../lib/actions';
 import { NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -42,6 +43,7 @@ export async function POST(request) {
         'INSERT INTO deliveries (id, order_id, bl_number, items) VALUES (?, ?, ?, ?)',
         [id, orderId, blNumber, JSON.stringify(items)]
       );
+      await logAction(auth.user.id, auth.user.storeId, 'Impression BL', { orderId, blNumber });
       return NextResponse.json({ success: true, id }, { status: 201 });
     }
   } catch (err) {

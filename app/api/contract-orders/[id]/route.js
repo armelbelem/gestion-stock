@@ -165,7 +165,7 @@ export async function PUT(request, { params }) {
       const logMsg = finalStatus !== current.status 
         ? `Statut dossier contrat : ${finalStatus}` 
         : 'Modification dossier contrat';
-      await logAction(auth.user.id, current.storeId, logMsg, { orderId: id, status: finalStatus });
+      await logAction(auth.user.id, auth.user.storeId, logMsg, { orderId: id, status: finalStatus });
 
       return NextResponse.json({ success: true });
     } catch (err) {
@@ -193,7 +193,7 @@ export async function DELETE(request, { params }) {
     if (access.error) return NextResponse.json({ error: access.error }, { status: access.status });
 
     await db.query('DELETE FROM contract_orders WHERE id = ?', [id]);
-    await logAction(auth.user.id, access.order.storeId, 'Suppression dossier contrat', { orderId: id });
+    await logAction(auth.user.id, auth.user.storeId, 'Suppression dossier contrat', { orderId: id });
     return NextResponse.json({ success: true });
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });

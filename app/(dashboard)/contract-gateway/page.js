@@ -203,6 +203,143 @@ export default function ContractGatewayPage() {
     }
   }, [isModalOpen, isCatalogModalOpen]);
 
+  const handleReprintBL = async (del) => {
+    try {
+      const rawItems = typeof del.items === 'string' ? JSON.parse(del.items || '[]') : (del.items || []);
+      const items = rawItems.filter(it => !it.isMetadata);
+      const meta = rawItems.find(it => it.isMetadata) || {};
+
+      const fullOrder = await storage.get(`contract-orders/${del.order_id}`);
+      const client = clients.find(c => String(c.id) === String(fullOrder.clientId || fullOrder.client_id));
+      const partner = partners.find(s => String(s.id) === String(fullOrder.partner_id || fullOrder.partnerId));
+
+      setPrintData({
+        ...fullOrder,
+        items,
+        orderNumber: del.bl_number.split('-')[1],
+        clientName: client?.name || fullOrder.clientName || 'Client Non Défini',
+        clientCode: client ? client.clientCode : 'Non Défini',
+        supplierName: partner?.name || 'Fournisseur Non Défini',
+        supplierAddress: partner?.address || '',
+        supplierBP: partner?.bp || '',
+        supplierPhone: partner?.phone || '',
+        supplierMyClientCode: partner?.my_client_code || 'CL-001',
+        supplierRCCM: partner?.rccm || '',
+        supplierNIF: partner?.nif || '',
+        blTitleOverride: meta.blTitleOverride || partner?.bl_prefix || settings?.blTitlePrefix || (client?.name ? `BORDEREAU NSA-${client.name.substring(0, 8).toUpperCase()}` : 'BORDEREAU DE LIVRAISON'),
+        customCity: meta.customCity || settings?.city || 'Ouagadougou',
+        customSupervisorName: meta.customSupervisorName || partner?.bl_supervisor_name || settings?.blSupervisorName || 'Huges Christian SOW',
+        customSupervisorTitle: meta.customSupervisorTitle || partner?.bl_supervisor_title || settings?.blSupervisorTitle || 'Responsable Logistique Adjoint',
+        customRecipientDetails: meta.customRecipientDetails || [
+          client?.name,
+          client?.address,
+          client?.bp ? `BP : ${client.bp}` : null,
+          client?.phone ? `Tél : ${client.phone}` : null,
+          client?.rccm ? `RCCM : ${client.rccm}` : null,
+          client?.nif ? `IFU : ${client.nif}` : null
+        ].filter(Boolean).join('\n'),
+        customSite: meta.customSite || fullOrder.customSite || '',
+        printNotes: meta.printNotes || '',
+        blColNo: meta.blColNo || selectedPartner?.bl_col_no || 'N',
+        blColSite: meta.blColSite || selectedPartner?.bl_col_site || 'Site',
+        blColDesc: meta.blColDesc || selectedPartner?.bl_col_desc || 'Article',
+        blColCode: meta.blColCode || selectedPartner?.bl_col_code || 'Code',
+        blColRef: meta.blColRef || selectedPartner?.bl_col_ref || 'Ref',
+        blColQty: meta.blColQty || selectedPartner?.bl_col_qty || 'Qté',
+        sectionTitle: meta.sectionTitle || 'FOURNITURE DE PIECES DE RECHANGE',
+        blNumber: del.bl_number,
+        customDocNumber: del.bl_number.split('-').length === 2 
+          ? `BL-${del.bl_number.split('-')[1]}-${new Date(del.created_at || Date.now()).toISOString().split('T')[0].split('-')[2]}${new Date(del.created_at || Date.now()).toISOString().split('T')[0].split('-')[1]}-${new Date(del.created_at || Date.now()).toISOString().split('T')[0].split('-')[0]}`
+          : del.bl_number,
+        customDate: meta.customDate || (del.created_at ? new Date(del.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0])
+      });
+      setIsPrintingBL(true);
+      setTimeout(() => { 
+        const originalTitle = document.title;
+        document.title = del.bl_number.split('-').length === 2 
+          ? `BL-${del.bl_number.split('-')[1]}-${new Date(del.created_at || Date.now()).toISOString().split('T')[0].split('-')[2]}${new Date(del.created_at || Date.now()).toISOString().split('T')[0].split('-')[1]}-${new Date(del.created_at || Date.now()).toISOString().split('T')[0].split('-')[0]}`
+          : del.bl_number;
+        window.print(); 
+        document.title = originalTitle;
+        setIsPrintingBL(false); 
+        setPrintData(null); 
+      }, 800);
+    } catch (error) {
+      console.error('Error reprinting BL:', error);
+    }
+  };
+
+  const handleReprintBC = async (bc) => {
+    try {
+      const rawItems = typeof bc.items === 'string' ? JSON.parse(bc.items || '[]') : (bc.items || []);
+      const items = rawItems.filter(it => !it.isMetadata);
+      const meta = rawItems.find(it => it.isMetadata) || {};
+
+      const fullOrder = await storage.get(`contract-orders/${bc.order_id}`);
+      const client = clients.find(c => String(c.id) === String(fullOrder.clientId || fullOrder.client_id));
+      const partner = partners.find(s => String(s.id) === String(fullOrder.partner_id || fullOrder.partnerId));
+
+      setPrintData({
+        ...fullOrder,
+        items,
+        orderNumber: bc.bc_number.split('-')[1],
+        bcTitleOverride: meta.bcTitleOverride || bc.title,
+        sectionTitle: meta.sectionTitle || 'FOURNITURE DE PIECES DE RECHANGE',
+        requestRef: meta.requestRef || bc.request_ref,
+        clientName: client?.name || fullOrder.clientName || 'Client Non Défini',
+        clientCode: client ? client.clientCode : 'Non Défini',
+        supplierName: partner?.name || 'Fournisseur Non Défini',
+        supplierAddress: partner?.address || '',
+        supplierBP: partner?.bp || '',
+        supplierPhone: partner?.phone || '',
+        supplierMyClientCode: meta.supplierMyClientCode || partner?.my_client_code || 'CL-001',
+        supplierRCCM: partner?.rccm || '',
+        supplierNIF: partner?.nif || '',
+        customCity: meta.customCity || settings?.city || 'Ouagadougou',
+        customSupervisorName: meta.customSupervisorName || partner?.supervisor_name || settings?.supervisorName || 'Guy Roland TONDE',
+        customSupervisorTitle: meta.customSupervisorTitle || partner?.supervisor_title || settings?.supervisorTitle || 'Superviseur Général',
+        customRecipientDetails: meta.customRecipientDetails || [
+          partner?.name,
+          partner?.address,
+          partner?.bp ? `BP : ${partner.bp}` : null,
+          partner?.phone ? `Tél : ${partner.phone}` : null,
+          partner?.rccm ? `RCCM : ${partner.rccm}` : null,
+          partner?.nif ? `IFU : ${partner.nif}` : null
+        ].filter(Boolean).join('\n'),
+        customDocNumber: bc.bc_number.split('-').length === 2
+          ? `BC-${bc.bc_number.split('-')[1]}-${new Date(bc.created_at || Date.now()).toISOString().split('T')[0].split('-')[2]}${new Date(bc.created_at || Date.now()).toISOString().split('T')[0].split('-')[1]}-${new Date(bc.created_at || Date.now()).toISOString().split('T')[0].split('-')[0]}`
+          : bc.bc_number,
+        customDate: meta.customDate || (bc.created_at ? new Date(bc.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]),
+        bcColNo: meta.bcColNo || selectedPartner?.bc_col_no || 'N°',
+        bcColSite: meta.bcColSite || selectedPartner?.bc_col_site || 'Site',
+        bcColDesc: meta.bcColDesc || selectedPartner?.bc_col_desc || 'Article',
+        bcColCode: meta.bcColCode || selectedPartner?.bc_col_code || 'Code',
+        bcColRef: meta.bcColRef || selectedPartner?.bc_col_ref || 'Ref. CFAO',
+        bcColQty: meta.bcColQty || selectedPartner?.bc_col_qty || 'Qté',
+        bcColPrice: meta.bcColPrice || selectedPartner?.bc_col_price || 'Prix HTVA F. CFA',
+        bcColTotal: meta.bcColTotal || selectedPartner?.bc_col_total || 'Total HTVA F. CFA',
+        customTvaRate: meta.customTvaRate !== undefined ? meta.customTvaRate : (settings?.tvaRate !== undefined ? settings.tvaRate : 18),
+        isExempt: meta.isExempt || false,
+        exemptionMention: meta.exemptionMention || '',
+        customSite: meta.customSite || fullOrder.customSite || '',
+        printNotes: meta.printNotes || ''
+      });
+      setIsPrinting(true);
+      setTimeout(() => { 
+        const originalTitle = document.title;
+        document.title = bc.bc_number.split('-').length === 2
+          ? `BC-${bc.bc_number.split('-')[1]}-${new Date(bc.created_at || Date.now()).toISOString().split('T')[0].split('-')[2]}${new Date(bc.created_at || Date.now()).toISOString().split('T')[0].split('-')[1]}-${new Date(bc.created_at || Date.now()).toISOString().split('T')[0].split('-')[0]}`
+          : bc.bc_number;
+        window.print(); 
+        document.title = originalTitle;
+        setIsPrinting(false); 
+        setPrintData(null); 
+      }, 800);
+    } catch (error) {
+      console.error('Error reprinting BC:', error);
+    }
+  };
+
   const loadCatalogData = async () => {
     if (!selectedPartner) return;
     setCatalogLoading(true);
@@ -564,12 +701,16 @@ export default function ContractGatewayPage() {
       const fullOrder = await storage.get(`contract-orders/${orderId}`);
       if (!fullOrder || fullOrder.error) throw new Error(fullOrder?.error || "Dossier introuvable");
 
-      const client = clients.find(c => String(c.id) === String(fullOrder.clientId));
+      const client = clients.find(c => String(c.id) === String(fullOrder.clientId || fullOrder.client_id));
 
       // Vérifier si un BC existe déjà dans l'historique
-      const historyRes = await fetch(`/api/contract-bc-history?orderId=${orderId}`);
+      const token = sessionStorage.getItem('token');
+      const historyRes = await fetch(`/api/contract-bc-history?orderId=${orderId}&_t=${Date.now()}`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        cache: 'no-store'
+      });
       const historyData = await historyRes.json();
-      const existingBc = historyData && historyData.length > 0 ? historyData[0] : null;
+      const existingBc = Array.isArray(historyData) && historyData.length > 0 ? historyData[0] : null;
 
       let generatedNumber = '';
       if (existingBc && existingBc.bc_number) {
@@ -582,57 +723,92 @@ export default function ContractGatewayPage() {
         }
       } else {
         // Obtenir un nouveau numéro séquentiel
-        const seqRes = await fetch('/api/sequence?type=BC');
+        const seqRes = await fetch(`/api/sequence?type=BC&orderId=${orderId}`);
         const seqData = await seqRes.json();
         generatedNumber = formatDocumentNumber(seqData, settings?.bcNumberFormat, client?.name);
       }
 
-      const partner = partners.find(p => String(p.id) === String(fullOrder.partnerId)) || (selectedPartner?.id !== 'all' ? selectedPartner : null);
+      const partner = partners.find(p => String(p.id) === String(fullOrder.partner_id || fullOrder.partnerId)) || (selectedPartner?.id !== 'all' ? selectedPartner : null);
 
-      const baseBcTitle = partner?.bc_prefix || settings?.bcTitlePrefix || `BON DE COMMANDE N°NSA-${partner?.name?.toUpperCase() || 'PARTENAIRE'}`;
-
-      setPrintData({
-        ...fullOrder,
-        docNumber: generatedNumber,
-        customDocNumber: generatedNumber,
-        clientName: client?.name || fullOrder.clientName || 'Client Non Défini',
-        clientCode: client ? client.clientCode : 'Non Défini',
-        supplierName: (partner?.name) || 'Fournisseur Non Défini',
-        supplierAddress: (partner?.address) || '',
-        supplierBP: (partner?.bp) || '',
-        supplierPhone: (partner?.phone) || '',
-        supplierMyClientCode: (partner?.my_client_code) || 'CL-001',
-        supplierRCCM: (partner?.rccm) || '',
-        supplierNIF: (partner?.nif) || '',
-        bcTitleOverride: baseBcTitle,
-        sectionTitle: 'FOURNITURE DE PIECES DE RECHANGE',
-        requestRef: `REQUEST ${client ? client.name.toUpperCase() : 'GENERAL'}`,
-        customDate: new Date().toISOString().split('T')[0],
-        customCity: settings?.city || 'Ouagadougou',
-        customSupervisorName: partner?.supervisor_name || settings?.supervisorName || 'Guy Roland TONDE',
-        customSupervisorTitle: partner?.supervisor_title || settings?.supervisorTitle || 'Superviseur Général',
-        customTvaRate: settings?.tvaRate !== undefined ? settings.tvaRate : 18,
-        isExempt: false,
-        exemptionMention: '',
-        items: fullOrder.items || [],
-        customRecipientDetails: [
-          partner?.name,
-          partner?.address,
-          partner?.bp ? `BP : ${partner.bp}` : null,
-          partner?.phone ? `Tél : ${partner.phone}` : null,
-          partner?.rccm ? `RCCM : ${partner.rccm}` : null,
-          partner?.nif ? `IFU : ${partner.nif}` : null
-        ].filter(Boolean).join('\n'),
-        // Colonnes personnalisées
-        bcColNo: selectedPartner?.bc_col_no || 'N°',
-        bcColSite: selectedPartner?.bc_col_site || 'Site',
-        bcColDesc: selectedPartner?.bc_col_desc || 'Article',
-        bcColCode: selectedPartner?.bc_col_code || 'Code',
-        bcColRef: selectedPartner?.bc_col_ref || 'Ref. CFAO',
-        bcColQty: selectedPartner?.bc_col_qty || 'Qté',
-        bcColPrice: selectedPartner?.bc_col_price || 'Prix HTVA F. CFA',
-        bcColTotal: selectedPartner?.bc_col_total || 'Total HTVA F. CFA'
-      });
+       const baseBcTitle = partner?.bc_prefix || settings?.bcTitlePrefix || `BON DE COMMANDE N°NSA-${partner?.name?.toUpperCase() || 'PARTENAIRE'}`;
+ 
+       const fullOrderItems = fullOrder.items || [];
+       let rawItems = [];
+       if (existingBc?.items) {
+         const existingItems = typeof existingBc.items === 'string' ? JSON.parse(existingBc.items) : existingBc.items;
+         const existingMeta = existingItems.filter(it => it.isMetadata);
+         const existingArticles = existingItems.filter(it => !it.isMetadata);
+         
+         const reconciledArticles = fullOrderItems.map(foItem => {
+           const match = existingArticles.find(histItem => 
+             (foItem.code && histItem.code === foItem.code) || 
+             (foItem.refCfao && histItem.refCfao === foItem.refCfao) ||
+             (histItem.description === foItem.description)
+           );
+           if (match) {
+             return {
+               ...match,
+               quantity: foItem.quantity,
+               purchasePrice: foItem.purchasePrice
+             };
+           } else {
+             return foItem;
+           }
+         });
+         
+         rawItems = [...reconciledArticles, ...existingMeta];
+       } else {
+         rawItems = fullOrderItems;
+       }
+       const itemsToUse = rawItems.filter(it => !it.isMetadata);
+       const meta = rawItems.find(it => it.isMetadata) || {};
+ 
+       const bcTitle = existingBc?.title || baseBcTitle;
+       const requestRef = existingBc?.request_ref || `REQUEST ${client ? client.name.toUpperCase() : 'GENERAL'}`;
+ 
+       setPrintData({
+         ...fullOrder,
+         docNumber: generatedNumber,
+         customDocNumber: generatedNumber,
+         clientName: client?.name || fullOrder.clientName || 'Client Non Défini',
+         clientCode: client ? client.clientCode : 'Non Défini',
+         supplierName: (partner?.name) || 'Fournisseur Non Défini',
+         supplierAddress: (partner?.address) || '',
+         supplierBP: (partner?.bp) || '',
+         supplierPhone: (partner?.phone) || '',
+         supplierMyClientCode: meta.supplierMyClientCode || (partner?.my_client_code) || 'CL-001',
+         supplierRCCM: (partner?.rccm) || '',
+         supplierNIF: (partner?.nif) || '',
+         bcTitleOverride: meta.bcTitleOverride || bcTitle,
+         sectionTitle: meta.sectionTitle || 'FOURNITURE DE PIECES DE RECHANGE',
+         requestRef: meta.requestRef || requestRef,
+         customDate: meta.customDate || new Date().toISOString().split('T')[0],
+         customCity: meta.customCity || settings?.city || 'Ouagadougou',
+         customSupervisorName: meta.customSupervisorName || partner?.supervisor_name || settings?.supervisorName || 'Guy Roland TONDE',
+         customSupervisorTitle: meta.customSupervisorTitle || partner?.supervisor_title || settings?.supervisorTitle || 'Superviseur Général',
+         customTvaRate: meta.customTvaRate !== undefined ? meta.customTvaRate : (settings?.tvaRate !== undefined ? settings.tvaRate : 18),
+         isExempt: meta.isExempt || false,
+         exemptionMention: meta.exemptionMention || '',
+         items: itemsToUse,
+         printNotes: meta.printNotes || '',
+         customRecipientDetails: meta.customRecipientDetails || [
+           partner?.name,
+           partner?.address,
+           partner?.bp ? `BP : ${partner.bp}` : null,
+           partner?.phone ? `Tél : ${partner.phone}` : null,
+           partner?.rccm ? `RCCM : ${partner.rccm}` : null,
+           partner?.nif ? `IFU : ${partner.nif}` : null
+         ].filter(Boolean).join('\n'),
+         // Colonnes personnalisées
+         bcColNo: meta.bcColNo || selectedPartner?.bc_col_no || 'N°',
+         bcColSite: meta.bcColSite || selectedPartner?.bc_col_site || 'Site',
+         bcColDesc: meta.bcColDesc || selectedPartner?.bc_col_desc || 'Article',
+         bcColCode: meta.bcColCode || selectedPartner?.bc_col_code || 'Code',
+         bcColRef: meta.bcColRef || selectedPartner?.bc_col_ref || 'Ref. CFAO',
+         bcColQty: meta.bcColQty || selectedPartner?.bc_col_qty || 'Qté',
+         bcColPrice: meta.bcColPrice || selectedPartner?.bc_col_price || 'Prix HTVA F. CFA',
+         bcColTotal: meta.bcColTotal || selectedPartner?.bc_col_total || 'Total HTVA F. CFA'
+       });
 
       setLoading(false);
       setIsBCPrintModalOpen(true);
@@ -653,6 +829,32 @@ export default function ContractGatewayPage() {
 
         const bcNumber = printData.customDocNumber || `BC-${String(printData.orderNumber || 'SPEC').padStart(3, '0')}`;
 
+        const metadataItem = {
+          isMetadata: true,
+          customCity: printData.customCity,
+          customDate: printData.customDate,
+          customSupervisorName: printData.customSupervisorName,
+          customSupervisorTitle: printData.customSupervisorTitle,
+          customRecipientDetails: printData.customRecipientDetails,
+          customSite: printData.customSite,
+          supplierMyClientCode: printData.supplierMyClientCode,
+          printNotes: printData.printNotes,
+          customTvaRate: printData.customTvaRate,
+          isExempt: printData.isExempt,
+          exemptionMention: printData.exemptionMention,
+          bcColNo: printData.bcColNo,
+          bcColSite: printData.bcColSite,
+          bcColDesc: printData.bcColDesc,
+          bcColCode: printData.bcColCode,
+          bcColRef: printData.bcColRef,
+          bcColQty: printData.bcColQty,
+          bcColPrice: printData.bcColPrice,
+          bcColTotal: printData.bcColTotal,
+          sectionTitle: printData.sectionTitle
+        };
+
+        const savedItems = [...(printData.items || []), metadataItem];
+
         await fetch('/api/contract-bc-history', {
           method: 'POST',
           headers: {
@@ -661,11 +863,11 @@ export default function ContractGatewayPage() {
           },
           body: JSON.stringify({
             orderId: printData.id,
-            partnerId: printData.partnerId || selectedPartner?.id,
+            partnerId: printData.partner_id || printData.partnerId || selectedPartner?.id,
             bcNumber: bcNumber,
             title: printData.bcTitleOverride,
             requestRef: printData.requestRef,
-            items: printData.items
+            items: savedItems
           })
         });
       } catch (err) {
@@ -676,6 +878,8 @@ export default function ContractGatewayPage() {
     // Save if it's a special document
     if (printData?.isSpecial) {
       handleSaveSpecialDoc(printData);
+    } else {
+      loadData();
     }
 
     setIsPrinting(true);
@@ -934,8 +1138,9 @@ export default function ContractGatewayPage() {
     try {
       setSelectedOrder({ id: orderId });
       const token = sessionStorage.getItem('token');
-      const res = await fetch(`/api/contract-bc-history?orderId=${orderId}&storeId=all`, {
-        headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+      const res = await fetch(`/api/contract-bc-history?orderId=${orderId}&storeId=all&_t=${Date.now()}`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        cache: 'no-store'
       });
       const data = await res.json();
       setCurrentBCs(data);
@@ -975,14 +1180,18 @@ export default function ContractGatewayPage() {
       const fullOrder = await storage.get(`contract-orders/${orderId}?storeId=all`);
       if (!fullOrder || fullOrder.error) throw new Error("Dossier introuvable");
 
-      const client = clients.find(c => String(c.id) === String(fullOrder.clientId));
+      const client = clients.find(c => String(c.id) === String(fullOrder.clientId || fullOrder.client_id));
       const fallbackName = client?.name || fullOrder.clientName || '';
       const defaultPrefix = selectedPartner?.bl_prefix || settings?.blTitlePrefix || (fallbackName ? `BORDEREAU NSA-${fallbackName.substring(0, 8).toUpperCase()}` : 'BORDEREAU DE LIVRAISON');
 
       // Vérifier si un BL existe déjà
-      const deliveryRes = await fetch(`/api/deliveries?orderId=${orderId}`);
+      const token = sessionStorage.getItem('token');
+      const deliveryRes = await fetch(`/api/deliveries?orderId=${orderId}&_t=${Date.now()}`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        cache: 'no-store'
+      });
       const existingDeliveryData = await deliveryRes.json();
-      const existingDelivery = existingDeliveryData && existingDeliveryData.length > 0 ? existingDeliveryData[0] : null;
+      const existingDelivery = Array.isArray(existingDeliveryData) && existingDeliveryData.length > 0 ? existingDeliveryData[0] : null;
 
       let generatedNumber = '';
       if (existingDelivery && existingDelivery.bl_number) {
@@ -994,47 +1203,78 @@ export default function ContractGatewayPage() {
            generatedNumber = formatDocumentNumber(seqData, settings?.blNumberFormat, fallbackName);
         }
       } else {
-        const seqRes = await fetch('/api/sequence?type=BL');
+        const seqRes = await fetch(`/api/sequence?type=BL&orderId=${orderId}`);
         const seqData = await seqRes.json();
         generatedNumber = formatDocumentNumber(seqData, settings?.blNumberFormat, fallbackName);
       }
 
-      setPrintData({
-        ...fullOrder,
-        docNumber: generatedNumber,
-        customDocNumber: generatedNumber,
-        client: client || null,
-        clientName: fallbackName || 'Client Non Défini',
-        clientCode: client ? client.clientCode : 'Non Défini',
-        blTitleOverride: defaultPrefix,
-        requestRef: `URGENT REQUEST ${fallbackName ? fallbackName.toUpperCase() : 'GENERAL'}`,
-        customDate: new Date().toISOString().split('T')[0],
-        customCity: settings?.city || 'Ouagadougou',
-        customSupervisorName: selectedPartner?.bl_supervisor_name || settings?.blSupervisorName || 'Huges Christian SOW',
-        customSupervisorTitle: selectedPartner?.bl_supervisor_title || settings?.blSupervisorTitle || 'Responsable Logistique Adjoint',
-        items: (fullOrder.items || []).map(it => ({
-          description: it.description,
-          code: it.code,
-          refCfao: it.refCfao || it.code,
-          quantity: it.quantity
-        })),
-        customRecipientDetails: [
-          client?.name,
-          client?.address,
-          client?.bp ? `BP : ${client.bp}` : null,
-          client?.phone ? `Tél : ${client.phone}` : null,
-          client?.rccm ? `RCCM : ${client.rccm}` : null,
-          client?.nif ? `IFU : ${client.nif}` : null
-        ].filter(Boolean).join('\n'),
-        // Colonnes personnalisées BL
-        blColNo: selectedPartner?.bl_col_no || 'N',
-        blColSite: selectedPartner?.bl_col_site || 'Site',
-        blColDesc: selectedPartner?.bl_col_desc || 'Article',
-        blColCode: selectedPartner?.bl_col_code || 'Code',
-        blColRef: selectedPartner?.bl_col_ref || 'Ref',
-        blColQty: selectedPartner?.bl_col_qty || 'Qté',
-        sectionTitle: 'FOURNITURE DE PIECES DE RECHANGE'
-      });
+       const fullOrderItems = (fullOrder.items || []).map(it => ({
+         description: it.description,
+         code: it.code,
+         refCfao: it.refCfao || it.code,
+         quantity: it.quantity
+       }));
+       let rawItems = [];
+       if (existingDelivery?.items) {
+         const existingItems = typeof existingDelivery.items === 'string' ? JSON.parse(existingDelivery.items) : existingDelivery.items;
+         const existingMeta = existingItems.filter(it => it.isMetadata);
+         const existingArticles = existingItems.filter(it => !it.isMetadata);
+         
+         const reconciledArticles = fullOrderItems.map(foItem => {
+           const match = existingArticles.find(histItem => 
+             (foItem.code && histItem.code === foItem.code) || 
+             (foItem.refCfao && histItem.refCfao === foItem.refCfao) ||
+             (histItem.description === foItem.description)
+           );
+           if (match) {
+             return {
+               ...match,
+               quantity: foItem.quantity
+             };
+           } else {
+             return foItem;
+           }
+         });
+         
+         rawItems = [...reconciledArticles, ...existingMeta];
+       } else {
+         rawItems = fullOrderItems;
+       }
+       const itemsToUse = rawItems.filter(it => !it.isMetadata);
+       const meta = rawItems.find(it => it.isMetadata) || {};
+ 
+       setPrintData({
+         ...fullOrder,
+         docNumber: generatedNumber,
+         customDocNumber: generatedNumber,
+         client: client || null,
+         clientName: fallbackName || 'Client Non Défini',
+         clientCode: client ? client.clientCode : 'Non Défini',
+         blTitleOverride: meta.blTitleOverride || defaultPrefix,
+         requestRef: meta.requestRef || `URGENT REQUEST ${fallbackName ? fallbackName.toUpperCase() : 'GENERAL'}`,
+         customDate: meta.customDate || new Date().toISOString().split('T')[0],
+         customCity: meta.customCity || settings?.city || 'Ouagadougou',
+         customSupervisorName: meta.customSupervisorName || selectedPartner?.bl_supervisor_name || settings?.blSupervisorName || 'Huges Christian SOW',
+         customSupervisorTitle: meta.customSupervisorTitle || selectedPartner?.bl_supervisor_title || settings?.blSupervisorTitle || 'Responsable Logistique Adjoint',
+         items: itemsToUse,
+         printNotes: meta.printNotes || '',
+         customRecipientDetails: meta.customRecipientDetails || [
+           client?.name,
+           client?.address,
+           client?.bp ? `BP : ${client.bp}` : null,
+           client?.phone ? `Tél : ${client.phone}` : null,
+           client?.rccm ? `RCCM : ${client.rccm}` : null,
+           client?.nif ? `IFU : ${client.nif}` : null
+         ].filter(Boolean).join('\n'),
+         // Colonnes personnalisées BL
+         blColNo: meta.blColNo || selectedPartner?.bl_col_no || 'N',
+         blColSite: meta.blColSite || selectedPartner?.bl_col_site || 'Site',
+         blColDesc: meta.blColDesc || selectedPartner?.bl_col_desc || 'Article',
+         blColCode: meta.blColCode || selectedPartner?.bl_col_code || 'Code',
+         blColRef: meta.blColRef || selectedPartner?.bl_col_ref || 'Ref',
+         blColQty: meta.blColQty || selectedPartner?.bl_col_qty || 'Qté',
+         sectionTitle: meta.sectionTitle || 'FOURNITURE DE PIECES DE RECHANGE'
+       });
       setIsBLModalOpen(true);
     } catch (err) {
       showAlert('error', 'Erreur', "Impossible de charger les données : " + err.message);
@@ -1051,6 +1291,26 @@ export default function ContractGatewayPage() {
       const dateObj = deliveryData.customDate ? new Date(deliveryData.customDate) : new Date();
       const blNumber = deliveryData.customDocNumber || `BL-${String(deliveryData.orderNumber || 'SPEC').padStart(3, '0')}`;
 
+      const metadataItem = {
+        isMetadata: true,
+        customCity: deliveryData.customCity,
+        customDate: deliveryData.customDate,
+        customSupervisorName: deliveryData.customSupervisorName,
+        customSupervisorTitle: deliveryData.customSupervisorTitle,
+        customRecipientDetails: deliveryData.customRecipientDetails,
+        customSite: deliveryData.customSite,
+        printNotes: deliveryData.printNotes,
+        blColNo: deliveryData.blColNo,
+        blColSite: deliveryData.blColSite,
+        blColDesc: deliveryData.blColDesc,
+        blColCode: deliveryData.blColCode,
+        blColRef: deliveryData.blColRef,
+        blColQty: deliveryData.blColQty,
+        sectionTitle: deliveryData.sectionTitle
+      };
+
+      const savedItems = [...(deliveryData.items || []), metadataItem];
+
       const res = await fetch('/api/deliveries', {
         method: 'POST',
         headers: {
@@ -1060,7 +1320,7 @@ export default function ContractGatewayPage() {
         body: JSON.stringify({
           orderId: deliveryData.id,
           blNumber: blNumber,
-          items: deliveryData.items
+          items: savedItems
         })
       });
 
@@ -1069,6 +1329,8 @@ export default function ContractGatewayPage() {
       // Save to special history if it's a special doc
       if (deliveryData.isSpecial) {
         handleSaveSpecialDoc(deliveryData);
+      } else {
+        loadData();
       }
 
       setPrintData(deliveryData);
@@ -1432,12 +1694,12 @@ export default function ContractGatewayPage() {
   };
 
   const updateOrderStatus = async (id, newStatus) => {
-    const label = newStatus === 'termine' ? 'Clôturer' : 'Valider';
+    const label = newStatus === 'termine' ? 'Clôturer' : newStatus === 'annule' ? 'Annuler' : 'Valider';
     setAlertModal({
       open: true,
       type: 'confirm',
       title: `${label} le dossier ?`,
-      message: `Voulez-vous passer ce dossier au statut : ${newStatus.replace('_', ' ')} ?`,
+      message: newStatus === 'annule' ? 'Voulez-vous réellement annuler ce dossier ? Il sera exclu des statistiques.' : `Voulez-vous passer ce dossier au statut : ${newStatus.replace('_', ' ')} ?`,
       onConfirm: async () => {
         closeAlert();
         setLoading(true);
@@ -2409,7 +2671,7 @@ export default function ContractGatewayPage() {
                           )}
                         </td>
                         <td>
-                          <span className={`badge badge-${order.status === 'termine' ? 'success' : 'warning'} ${isOldRequest ? 'badge-urgent' : ''}`}>
+                          <span className={`badge badge-${order.status === 'termine' ? 'success' : order.status === 'annule' ? 'danger' : 'warning'} ${isOldRequest ? 'badge-urgent' : ''}`}>
                             {order.status} {isOldRequest && '⚠️'}
                           </span>
                         </td>
@@ -2420,10 +2682,11 @@ export default function ContractGatewayPage() {
                         </td>
                         <td style={{ textAlign: 'right' }}>
                           <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                            <button className="btn btn-secondary btn-sm" onClick={() => handleEditOrder(order.id)} title="Modifier le dossier" disabled={order.status === 'termine'}><Edit size={16} /></button>
+                            <button className="btn btn-secondary btn-sm" onClick={() => handleEditOrder(order.id)} title="Modifier le dossier" disabled={order.status === 'termine' || order.status === 'annule'}><Edit size={16} /></button>
                             <button className="btn btn-secondary btn-sm" onClick={() => viewOrder(order.id)} title="Voir les détails"><Eye size={16} /></button>
                             {order.status === 'demande' && <button className="btn btn-secondary btn-sm" onClick={() => updateOrderStatus(order.id, 'facture_recue')} title="Facture reçue"><ArrowRight size={16} /></button>}
                             {(order.status === 'facture_recue' || order.status === 'po_envoye') && <button className="btn btn-success btn-sm" onClick={() => updateOrderStatus(order.id, 'termine')} title="Clôturer le dossier"><CheckCircle2 size={16} /></button>}
+                            {order.status !== 'termine' && order.status !== 'annule' && <button className="btn btn-danger-outline btn-sm" onClick={() => updateOrderStatus(order.id, 'annule')} title="Annuler le dossier"><XCircle size={16} /></button>}
                             <button className="btn btn-secondary btn-sm" onClick={() => handlePrint(order.id)} title="Imprimer BC"><Printer size={16} /> BC</button>
                             <button className="btn btn-secondary btn-sm" title="Historique BC" onClick={() => loadBCHistory(order.id)}><History size={16} /></button>
                             <button className="btn btn-secondary btn-sm" style={{ color: 'var(--success)' }} title="Générer BL" onClick={() => handleOpenBLModal(order.id)}>
@@ -3998,35 +4261,16 @@ export default function ContractGatewayPage() {
                         <tr key={del.id}>
                           <td style={{ fontWeight: 600 }}>{del.bl_number}</td>
                           <td>{new Date(del.created_at).toLocaleDateString('fr-FR')}</td>
-                          <td>{(typeof del.items === 'string' ? JSON.parse(del.items || '[]') : (del.items || [])).length} articles</td>
-                          <td>
-                            <div style={{ display: 'flex', gap: '0.5rem' }}>
-                              <button className="btn btn-secondary btn-sm" onClick={() => {
-                                const items = typeof del.items === 'string' ? JSON.parse(del.items || '[]') : (del.items || []);
-                                const client = clients.find(c => String(c.id) === String(printData?.clientId || currentDeliveries[0]?.clientId || del.clientId));
-                                setPrintData({
-                                  ...printData,
-                                  items,
-                                  orderNumber: del.bl_number.split('-')[1],
-                                  clientName: client?.name || 'Client',
-                                  blNumber: del.bl_number,
-                                  customDocNumber: del.bl_number.split('-').length === 2 
-                                    ? `BL-${del.bl_number.split('-')[1]}-${new Date(del.created_at || Date.now()).toISOString().split('T')[0].split('-')[2]}${new Date(del.created_at || Date.now()).toISOString().split('T')[0].split('-')[1]}-${new Date(del.created_at || Date.now()).toISOString().split('T')[0].split('-')[0]}`
-                                    : del.bl_number,
-                                  customDate: del.created_at ? new Date(del.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
-                                });
-                                setIsPrintingBL(true);
-                                setTimeout(() => { 
-                                  const originalTitle = document.title;
-                                  document.title = del.bl_number.split('-').length === 2 
-                                    ? `BL-${del.bl_number.split('-')[1]}-${new Date(del.created_at || Date.now()).toISOString().split('T')[0].split('-')[2]}${new Date(del.created_at || Date.now()).toISOString().split('T')[0].split('-')[1]}-${new Date(del.created_at || Date.now()).toISOString().split('T')[0].split('-')[0]}`
-                                    : del.bl_number;
-                                  window.print(); 
-                                  document.title = originalTitle;
-                                  setIsPrintingBL(false); 
-                                  setPrintData(null); 
-                                }, 800);
-                              }}><Printer size={16} /></button>
+                           <td>
+                             {(() => {
+                               const rawItems = typeof del.items === 'string' ? JSON.parse(del.items || '[]') : (del.items || []);
+                               const itemsCount = rawItems.filter(it => !it.isMetadata).length;
+                               return `${itemsCount} articles`;
+                             })()}
+                           </td>
+                           <td>
+                             <div style={{ display: 'flex', gap: '0.5rem' }}>
+                               <button className="btn btn-secondary btn-sm" onClick={() => handleReprintBL(del)}><Printer size={16} /></button>
                               <button className="btn btn-secondary btn-sm" onClick={() => handleFileUpload(del.id, 'bl')} title={del.attachment ? "Changer le scan" : "Joindre un scan/fichier"} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '32px' }}>
                                 <Paperclip size={16} style={{ color: del.attachment ? 'var(--primary)' : '#64748b' }} />
                               </button>
@@ -4071,48 +4315,16 @@ export default function ContractGatewayPage() {
                         <tr key={bc.id}>
                           <td style={{ fontWeight: 600 }}>{bc.bc_number}</td>
                           <td>{new Date(bc.created_at).toLocaleDateString('fr-FR')}</td>
-                          <td>{(typeof bc.items === 'string' ? JSON.parse(bc.items || '[]') : (bc.items || [])).length} articles</td>
-                          <td>
-                            <div style={{ display: 'flex', gap: '0.5rem' }}>
-                              <button className="btn btn-secondary btn-sm" onClick={async () => {
-                                const items = typeof bc.items === 'string' ? JSON.parse(bc.items || '[]') : (bc.items || []);
-                                // Recharger le dossier complet pour avoir les infos client/fournisseur
-                                const fullOrder = await storage.get(`contract-orders/${bc.order_id}`);
-                                const client = clients.find(c => String(c.id) === String(fullOrder.clientId));
-                                const supplier = partners.find(s => String(s.id) === String(fullOrder.supplierId));
-
-                                setPrintData({
-                                  ...fullOrder,
-                                  items,
-                                  orderNumber: bc.bc_number.split('-')[1],
-                                  bcTitleOverride: bc.title,
-                                  sectionTitle: 'FOURNITURE DE PIECES DE RECHANGE',
-                                  requestRef: bc.request_ref,
-                                  clientName: client?.name,
-                                  supplierName: supplier?.name,
-                                  supplierAddress: supplier?.address,
-                                  supplierBP: supplier?.bp,
-                                  supplierPhone: supplier?.phone,
-                                  supplierMyClientCode: supplier?.myClientCode,
-                                  supplierRCCM: supplier?.rccm,
-                                  supplierNIF: supplier?.nif,
-                                  customDocNumber: bc.bc_number.split('-').length === 2
-                                    ? `BC-${bc.bc_number.split('-')[1]}-${new Date(bc.created_at || Date.now()).toISOString().split('T')[0].split('-')[2]}${new Date(bc.created_at || Date.now()).toISOString().split('T')[0].split('-')[1]}-${new Date(bc.created_at || Date.now()).toISOString().split('T')[0].split('-')[0]}`
-                                    : bc.bc_number,
-                                  customDate: bc.created_at ? new Date(bc.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]
-                                });
-                                setIsPrinting(true);
-                                setTimeout(() => { 
-                                  const originalTitle = document.title;
-                                  document.title = bc.bc_number.split('-').length === 2
-                                    ? `BC-${bc.bc_number.split('-')[1]}-${new Date(bc.created_at || Date.now()).toISOString().split('T')[0].split('-')[2]}${new Date(bc.created_at || Date.now()).toISOString().split('T')[0].split('-')[1]}-${new Date(bc.created_at || Date.now()).toISOString().split('T')[0].split('-')[0]}`
-                                    : bc.bc_number;
-                                  window.print(); 
-                                  document.title = originalTitle;
-                                  setIsPrinting(false); 
-                                  setPrintData(null); 
-                                }, 800);
-                              }}><Printer size={16} /></button>
+                           <td>
+                             {(() => {
+                               const rawItems = typeof bc.items === 'string' ? JSON.parse(bc.items || '[]') : (bc.items || []);
+                               const itemsCount = rawItems.filter(it => !it.isMetadata).length;
+                               return `${itemsCount} articles`;
+                             })()}
+                           </td>
+                           <td>
+                             <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                               <button className="btn btn-secondary btn-sm" onClick={() => handleReprintBC(bc)}><Printer size={16} /></button>
                               <button className="btn btn-secondary btn-sm" onClick={() => handleFileUpload(bc.id, 'bc')} title={bc.attachment ? "Changer le scan" : "Joindre un scan/fichier"} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '32px' }}>
                                 <Paperclip size={16} style={{ color: bc.attachment ? 'var(--primary)' : '#64748b' }} />
                               </button>
