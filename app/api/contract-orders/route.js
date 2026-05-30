@@ -64,10 +64,10 @@ export async function GET(request) {
       const statsQuery = `
         SELECT 
           COUNT(*) as total,
-          SUM(CASE WHEN co.status != 'termine' THEN (co.contractAmount * (1 + IFNULL(co.tva_rate, 0) / 100)) ELSE 0 END) as achatsEnCours,
+          SUM(CASE WHEN co.status != 'termine' AND co.status != 'annule' THEN (co.contractAmount * (1 + IFNULL(co.tva_rate, 0) / 100)) ELSE 0 END) as achatsEnCours,
           SUM(CASE WHEN co.status = 'termine' THEN (co.contractAmount * (1 + IFNULL(co.tva_rate, 0) / 100)) ELSE 0 END) as achatsClotures,
           SUM(CASE WHEN co.status = 'demande' THEN 1 ELSE 0 END) as enDemande,
-          SUM(CASE WHEN co.status != 'termine' AND co.delivery_date IS NOT NULL AND co.delivery_date <= CURDATE() THEN 1 ELSE 0 END) as retardLivraison
+          SUM(CASE WHEN co.status != 'termine' AND co.status != 'annule' AND co.delivery_date IS NOT NULL AND co.delivery_date <= CURDATE() THEN 1 ELSE 0 END) as retardLivraison
         ${baseQuery}
       `;
       const [statsRows] = await db.query(statsQuery, params);
@@ -181,7 +181,7 @@ export async function POST(request) {
 
     await connection.commit();
     
-    await logAction(auth.user.id, storeId, 'Création dossier contrat', { orderId: id, partnerId, orderNumber: nextNum });
+    await logAction(auth.user.id, auth.user.storeId, 'Création dossier contrat', { orderId: id, partnerId, orderNumber: nextNum });
 
     return NextResponse.json({ success: true, id });
   } catch (err) {
