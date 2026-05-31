@@ -230,6 +230,15 @@ export default function ContractGatewayPage() {
         customCity: meta.customCity || settings?.city || 'Ouagadougou',
         customSupervisorName: meta.customSupervisorName || partner?.bl_supervisor_name || settings?.blSupervisorName || 'Huges Christian SOW',
         customSupervisorTitle: meta.customSupervisorTitle || partner?.bl_supervisor_title || settings?.blSupervisorTitle || 'Responsable Logistique Adjoint',
+        customSenderDetails: meta.customSenderDetails || [
+          settings?.companyName || 'NS AUTO SARL',
+          settings?.address || 'Secteur 05, Parcelle C, Lot 1317 ter',
+          settings?.rccm ? `RCCM : ${settings.rccm}` : 'RCCM : BF BBD 2018 B 0372',
+          settings?.nif ? `IFU : ${settings.nif}` : 'IFU : 00102506 K',
+          settings?.bp || 'BP 1245 Bobo-dioulasso',
+          settings?.division || 'Division des Grandes Entreprises',
+          settings?.taxSystem || 'Réel Normal d\'Imposition'
+        ].filter(Boolean).join('\n'),
         customRecipientDetails: meta.customRecipientDetails || [
           client?.name,
           client?.address,
@@ -298,6 +307,15 @@ export default function ContractGatewayPage() {
         customCity: meta.customCity || settings?.city || 'Ouagadougou',
         customSupervisorName: meta.customSupervisorName || partner?.supervisor_name || settings?.supervisorName || 'Guy Roland TONDE',
         customSupervisorTitle: meta.customSupervisorTitle || partner?.supervisor_title || settings?.supervisorTitle || 'Superviseur Général',
+        customSenderDetails: meta.customSenderDetails || [
+          settings?.companyName || 'NS AUTO SARL',
+          settings?.address || 'Secteur 05, Parcelle C, Lot 1317 ter',
+          settings?.rccm ? `RCCM : ${settings.rccm}` : 'RCCM : BF BBD 2018 B 0372',
+          settings?.nif ? `IFU : ${settings.nif}` : 'IFU : 00102506 K',
+          settings?.bp || 'BP 1245 Bobo-dioulasso',
+          settings?.division || 'Division des Grandes Entreprises',
+          settings?.taxSystem || 'Réel Normal d\'Imposition'
+        ].filter(Boolean).join('\n'),
         customRecipientDetails: meta.customRecipientDetails || [
           partner?.name,
           partner?.address,
@@ -791,7 +809,16 @@ export default function ContractGatewayPage() {
          exemptionMention: meta.exemptionMention || '',
          items: itemsToUse,
          printNotes: meta.printNotes || '',
-         customRecipientDetails: meta.customRecipientDetails || [
+         customSenderDetails: meta.customSenderDetails || [
+          settings?.companyName || 'NS AUTO SARL',
+          settings?.address || 'Secteur 05, Parcelle C, Lot 1317 ter',
+          settings?.rccm ? `RCCM : ${settings.rccm}` : 'RCCM : BF BBD 2018 B 0372',
+          settings?.nif ? `IFU : ${settings.nif}` : 'IFU : 00102506 K',
+          settings?.bp || 'BP 1245 Bobo-dioulasso',
+          settings?.division || 'Division des Grandes Entreprises',
+          settings?.taxSystem || 'Réel Normal d\'Imposition'
+        ].filter(Boolean).join('\n'),
+        customRecipientDetails: meta.customRecipientDetails || [
            partner?.name,
            partner?.address,
            partner?.bp ? `BP : ${partner.bp}` : null,
@@ -835,6 +862,7 @@ export default function ContractGatewayPage() {
           customDate: printData.customDate,
           customSupervisorName: printData.customSupervisorName,
           customSupervisorTitle: printData.customSupervisorTitle,
+          customSenderDetails: printData.customSenderDetails,
           customRecipientDetails: printData.customRecipientDetails,
           customSite: printData.customSite,
           supplierMyClientCode: printData.supplierMyClientCode,
@@ -1258,7 +1286,16 @@ export default function ContractGatewayPage() {
          customSupervisorTitle: meta.customSupervisorTitle || selectedPartner?.bl_supervisor_title || settings?.blSupervisorTitle || 'Responsable Logistique Adjoint',
          items: itemsToUse,
          printNotes: meta.printNotes || '',
-         customRecipientDetails: meta.customRecipientDetails || [
+         customSenderDetails: meta.customSenderDetails || [
+          settings?.companyName || 'NS AUTO SARL',
+          settings?.address || 'Secteur 05, Parcelle C, Lot 1317 ter',
+          settings?.rccm ? `RCCM : ${settings.rccm}` : 'RCCM : BF BBD 2018 B 0372',
+          settings?.nif ? `IFU : ${settings.nif}` : 'IFU : 00102506 K',
+          settings?.bp || 'BP 1245 Bobo-dioulasso',
+          settings?.division || 'Division des Grandes Entreprises',
+          settings?.taxSystem || 'Réel Normal d\'Imposition'
+        ].filter(Boolean).join('\n'),
+        customRecipientDetails: meta.customRecipientDetails || [
            client?.name,
            client?.address,
            client?.bp ? `BP : ${client.bp}` : null,
@@ -1297,6 +1334,7 @@ export default function ContractGatewayPage() {
         customDate: deliveryData.customDate,
         customSupervisorName: deliveryData.customSupervisorName,
         customSupervisorTitle: deliveryData.customSupervisorTitle,
+        customSenderDetails: deliveryData.customSenderDetails,
         customRecipientDetails: deliveryData.customRecipientDetails,
         customSite: deliveryData.customSite,
         printNotes: deliveryData.printNotes,
@@ -4132,8 +4170,7 @@ export default function ContractGatewayPage() {
                 </div>
               </div>
 
-              <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '0.8rem', marginBottom: '0.75rem' }}>
-                <div className="form-group">
+              <div className="form-group" style={{ marginBottom: '0.75rem' }}>
                   <label className="form-label" style={{ marginBottom: '4px', fontSize: '0.8rem' }}>Référence / Objet (Zone Libre)</label>
                   <textarea
                     className="form-control"
@@ -4141,6 +4178,17 @@ export default function ContractGatewayPage() {
                     value={printData.requestRef || ''}
                     onChange={e => setPrintData({ ...printData, requestRef: e.target.value })}
                     style={{ fontWeight: '600', padding: '6px 12px', resize: 'vertical' }}
+                  ></textarea>
+                </div>
+                <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem', marginBottom: '0.75rem' }}>
+                <div className="form-group">
+                  <label className="form-label" style={{ marginBottom: '4px', fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 'bold' }}>Détails de l'Expéditeur (Bloc de gauche)</label>
+                  <textarea
+                    className="form-control"
+                    rows="5"
+                    style={{ padding: '8px 12px', fontSize: '0.85rem', borderColor: 'var(--primary)', resize: 'vertical' }}
+                    value={printData.customSenderDetails || ''}
+                    onChange={e => setPrintData({ ...printData, customSenderDetails: e.target.value })}
                   ></textarea>
                 </div>
                 <div className="form-group">
@@ -4430,8 +4478,7 @@ export default function ContractGatewayPage() {
                 </div>
               </div>
 
-              <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '0.8rem', marginBottom: '0.75rem' }}>
-                <div className="form-group">
+              <div className="form-group" style={{ marginBottom: '0.75rem' }}>
                   <label className="form-label" style={{ marginBottom: '4px', fontSize: '0.8rem' }}>Référence / Objet (Zone Libre)</label>
                   <textarea
                     className="form-control"
@@ -4439,6 +4486,17 @@ export default function ContractGatewayPage() {
                     value={printData.requestRef || ''}
                     onChange={e => setPrintData({ ...printData, requestRef: e.target.value })}
                     style={{ fontWeight: '600', padding: '6px 12px', resize: 'vertical' }}
+                  ></textarea>
+                </div>
+                <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem', marginBottom: '0.75rem' }}>
+                <div className="form-group">
+                  <label className="form-label" style={{ marginBottom: '4px', fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 'bold' }}>Détails de l'Expéditeur (Bloc de gauche)</label>
+                  <textarea
+                    className="form-control"
+                    rows="5"
+                    style={{ padding: '8px 12px', fontSize: '0.85rem', borderColor: 'var(--primary)', resize: 'vertical' }}
+                    value={printData.customSenderDetails || ''}
+                    onChange={e => setPrintData({ ...printData, customSenderDetails: e.target.value })}
                   ></textarea>
                 </div>
                 <div className="form-group">
