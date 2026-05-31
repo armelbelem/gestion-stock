@@ -1311,20 +1311,22 @@ export default function ContractGatewayPage() {
 
       const savedItems = [...(deliveryData.items || []), metadataItem];
 
-      const res = await fetch('/api/deliveries', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : ''
-        },
-        body: JSON.stringify({
-          orderId: deliveryData.id,
-          blNumber: blNumber,
-          items: savedItems
-        })
-      });
+      if (!deliveryData.isSpecial) {
+        const res = await fetch('/api/deliveries', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : ''
+          },
+          body: JSON.stringify({
+            orderId: deliveryData.id,
+            blNumber: blNumber,
+            items: savedItems
+          })
+        });
 
-      if (!res.ok) throw new Error("Erreur lors de la sauvegarde du BL");
+        if (!res.ok) throw new Error("Erreur lors de la sauvegarde du BL");
+      }
 
       // Save to special history if it's a special doc
       if (deliveryData.isSpecial) {
@@ -1950,7 +1952,7 @@ export default function ContractGatewayPage() {
             <tbody>
               <tr>
                 <td style={{ width: '50%', verticalAlign: 'top', padding: '6px' }}>
-                  <p style={{ margin: '0 0 6px 0', fontSize: '9px' }}><strong>{settings?.companyName} SARL</strong> / Code client : {printData.supplierMyClientCode}</p>
+                  <p style={{ margin: '0 0 6px 0', fontSize: '9px' }}><strong>{settings?.companyName}</strong> / Code client : {printData.supplierMyClientCode}</p>
                   <p style={{ margin: '0 0 2px 0', fontSize: '9px' }}>{settings?.address}</p>
                   <p style={{ margin: '0 0 2px 0', fontSize: '9px' }}>RCCM : {settings?.rccm || 'BF BBD 2018 B 0372'}</p>
                   <p style={{ margin: '0 0 2px 0', fontSize: '9px' }}>IFU : {settings?.nif || '00102506 K'}</p>
@@ -1992,82 +1994,92 @@ export default function ContractGatewayPage() {
           </table>
 
           {/* Main Items Table */}
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr>
-                <th rowSpan="3" style={tableHeaderStyle}>{printData.bcColNo || 'N°'}</th>
-                <th colSpan="4" style={{ ...tableHeaderStyle, fontSize: '9px', letterSpacing: '1px', padding: '4px' }}>DESIGNATION</th>
-                <th style={tableHeaderStyle}>Qté</th>
-                {hasPermission(user, 'stock', 'view_cost_price') && (
-                  <>
-                    <th style={tableHeaderStyle}>Prix HTVA F. CFA</th>
-                    <th style={tableHeaderStyle}>Total HTVA F. CFA</th>
-                  </>
-                )}
-              </tr>
-              <tr>
-                <th colSpan="4" style={{ ...cellStyle, textAlign: 'left', fontWeight: 'bold', fontSize: '9px', paddingLeft: '8px', backgroundColor: '#fff' }}>
-                  {printData.sectionTitle || 'FOURNITURE DE PIECES DE RECHANGE'}
-                </th>
-                <th style={{ ...cellStyle, backgroundColor: '#fff' }}></th>
-                {hasPermission(user, 'stock', 'view_cost_price') && (
-                  <>
-                    <th style={{ ...cellStyle, backgroundColor: '#fff' }}></th>
-                    <th style={{ ...cellStyle, backgroundColor: '#fff' }}></th>
-                  </>
-                )}
-              </tr>
-              <tr>
-                <th style={{ ...tableHeaderStyle, width: '80px' }}>{printData.bcColCode || 'Réf.'}</th>
-                <th style={{ ...tableHeaderStyle, width: '60px' }}>{printData.bcColSite || 'Site'}</th>
-                <th style={{ ...tableHeaderStyle, textAlign: 'left' }}>{printData.bcColDesc || 'Article'}</th>
-                <th style={{ ...tableHeaderStyle, width: '90px' }}>{printData.bcColRef || 'Ref. CFAO'}</th>
-                <th style={tableHeaderStyle}></th>
-                {hasPermission(user, 'stock', 'view_cost_price') && (
-                  <>
-                    <th style={tableHeaderStyle}></th>
-                    <th style={tableHeaderStyle}></th>
-                  </>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {printData.items.map((item, i) => (
-                <tr key={i}>
-                  <td style={{ ...cellStyle, textAlign: 'center' }}>{i + 1}</td>
-                  <td style={{ ...cellStyle, textAlign: 'center' }}>{item.code || '-'}</td>
-                  <td style={{ ...cellStyle, textAlign: 'center' }}>{printData.customSite || (printData.clientName || 'SPEC').substring(0, 4).toUpperCase()}</td>
-                  <td style={{ ...cellStyle, fontWeight: 'bold' }}>{item.description}</td>
-                  <td style={{ ...cellStyle, textAlign: 'center' }}>{item.refCfao || '-'}</td>
-                  <td style={{ ...cellStyle, textAlign: 'center' }}>{item.quantity}</td>
+          {(() => {
+            const numDesignationCols = [printData.hideBcColCode !== true, printData.hideBcColSite !== true, printData.hideBcColDesc !== true, printData.hideBcColRef !== true].filter(Boolean).length;
+            const numTotalColsLeft = [printData.hideBcColNo !== true, printData.hideBcColCode !== true, printData.hideBcColSite !== true, printData.hideBcColDesc !== true, printData.hideBcColRef !== true, printData.hideBcColQty !== true, (hasPermission(user, 'stock', 'view_cost_price') && printData.hideBcColPrice !== true)].filter(Boolean).length;
+
+            return (
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    {printData.hideBcColNo !== true && <th rowSpan="3" style={{...tableHeaderStyle, width: '30px'}}>{printData.bcColNo || 'N°'}</th>}
+                    {numDesignationCols > 0 && (
+                      <th colSpan={numDesignationCols} style={{ ...tableHeaderStyle, fontSize: '9px', letterSpacing: '1px', padding: '4px' }}>DESIGNATION</th>
+                    )}
+                    {printData.hideBcColQty !== true && <th style={{...tableHeaderStyle, width: '50px'}}>Qté</th>}
+                    {hasPermission(user, 'stock', 'view_cost_price') && (
+                      <>
+                        {printData.hideBcColPrice !== true && <th style={{...tableHeaderStyle, width: '85px'}}>Prix HTVA F. CFA</th>}
+                        {printData.hideBcColTotal !== true && <th style={{...tableHeaderStyle, width: '95px'}}>Total HTVA F. CFA</th>}
+                      </>
+                    )}
+                  </tr>
+                  <tr>
+                    {numDesignationCols > 0 && (
+                      <th colSpan={numDesignationCols} style={{ ...cellStyle, textAlign: 'left', fontWeight: 'bold', fontSize: '9px', paddingLeft: '8px', backgroundColor: '#fff' }}>
+                        {printData.sectionTitle || 'FOURNITURE DE PIECES DE RECHANGE'}
+                      </th>
+                    )}
+                    {printData.hideBcColQty !== true && <th style={{ ...cellStyle, backgroundColor: '#fff' }}></th>}
+                    {hasPermission(user, 'stock', 'view_cost_price') && (
+                      <>
+                        {printData.hideBcColPrice !== true && <th style={{ ...cellStyle, backgroundColor: '#fff' }}></th>}
+                        {printData.hideBcColTotal !== true && <th style={{ ...cellStyle, backgroundColor: '#fff' }}></th>}
+                      </>
+                    )}
+                  </tr>
+                  <tr>
+                    {printData.hideBcColCode !== true && <th style={{ ...tableHeaderStyle, width: '80px' }}>{printData.bcColCode || 'Réf.'}</th>}
+                    {printData.hideBcColSite !== true && <th style={{ ...tableHeaderStyle, width: '60px' }}>{printData.bcColSite || 'Site'}</th>}
+                    {printData.hideBcColDesc !== true && <th style={{ ...tableHeaderStyle, textAlign: 'left' }}>{printData.bcColDesc || 'Article'}</th>}
+                    {printData.hideBcColRef !== true && <th style={{ ...tableHeaderStyle, width: '90px' }}>{printData.bcColRef || 'Ref. CFAO'}</th>}
+                    {printData.hideBcColQty !== true && <th style={tableHeaderStyle}></th>}
+                    {hasPermission(user, 'stock', 'view_cost_price') && (
+                      <>
+                        {printData.hideBcColPrice !== true && <th style={tableHeaderStyle}></th>}
+                        {printData.hideBcColTotal !== true && <th style={tableHeaderStyle}></th>}
+                      </>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {printData.items.map((item, i) => (
+                    <tr key={i}>
+                      {printData.hideBcColNo !== true && <td style={{ ...cellStyle, textAlign: 'center' }}>{i + 1}</td>}
+                      {printData.hideBcColCode !== true && <td style={{ ...cellStyle, textAlign: 'center' }}>{item.code || '-'}</td>}
+                      {printData.hideBcColSite !== true && <td style={{ ...cellStyle, textAlign: 'center' }}>{printData.customSite || (printData.clientName || 'SPEC').substring(0, 4).toUpperCase()}</td>}
+                      {printData.hideBcColDesc !== true && <td style={{ ...cellStyle, fontWeight: 'bold' }}>{item.description}</td>}
+                      {printData.hideBcColRef !== true && <td style={{ ...cellStyle, textAlign: 'center' }}>{item.refCfao || '-'}</td>}
+                      {printData.hideBcColQty !== true && <td style={{ ...cellStyle, textAlign: 'center' }}>{item.quantity}</td>}
+                      {hasPermission(user, 'stock', 'view_cost_price') && (
+                        <>
+                          {printData.hideBcColPrice !== true && <td style={{ ...cellStyle, textAlign: 'right' }}>{formatPrice(isPurchaseDoc ? item.purchasePrice : item.sellPrice)}</td>}
+                          {printData.hideBcColTotal !== true && <td style={{ ...cellStyle, textAlign: 'right', fontWeight: 'bold' }}>{formatPrice((isPurchaseDoc ? item.purchasePrice : item.sellPrice) * item.quantity)}</td>}
+                        </>
+                      )}
+                    </tr>
+                  ))}
+
                   {hasPermission(user, 'stock', 'view_cost_price') && (
                     <>
-                      <td style={{ ...cellStyle, textAlign: 'right' }}>{formatPrice(isPurchaseDoc ? item.purchasePrice : item.sellPrice)}</td>
-                      <td style={{ ...cellStyle, textAlign: 'right', fontWeight: 'bold' }}>{formatPrice((isPurchaseDoc ? item.purchasePrice : item.sellPrice) * item.quantity)}</td>
+                      <tr>
+                        <td colSpan={numTotalColsLeft} style={{ textAlign: 'right', fontWeight: 'bold', padding: '2px 6px', fontSize: '8.5px' }}>MONTANT HTVA</td>
+                        {printData.hideBcColTotal !== true && <td style={{ textAlign: 'right', fontWeight: 'bold', padding: '2px 6px', fontSize: '8.5px' }}>{formatPrice(amountHT)}</td>}
+                      </tr>
+                      <tr>
+                        <td colSpan={numTotalColsLeft} style={{ textAlign: 'right', fontWeight: 'bold', padding: '2px 6px', fontSize: '8.5px' }}>MONTANT TVA {tvaValue}%</td>
+                        {printData.hideBcColTotal !== true && <td style={{ textAlign: 'right', fontWeight: 'bold', padding: '2px 6px', fontSize: '8.5px' }}>{formatPrice(amountTVA)}</td>}
+                      </tr>
+                      <tr style={{ backgroundColor: '#d1d5db' }}>
+                        <td colSpan={numTotalColsLeft} style={{ textAlign: 'right', fontWeight: 'bold', padding: '3px 8px', fontSize: '9px' }}>TOTAL NET A PAYER</td>
+                        {printData.hideBcColTotal !== true && <td style={{ textAlign: 'right', fontWeight: 'bold', padding: '3px 8px', fontSize: '9px' }}>{formatPrice(amountTTC)}</td>}
+                      </tr>
                     </>
                   )}
-                </tr>
-              ))}
-
-
-              {hasPermission(user, 'stock', 'view_cost_price') && (
-                <>
-                  <tr>
-                    <td colSpan={hasPermission(user, 'stock', 'view_cost_price') ? "7" : "5"} style={{ textAlign: 'right', fontWeight: 'bold', padding: '2px 6px', fontSize: '8.5px' }}>MONTANT HTVA</td>
-                    <td style={{ textAlign: 'right', fontWeight: 'bold', padding: '2px 6px', fontSize: '8.5px' }}>{formatPrice(amountHT)}</td>
-                  </tr>
-                  <tr>
-                    <td colSpan={hasPermission(user, 'stock', 'view_cost_price') ? "7" : "5"} style={{ textAlign: 'right', fontWeight: 'bold', padding: '2px 6px', fontSize: '8.5px' }}>MONTANT TVA {tvaValue}%</td>
-                    <td style={{ textAlign: 'right', fontWeight: 'bold', padding: '2px 6px', fontSize: '8.5px' }}>{formatPrice(amountTVA)}</td>
-                  </tr>
-                  <tr style={{ backgroundColor: '#d1d5db' }}>
-                    <td colSpan={hasPermission(user, 'stock', 'view_cost_price') ? "7" : "5"} style={{ textAlign: 'right', fontWeight: 'bold', padding: '3px 8px', fontSize: '9px' }}>TOTAL NET A PAYER</td>
-                    <td style={{ textAlign: 'right', fontWeight: 'bold', padding: '3px 8px', fontSize: '9px' }}>{formatPrice(amountTTC)}</td>
-                  </tr>
-                </>
-              )}
-            </tbody>
-          </table>
+                </tbody>
+              </table>
+            );
+          })()}
 
           {printData.isExempt && hasPermission(user, 'stock', 'view_cost_price') && (
             <div style={{ marginTop: '10px', padding: '8px', border: '1pt solid #b91c1c', backgroundColor: '#fff5f5', borderRadius: '4px', textAlign: 'center' }}>
@@ -2235,7 +2247,7 @@ export default function ContractGatewayPage() {
             <tbody>
               <tr>
                 <td style={{ width: '50%', verticalAlign: 'top', padding: '6px', border: printBorder }}>
-                  <p style={{ margin: '0 0 6px 0', fontSize: '9px' }}><strong>{settings?.companyName} SARL</strong></p>
+                  <p style={{ margin: '0 0 6px 0', fontSize: '9px' }}><strong>{settings?.companyName}</strong></p>
                   <p style={{ margin: '0 0 2px 0', fontSize: '9px' }}>{settings?.address}</p>
                   <p style={{ margin: '0 0 2px 0', fontSize: '9px' }}>RCCM : {settings?.rccm || 'BF BBD 2018 B 0372'}</p>
                   <p style={{ margin: '0 0 2px 0', fontSize: '9px' }}>IFU : {settings?.nif || '00102506 K'}</p>
@@ -2277,96 +2289,125 @@ export default function ContractGatewayPage() {
           </table>
 
           {/* Table avec structure type BL - format cible */}
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr>
-                <th rowSpan="3" style={{ ...tableHeaderStyle, width: '30px', backgroundColor: '#d1d5db', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>{printData.blColNo || 'N°'}</th>
-                <th colSpan="4" style={{
-                  ...tableHeaderStyle, fontSize: '9px', letterSpacing: '1px', padding: '4px',
-                  backgroundColor: '#d1d5db',
-                  WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'
-                }}>DESIGNATION</th>
-                <th style={{
-                  ...tableHeaderStyle, width: '70px',
-                  backgroundColor: '#d1d5db',
-                  WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'
-                }}>{printData.blColQty || 'Quantité'}</th>
-              </tr>
-              <tr>
-                <th colSpan="4" style={{ ...cellStyle, textAlign: 'left', fontWeight: 'bold', fontSize: '9px', paddingLeft: '8px', backgroundColor: '#fff' }}>
-                  {printData.sectionTitle || 'FOURNITURE DE PIECES DE RECHANGE'}
-                </th>
-                <th style={{
-                  ...cellStyle,
-                  backgroundColor: '#fff',
-                  WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'
-                }}></th>
-              </tr>
-              <tr>
-                <th style={{ ...tableHeaderStyle, width: '80px', verticalAlign: 'top', padding: '3px 4px' }}>
-                  <div style={{ textDecoration: 'underline' }}>{printData.blColCode || 'Ref.'}</div>
-                  <div style={{ fontWeight: 'normal', fontSize: '8px', marginTop: '1px' }}>
-                    {printData.customSite || (printData.clientName || '').substring(0, 4).toUpperCase()}
-                  </div>
-                </th>
-                <th style={{ ...tableHeaderStyle, width: '60px', textDecoration: 'underline' }}>{printData.blColSite || 'Site'}</th>
-                <th style={{ ...tableHeaderStyle, textAlign: 'left', textDecoration: 'underline' }}>{printData.blColDesc || 'Article'}</th>
-                <th style={{ ...tableHeaderStyle, width: '90px', textDecoration: 'underline' }}>{printData.blColRef || 'Ref. NSA'}</th>
-                <th style={{
-                  ...tableHeaderStyle,
-                  backgroundColor: '#d1d5db',
-                  WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'
-                }}></th>
-              </tr>
-            </thead>
-            <tbody>
-              {printData.items.map((item, i) => (
-                <tr key={i}>
-                  <td style={{
-                    ...cellStyle, textAlign: 'center',
-                    backgroundColor: '#d1d5db',
-                    WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'
-                  }}>{i + 1}</td>
-                  <td style={{ ...cellStyle, textAlign: 'center' }}>{item.code || 'NA'}</td>
-                  <td style={{ ...cellStyle, textAlign: 'center' }}>{printData.customSite || (printData.clientName || 'SPEC').substring(0, 4).toUpperCase()}</td>
-                  <td style={{ ...cellStyle, fontWeight: 'bold' }}>{item.description}</td>
-                  <td style={{ ...cellStyle, textAlign: 'center' }}>{item.refCfao || '-'}</td>
-                  <td style={{ ...cellStyle, textAlign: 'center', fontWeight: 'bold' }}>{item.quantity}</td>
-                </tr>
-              ))}
-              <tr>
-                <td style={{
-                  ...cellStyle,
-                  backgroundColor: '#d1d5db',
-                  WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'
-                }}></td>
-                <td colSpan="5" style={{
-                  ...cellStyle,
-                  fontSize: '9px',
-                  padding: '4px 8px',
-                  verticalAlign: 'top',
-                  backgroundColor: '#fff',
-                  WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'
-                }}>
-                  <div style={{ fontWeight: 'bold' }}>Délais de livraison</div>
-                  <div style={{ fontWeight: 'bold' }}>sur site :</div>
-                </td>
-              </tr>
-              <tr>
-                <td style={{
-                  ...cellStyle,
-                  backgroundColor: '#d1d5db',
-                  WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'
-                }}></td>
-                <td colSpan="5" style={{
-                  ...cellStyle,
-                  padding: '8px',
-                  backgroundColor: '#d1d5db',
-                  WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'
-                }}></td>
-              </tr>
-            </tbody>
-          </table>
+          {(() => {
+            const numDesignationCols = [printData.hideBlColCode !== true, printData.hideBlColSite !== true, printData.hideBlColDesc !== true, printData.hideBlColRef !== true].filter(Boolean).length;
+            const remainingCols = numDesignationCols + (printData.hideBlColQty !== true ? 1 : 0);
+
+            return (
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    {printData.hideBlColNo !== true && <th rowSpan="3" style={{ ...tableHeaderStyle, width: '30px', backgroundColor: '#d1d5db', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>{printData.blColNo || 'N°'}</th>}
+                    {numDesignationCols > 0 && (
+                      <th colSpan={numDesignationCols} style={{
+                        ...tableHeaderStyle, fontSize: '9px', letterSpacing: '1px', padding: '4px',
+                        backgroundColor: '#d1d5db',
+                        WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'
+                      }}>DESIGNATION</th>
+                    )}
+                    {printData.hideBlColQty !== true && (
+                      <th style={{
+                        ...tableHeaderStyle, width: '70px',
+                        backgroundColor: '#d1d5db',
+                        WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'
+                      }}>{printData.blColQty || 'Quantité'}</th>
+                    )}
+                  </tr>
+                  <tr>
+                    {numDesignationCols > 0 && (
+                      <th colSpan={numDesignationCols} style={{ ...cellStyle, textAlign: 'left', fontWeight: 'bold', fontSize: '9px', paddingLeft: '8px', backgroundColor: '#fff' }}>
+                        {printData.sectionTitle || 'FOURNITURE DE PIECES DE RECHANGE'}
+                      </th>
+                    )}
+                    {printData.hideBlColQty !== true && (
+                      <th style={{
+                        ...cellStyle,
+                        backgroundColor: '#fff',
+                        WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'
+                      }}></th>
+                    )}
+                  </tr>
+                  <tr>
+                    {printData.hideBlColCode !== true && (
+                      <th style={{ ...tableHeaderStyle, width: '80px', verticalAlign: 'top', padding: '3px 4px' }}>
+                        <div style={{ textDecoration: 'underline' }}>{printData.blColCode || 'Ref.'}</div>
+                        <div style={{ fontWeight: 'normal', fontSize: '8px', marginTop: '1px' }}>
+                          {printData.customSite || (printData.clientName || '').substring(0, 4).toUpperCase()}
+                        </div>
+                      </th>
+                    )}
+                    {printData.hideBlColSite !== true && <th style={{ ...tableHeaderStyle, width: '60px', textDecoration: 'underline' }}>{printData.blColSite || 'Site'}</th>}
+                    {printData.hideBlColDesc !== true && <th style={{ ...tableHeaderStyle, textAlign: 'left', textDecoration: 'underline' }}>{printData.blColDesc || 'Article'}</th>}
+                    {printData.hideBlColRef !== true && <th style={{ ...tableHeaderStyle, width: '90px', textDecoration: 'underline' }}>{printData.blColRef || 'Ref. NSA'}</th>}
+                    {printData.hideBlColQty !== true && (
+                      <th style={{
+                        ...tableHeaderStyle,
+                        backgroundColor: '#d1d5db',
+                        WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'
+                      }}></th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {printData.items.map((item, i) => (
+                    <tr key={i}>
+                      {printData.hideBlColNo !== true && (
+                        <td style={{
+                          ...cellStyle, textAlign: 'center',
+                          backgroundColor: '#d1d5db',
+                          WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'
+                        }}>{i + 1}</td>
+                      )}
+                      {printData.hideBlColCode !== true && <td style={{ ...cellStyle, textAlign: 'center' }}>{item.code || 'NA'}</td>}
+                      {printData.hideBlColSite !== true && <td style={{ ...cellStyle, textAlign: 'center' }}>{printData.customSite || (printData.clientName || 'SPEC').substring(0, 4).toUpperCase()}</td>}
+                      {printData.hideBlColDesc !== true && <td style={{ ...cellStyle, fontWeight: 'bold' }}>{item.description}</td>}
+                      {printData.hideBlColRef !== true && <td style={{ ...cellStyle, textAlign: 'center' }}>{item.refCfao || '-'}</td>}
+                      {printData.hideBlColQty !== true && <td style={{ ...cellStyle, textAlign: 'center', fontWeight: 'bold' }}>{item.quantity}</td>}
+                    </tr>
+                  ))}
+                  <tr>
+                    {printData.hideBlColNo !== true && (
+                      <td style={{
+                        ...cellStyle,
+                        backgroundColor: '#d1d5db',
+                        WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'
+                      }}></td>
+                    )}
+                    {remainingCols > 0 && (
+                      <td colSpan={remainingCols} style={{
+                        ...cellStyle,
+                        fontSize: '9px',
+                        padding: '4px 8px',
+                        verticalAlign: 'top',
+                        backgroundColor: '#fff',
+                        WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'
+                      }}>
+                        <div style={{ fontWeight: 'bold' }}>Délais de livraison</div>
+                        <div style={{ fontWeight: 'bold' }}>sur site :</div>
+                      </td>
+                    )}
+                  </tr>
+                  <tr>
+                    {printData.hideBlColNo !== true && (
+                      <td style={{
+                        ...cellStyle,
+                        backgroundColor: '#d1d5db',
+                        WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'
+                      }}></td>
+                    )}
+                    {remainingCols > 0 && (
+                      <td colSpan={remainingCols} style={{
+                        ...cellStyle,
+                        padding: '8px',
+                        backgroundColor: '#d1d5db',
+                        WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'
+                      }}></td>
+                    )}
+                  </tr>
+                </tbody>
+              </table>
+            );
+          })()}
 
           {printData.printNotes && (
             <div style={{ marginTop: '10px', padding: '8px', border: '1pt solid #eee', borderRadius: '4px' }}>
@@ -4169,12 +4210,19 @@ export default function ContractGatewayPage() {
               <div style={{ padding: '1rem', backgroundColor: '#fdf2f2', borderRadius: '8px', border: '1px solid #fecaca', marginBottom: '1rem' }}>
                 <h5 style={{ fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '0.75rem', color: '#b91c1c' }}>Libellés des colonnes (BL)</h5>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
-                  <input type="text" className="form-control form-control-sm" value={printData.blColNo || ''} onChange={e => setPrintData({ ...printData, blColNo: e.target.value })} placeholder="Col 1 (N°)" />
-                  <input type="text" className="form-control form-control-sm" value={printData.blColSite || ''} onChange={e => setPrintData({ ...printData, blColSite: e.target.value })} placeholder="Col 2 (Site)" />
-                  <input type="text" className="form-control form-control-sm" value={printData.blColDesc || ''} onChange={e => setPrintData({ ...printData, blColDesc: e.target.value })} placeholder="Col 3 (Désignation)" />
-                  <input type="text" className="form-control form-control-sm" value={printData.blColCode || ''} onChange={e => setPrintData({ ...printData, blColCode: e.target.value })} placeholder="Col 4 (Code)" />
-                  <input type="text" className="form-control form-control-sm" value={printData.blColRef || ''} onChange={e => setPrintData({ ...printData, blColRef: e.target.value })} placeholder="Col 5 (Référence)" />
-                  <input type="text" className="form-control form-control-sm" value={printData.blColQty || ''} onChange={e => setPrintData({ ...printData, blColQty: e.target.value })} placeholder="Col 6 (Qté)" />
+                  {[
+                    { col: 'blColNo', hide: 'hideBlColNo', label: 'Col 1 (N°)' },
+                    { col: 'blColSite', hide: 'hideBlColSite', label: 'Col 2 (Site)' },
+                    { col: 'blColDesc', hide: 'hideBlColDesc', label: 'Col 3 (Désignation)' },
+                    { col: 'blColCode', hide: 'hideBlColCode', label: 'Col 4 (Code)' },
+                    { col: 'blColRef', hide: 'hideBlColRef', label: 'Col 5 (Référence)' },
+                    { col: 'blColQty', hide: 'hideBlColQty', label: 'Col 6 (Qté)' }
+                  ].map(c => (
+                    <div key={c.col} style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#fff', padding: '2px', border: '1px solid #fecaca', borderRadius: '4px' }}>
+                      <input type="checkbox" title="Afficher/Masquer" style={{ marginLeft: '4px', cursor: 'pointer' }} checked={printData[c.hide] !== true} onChange={e => setPrintData({ ...printData, [c.hide]: !e.target.checked })} />
+                      <input type="text" className="form-control form-control-sm" style={{ border: 'none', boxShadow: 'none', padding: '2px 4px', width: '100%' }} value={printData[c.col] || ''} onChange={e => setPrintData({ ...printData, [c.col]: e.target.value })} placeholder={c.label} />
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -4495,14 +4543,21 @@ export default function ContractGatewayPage() {
               <div style={{ padding: '1rem', backgroundColor: '#eff6ff', borderRadius: '8px', border: '1px solid #bfdbfe', marginBottom: '1rem' }}>
                 <h5 style={{ fontSize: '0.8rem', fontWeight: 'bold', marginBottom: '0.75rem', color: '#1e40af' }}>Libellés des colonnes (BC)</h5>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem' }}>
-                  <input type="text" className="form-control form-control-sm" value={printData.bcColNo || ''} onChange={e => setPrintData({ ...printData, bcColNo: e.target.value })} placeholder="Col 1 (N°)" />
-                  <input type="text" className="form-control form-control-sm" value={printData.bcColSite || ''} onChange={e => setPrintData({ ...printData, bcColSite: e.target.value })} placeholder="Col 2 (Site)" />
-                  <input type="text" className="form-control form-control-sm" value={printData.bcColDesc || ''} onChange={e => setPrintData({ ...printData, bcColDesc: e.target.value })} placeholder="Col 3 (Désignation)" />
-                  <input type="text" className="form-control form-control-sm" value={printData.bcColCode || ''} onChange={e => setPrintData({ ...printData, bcColCode: e.target.value })} placeholder="Col 4 (Code)" />
-                  <input type="text" className="form-control form-control-sm" value={printData.bcColRef || ''} onChange={e => setPrintData({ ...printData, bcColRef: e.target.value })} placeholder="Col 5 (Référence)" />
-                  <input type="text" className="form-control form-control-sm" value={printData.bcColQty || ''} onChange={e => setPrintData({ ...printData, bcColQty: e.target.value })} placeholder="Col 6 (Qté)" />
-                  <input type="text" className="form-control form-control-sm" value={printData.bcColPrice || ''} onChange={e => setPrintData({ ...printData, bcColPrice: e.target.value })} placeholder="Col 7 (P. HTVA)" />
-                  <input type="text" className="form-control form-control-sm" value={printData.bcColTotal || ''} onChange={e => setPrintData({ ...printData, bcColTotal: e.target.value })} placeholder="Col 8 (Total HTVA)" />
+                  {[
+                    { col: 'bcColNo', hide: 'hideBcColNo', label: 'Col 1 (N°)' },
+                    { col: 'bcColSite', hide: 'hideBcColSite', label: 'Col 2 (Site)' },
+                    { col: 'bcColDesc', hide: 'hideBcColDesc', label: 'Col 3 (Désignation)' },
+                    { col: 'bcColCode', hide: 'hideBcColCode', label: 'Col 4 (Code)' },
+                    { col: 'bcColRef', hide: 'hideBcColRef', label: 'Col 5 (Référence)' },
+                    { col: 'bcColQty', hide: 'hideBcColQty', label: 'Col 6 (Qté)' },
+                    { col: 'bcColPrice', hide: 'hideBcColPrice', label: 'Col 7 (P. HTVA)' },
+                    { col: 'bcColTotal', hide: 'hideBcColTotal', label: 'Col 8 (Total HTVA)' }
+                  ].map(c => (
+                    <div key={c.col} style={{ display: 'flex', alignItems: 'center', gap: '4px', backgroundColor: '#fff', padding: '2px', border: '1px solid #bfdbfe', borderRadius: '4px' }}>
+                      <input type="checkbox" title="Afficher/Masquer" style={{ marginLeft: '4px', cursor: 'pointer' }} checked={printData[c.hide] !== true} onChange={e => setPrintData({ ...printData, [c.hide]: !e.target.checked })} />
+                      <input type="text" className="form-control form-control-sm" style={{ border: 'none', boxShadow: 'none', padding: '2px 4px', width: '100%' }} value={printData[c.col] || ''} onChange={e => setPrintData({ ...printData, [c.col]: e.target.value })} placeholder={c.label} />
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -4535,14 +4590,14 @@ export default function ContractGatewayPage() {
                           newItems[idx].description = e.target.value;
                           setPrintData({ ...printData, items: newItems });
                         }} placeholder="Nom de l'article" /></td>
-                        <td style={{ width: '100px' }}><input type="number" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} min="0" className="form-control" style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '1rem' }} value={item.quantity || 1} onChange={e => {
+                        <td style={{ width: '100px' }}><input type="number" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} min="0" className="form-control" style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '1rem' }} value={item.quantity === '' ? '' : (item.quantity ?? 1)} onChange={e => {
                           const newItems = [...printData.items];
-                          newItems[idx].quantity = Number(e.target.value);
+                          newItems[idx].quantity = e.target.value === '' ? '' : Number(e.target.value);
                           setPrintData({ ...printData, items: newItems });
                         }} min="1" /></td>
-                        <td style={{ width: '120px' }}><input type="number" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} min="0" className="form-control form-control-sm" style={{ textAlign: 'right' }} value={item.purchasePrice} onChange={e => {
+                        <td style={{ width: '120px' }}><input type="number" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} min="0" className="form-control form-control-sm" style={{ textAlign: 'right' }} value={item.purchasePrice === '' ? '' : (item.purchasePrice ?? 0)} onChange={e => {
                           const newItems = [...printData.items];
-                          newItems[idx].purchasePrice = Number(e.target.value);
+                          newItems[idx].purchasePrice = e.target.value === '' ? '' : Number(e.target.value);
                           setPrintData({ ...printData, items: newItems });
                         }} min="0" /></td>
                       </tr>
