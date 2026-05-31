@@ -401,55 +401,67 @@ export default function ClientReportPage() {
         <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '30px', fontSize: '8px' }}>
           <thead>
             <tr style={{ backgroundColor: '#f0f0f0', borderBottom: '2px solid #000' }}>
-              <th style={{ textAlign: 'left', padding: '4px', border: '1px solid #000' }}>{printData?.colHeaders?.code || 'CODE'}</th>
-              <th style={{ textAlign: 'left', padding: '4px', border: '1px solid #000' }}>{printData?.colHeaders?.barcode || 'RÉFÉRENCE'}</th>
-              <th style={{ textAlign: 'left', padding: '4px', border: '1px solid #000' }}>{printData?.colHeaders?.name || 'DÉSIGNATION ARTICLE'}</th>
-              <th style={{ textAlign: 'right', padding: '4px', border: '1px solid #000' }}>{printData?.colHeaders?.unitPrice || 'P.U (FCFA)'}</th>
-              <th style={{ textAlign: 'center', padding: '4px', border: '1px solid #000' }}>{printData?.colHeaders?.qty || 'QTÉ'}</th>
-              <th style={{ textAlign: 'right', padding: '4px', border: '1px solid #000' }}>{printData?.colHeaders?.total || 'TOTAL (FCFA)'}</th>
+              {printData?.hideColCode !== true && <th style={{ textAlign: 'left', padding: '4px', border: '1px solid #000' }}>{printData?.colHeaders?.code || 'CODE'}</th>}
+              {printData?.hideColBarcode !== true && <th style={{ textAlign: 'left', padding: '4px', border: '1px solid #000' }}>{printData?.colHeaders?.barcode || 'RÉFÉRENCE'}</th>}
+              {printData?.hideColName !== true && <th style={{ textAlign: 'left', padding: '4px', border: '1px solid #000' }}>{printData?.colHeaders?.name || 'DÉSIGNATION ARTICLE'}</th>}
+              {printData?.hideColUnitPrice !== true && <th style={{ textAlign: 'right', padding: '4px', border: '1px solid #000' }}>{printData?.colHeaders?.unitPrice || 'P.U (FCFA)'}</th>}
+              {printData?.hideColQty !== true && <th style={{ textAlign: 'center', padding: '4px', border: '1px solid #000' }}>{printData?.colHeaders?.qty || 'QTÉ'}</th>}
+              {printData?.hideColTotal !== true && <th style={{ textAlign: 'right', padding: '4px', border: '1px solid #000' }}>{printData?.colHeaders?.total || 'TOTAL (FCFA)'}</th>}
             </tr>
           </thead>
           <tbody>
-            {printData?.items?.map((item, idx) => (
-              <tr key={idx}>
-                <td style={{ padding: '4px', border: '1px solid #000' }}>{item.code || '-'}</td>
-                <td style={{ padding: '4px', border: '1px solid #000' }}>{item.barcode || '-'}</td>
-                <td style={{ padding: '4px', border: '1px solid #000' }}>{item.name}</td>
-                <td style={{ padding: '4px', border: '1px solid #000' }}>{formatPrice(item.unitPrice)}</td>
-                <td style={{ textAlign: 'center', padding: '4px', border: '1px solid #000' }}>{item.totalQuantity}</td>
-                <td style={{ textAlign: 'right', padding: '4px', border: '1px solid #000', fontWeight: 'bold' }}>{formatPrice(item.totalAmount)}</td>
-              </tr>
-            ))}
-            {/* Déplacement des totaux dans tbody pour qu'ils n'apparaissent qu'à la toute fin */}
-            <tr style={{ backgroundColor: '#f0f0f0', fontWeight: 'bold' }}>
-              <td colSpan="4" style={{ textAlign: 'right', padding: '4px', border: '1px solid #000' }}>TOTAL BRUT</td>
-              <td style={{ textAlign: 'center', padding: '4px', border: '1px solid #000' }}>{printData?.summary?.totalQuantity}</td>
-              <td style={{ textAlign: 'right', padding: '4px', border: '1px solid #000' }}>{formatPrice(printData?.summary?.totalGrossAmount)} FCFA</td>
-            </tr>
-            {printData?.summary?.totalDiscount > 0 && (
-              <tr style={{ fontWeight: 'bold' }}>
-                <td colSpan="5" style={{ textAlign: 'right', padding: '4px', border: '1px solid #000' }}>TOTAL REMISES</td>
-                <td style={{ textAlign: 'right', padding: '4px', border: '1px solid #000' }}>-{formatPrice(printData?.summary?.totalDiscount)} FCFA</td>
-              </tr>
-            )}
-            {printData?.summary?.totalTva > 0 && (() => {
-              const base = (printData?.summary?.totalGrossAmount || 0) - (printData?.summary?.totalDiscount || 0);
-              const pct = base > 0 ? Math.round((printData.summary.totalTva / base) * 100) : 0;
+            {(() => {
+              // Calcul du colspan pour les totaux
+              const numLeftCols = [printData?.hideColCode !== true, printData?.hideColBarcode !== true, printData?.hideColName !== true, printData?.hideColUnitPrice !== true].filter(Boolean).length;
+              const hasQty = printData?.hideColQty !== true;
+              const hasTotal = printData?.hideColTotal !== true;
+              
               return (
-                <tr style={{ fontWeight: 'bold' }}>
-                  <td colSpan="5" style={{ textAlign: 'right', padding: '4px', border: '1px solid #000' }}>
-                    MONTANT TVA ({pct}%)
-                  </td>
-                  <td style={{ textAlign: 'right', padding: '4px', border: '1px solid #000' }}>{formatPrice(printData.summary.totalTva)} FCFA</td>
-                </tr>
+                <React.Fragment>
+                  {printData?.items?.map((item, idx) => (
+                    <tr key={idx}>
+                      {printData?.hideColCode !== true && <td style={{ padding: '4px', border: '1px solid #000' }}>{item.code || '-'}</td>}
+                      {printData?.hideColBarcode !== true && <td style={{ padding: '4px', border: '1px solid #000' }}>{item.barcode || '-'}</td>}
+                      {printData?.hideColName !== true && <td style={{ padding: '4px', border: '1px solid #000' }}>{item.name}</td>}
+                      {printData?.hideColUnitPrice !== true && <td style={{ padding: '4px', border: '1px solid #000', textAlign: 'right' }}>{formatPrice(item.unitPrice)}</td>}
+                      {printData?.hideColQty !== true && <td style={{ textAlign: 'center', padding: '4px', border: '1px solid #000' }}>{item.totalQuantity}</td>}
+                      {printData?.hideColTotal !== true && <td style={{ textAlign: 'right', padding: '4px', border: '1px solid #000', fontWeight: 'bold' }}>{formatPrice(item.totalAmount)}</td>}
+                    </tr>
+                  ))}
+                  
+                  {/* Totaux */}
+                  <tr style={{ backgroundColor: '#f0f0f0', fontWeight: 'bold' }}>
+                    {numLeftCols > 0 && <td colSpan={numLeftCols} style={{ textAlign: 'right', padding: '4px', border: '1px solid #000' }}>TOTAL BRUT</td>}
+                    {hasQty && <td style={{ textAlign: 'center', padding: '4px', border: '1px solid #000' }}>{printData?.summary?.totalQuantity}</td>}
+                    {hasTotal && <td style={{ textAlign: 'right', padding: '4px', border: '1px solid #000' }}>{formatPrice(printData?.summary?.totalGrossAmount)} FCFA</td>}
+                  </tr>
+                  
+                  {printData?.summary?.totalDiscount > 0 && (
+                    <tr style={{ fontWeight: 'bold' }}>
+                      <td colSpan={numLeftCols + (hasQty ? 1 : 0)} style={{ textAlign: 'right', padding: '4px', border: '1px solid #000' }}>TOTAL REMISES</td>
+                      {hasTotal && <td style={{ textAlign: 'right', padding: '4px', border: '1px solid #000' }}>-{formatPrice(printData?.summary?.totalDiscount)} FCFA</td>}
+                    </tr>
+                  )}
+                  
+                  {printData?.summary?.totalTva > 0 && (() => {
+                    const base = (printData?.summary?.totalGrossAmount || 0) - (printData?.summary?.totalDiscount || 0);
+                    const pct = base > 0 ? Math.round((printData.summary.totalTva / base) * 100) : 0;
+                    return (
+                      <tr style={{ fontWeight: 'bold' }}>
+                        <td colSpan={numLeftCols + (hasQty ? 1 : 0)} style={{ textAlign: 'right', padding: '4px', border: '1px solid #000' }}>MONTANT TVA ({pct}%)</td>
+                        {hasTotal && <td style={{ textAlign: 'right', padding: '4px', border: '1px solid #000' }}>{formatPrice(printData.summary.totalTva)} FCFA</td>}
+                      </tr>
+                    );
+                  })()}
+                  
+                  <tr style={{ backgroundColor: '#e0e0e0', fontWeight: 'bold' }}>
+                    <td colSpan={numLeftCols + (hasQty ? 1 : 0)} style={{ textAlign: 'right', padding: '4px', border: '1px solid #000' }}>TOTAL NET À RÉGLER</td>
+                    {hasTotal && <td style={{ textAlign: 'right', padding: '4px', border: '1px solid #000', fontSize: '14px' }}>{formatPrice(printData?.summary?.totalAmount)} FCFA</td>}
+                  </tr>
+                </React.Fragment>
               );
             })()}
-            <tr style={{ backgroundColor: '#e0e0e0', fontWeight: 'bold' }}>
-              <td colSpan="5" style={{ textAlign: 'right', padding: '4px', border: '1px solid #000' }}>TOTAL NET À RÉGLER</td>
-              <td style={{ textAlign: 'right', padding: '4px', border: '1px solid #000', fontSize: '14px' }}>{formatPrice(printData?.summary?.totalAmount)} FCFA</td>
-            </tr>
           </tbody>
-          {/* Un tfoot vide garantit un espace libre à la fin de CHAQUE page pour ne pas chevaucher le bandeau rouge fixe */}
           <tfoot>
             <tr>
               <td colSpan="6" className="no-print-border" style={{ border: 'none', height: '100px' }}></td>
@@ -753,30 +765,36 @@ export default function ClientReportPage() {
               <div className="form-group" style={{ marginBottom: '1.5rem', backgroundColor: '#f9f9f9', padding: '1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                 <label className="form-label" style={{ fontWeight: 'bold', fontSize: '0.85rem', color: 'var(--primary)' }}>Personnalisation des Noms de Colonnes</label>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
-                  <div>
-                    <label style={{ fontSize: '0.75rem', color: '#666' }}>Code</label>
-                    <input type="text" className="form-control" style={{ padding: '0.4rem', fontSize: '0.85rem' }} value={printData.colHeaders?.code || ''} onChange={e => setPrintData({...printData, colHeaders: {...printData.colHeaders, code: e.target.value}})} placeholder="CODE" />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '0.75rem', color: '#666' }}>Référence</label>
-                    <input type="text" className="form-control" style={{ padding: '0.4rem', fontSize: '0.85rem' }} value={printData.colHeaders?.barcode || ''} onChange={e => setPrintData({...printData, colHeaders: {...printData.colHeaders, barcode: e.target.value}})} placeholder="RÉFÉRENCE" />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '0.75rem', color: '#666' }}>Désignation</label>
-                    <input type="text" className="form-control" style={{ padding: '0.4rem', fontSize: '0.85rem' }} value={printData.colHeaders?.name || ''} onChange={e => setPrintData({...printData, colHeaders: {...printData.colHeaders, name: e.target.value}})} placeholder="DÉSIGNATION ARTICLE" />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '0.75rem', color: '#666' }}>Prix Unitaire</label>
-                    <input type="text" className="form-control" style={{ padding: '0.4rem', fontSize: '0.85rem' }} value={printData.colHeaders?.unitPrice || ''} onChange={e => setPrintData({...printData, colHeaders: {...printData.colHeaders, unitPrice: e.target.value}})} placeholder="P.U (FCFA)" />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '0.75rem', color: '#666' }}>Quantité</label>
-                    <input type="text" className="form-control" style={{ padding: '0.4rem', fontSize: '0.85rem' }} value={printData.colHeaders?.qty || ''} onChange={e => setPrintData({...printData, colHeaders: {...printData.colHeaders, qty: e.target.value}})} placeholder="QTÉ" />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '0.75rem', color: '#666' }}>Total</label>
-                    <input type="text" className="form-control" style={{ padding: '0.4rem', fontSize: '0.85rem' }} value={printData.colHeaders?.total || ''} onChange={e => setPrintData({...printData, colHeaders: {...printData.colHeaders, total: e.target.value}})} placeholder="TOTAL (FCFA)" />
-                  </div>
+                  {[
+                    { col: 'code', hide: 'hideColCode', label: 'Code', defaultLabel: 'CODE' },
+                    { col: 'barcode', hide: 'hideColBarcode', label: 'Référence', defaultLabel: 'RÉFÉRENCE' },
+                    { col: 'name', hide: 'hideColName', label: 'Désignation', defaultLabel: 'DÉSIGNATION ARTICLE' },
+                    { col: 'unitPrice', hide: 'hideColUnitPrice', label: 'Prix Unitaire', defaultLabel: 'P.U (FCFA)' },
+                    { col: 'qty', hide: 'hideColQty', label: 'Quantité', defaultLabel: 'QTÉ' },
+                    { col: 'total', hide: 'hideColTotal', label: 'Total', defaultLabel: 'TOTAL (FCFA)' }
+                  ].map(c => (
+                    <div key={c.col}>
+                      <label style={{ fontSize: '0.75rem', color: '#666', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                        <input 
+                          type="checkbox" 
+                          title="Afficher/Masquer" 
+                          style={{ cursor: 'pointer', margin: 0 }} 
+                          checked={printData[c.hide] !== true} 
+                          onChange={e => setPrintData({...printData, [c.hide]: !e.target.checked})} 
+                        />
+                        {c.label}
+                      </label>
+                      <input 
+                        type="text" 
+                        className="form-control" 
+                        style={{ padding: '0.4rem', fontSize: '0.85rem', opacity: printData[c.hide] ? 0.5 : 1 }} 
+                        value={printData.colHeaders?.[c.col] || ''} 
+                        onChange={e => setPrintData({...printData, colHeaders: {...printData.colHeaders, [c.col]: e.target.value}})} 
+                        placeholder={c.defaultLabel} 
+                        disabled={printData[c.hide] === true}
+                      />
+                    </div>
+                  ))}
                 </div>
               </div>
 
