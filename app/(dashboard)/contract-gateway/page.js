@@ -4624,7 +4624,7 @@ export default function ContractGatewayPage() {
                   <thead>
                     <tr>
                       <th style={{ width: '100px' }}>Code</th>
-                      <th style={{ width: '100px' }}>Réf. CFAO</th>
+                      <th style={{ width: '160px' }}>Réf. CFAO</th>
                       <th>Désignation / Article</th>
                       <th style={{ width: '100px' }}>Qté</th>
                       <th style={{ width: '130px' }}>P.A (HT)</th>
@@ -4638,7 +4638,7 @@ export default function ContractGatewayPage() {
                           newItems[idx].code = e.target.value;
                           setPrintData({ ...printData, items: newItems });
                         }} placeholder="Code" /></td>
-                        <td style={{ width: '100px' }}><input type="text" className="form-control form-control-sm" value={item.refCfao || ''} onChange={e => {
+                        <td style={{ width: '160px' }}><input type="text" className="form-control form-control-sm" value={item.refCfao || ''} onChange={e => {
                           const newItems = [...printData.items];
                           newItems[idx].refCfao = e.target.value;
                           setPrintData({ ...printData, items: newItems });
