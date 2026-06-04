@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Hôte : 127.0.0.1:3306
--- Généré le : jeu. 28 mai 2026 à 15:10
+-- Généré le : jeu. 04 juin 2026 à 17:32
 -- Version du serveur : 8.0.31
 -- Version de PHP : 8.2.0
 
@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS `articles` (
   UNIQUE KEY `temp_id` (`id`),
   KEY `idx_articles_createdAt` (`createdAt`),
   KEY `fk_articles_storeId` (`storeId`)
-) ENGINE=InnoDB AUTO_INCREMENT=1299 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1300 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Déchargement des données de la table `articles`
@@ -1352,7 +1352,8 @@ INSERT INTO `articles` (`id`, `name`, `price`, `currentStock`, `minStock`, `barc
 (1295, 'T', 577, 33, 2, NULL, '2026-05-20 15:35:53.764', 3, 'T'),
 (1296, 'ttttt', 1234, 6, 2, NULL, '2026-05-20 15:47:11.182', 3, 'testttttttt'),
 (1297, 'TEGBDJ', 1000, 23, 84, 'DBDHI5OI5I', '2026-05-20 16:22:18.792', 3, '22LEML'),
-(1298, 'JFJFJ', 1000, 789, 10, 'DJDJ95995', '2026-05-20 16:22:41.067', 3, 'JR');
+(1298, 'JFJFJ', 1000, 789, 10, 'DJDJ95995', '2026-05-20 16:22:41.067', 3, 'JR'),
+(1299, 'yoo', 1600, 12, 2, NULL, '2026-05-31 21:11:35.187', 1, NULL);
 
 -- --------------------------------------------------------
 
@@ -1408,10 +1409,10 @@ CREATE TABLE IF NOT EXISTS `clients` (
 
 INSERT INTO `clients` (`id`, `name`, `email`, `phone`, `address`, `createdAt`, `storeId`, `clientCode`, `rccm`, `nif`, `bp`) VALUES
 ('1a374248-d429-4ff3-89ec-8c33de7077d2', 'OREZONE BOMBORE SA', NULL, '+226 25.35.56.43', 'Kossodo, Zone Industrielle, Secteur 25, Section 22, Lot 12,\nParcelle 09 Rue 25.264, Porte 131', '2026-05-02 11:18:32.184', 3, 'CL-001', 'BFOUA2015B2521', '00065712E', '13 B.P. : 24 OUAGADOUGOU 13'),
-('529eb1bf-d977-44d6-9899-43bb02d5705e', 'WAHGNION', NULL, NULL, NULL, '2026-05-27 18:07:30.416', 1, NULL, NULL, NULL, NULL),
+('529eb1bf-d977-44d6-9899-43bb02d5705e', 'WAHGNION Gold Operations SA ', NULL, '25 37 51 99', 'Av. Gérard Kango OUEDRAOGO\nOuaga 2000 Zone B Secteur 54 Section G Lot 41 Parcelle 03', '2026-05-27 18:07:30.416', 1, NULL, 'BFOUA 01 2023 M 14796', '00055782 Y', '01 BP 1334 Ouagadougou 01 Burkina Faso'),
 ('97df7f2b-4227-4a76-9101-984bd0778beb', 'Houndé Gold Operation', NULL, '+226 25-37-59-44', 'Secteur 54, Parcelle 09, Lot 35, Section B, Ouaga 2000', '2026-04-30 10:06:42.025', 4, 'CL-003', 'BF OUA 2015 B 1744', '00009763S/RNI-DGE', '06 BP 9214 OUAGA 06, Burkina Faso'),
 ('9e101dc9-9160-4ee0-8b87-11702815ef8e', 'Semafo Burkina Faso SA', NULL, '(+226) 25-37-59-44', 'Arrondissement 12, Secteur 54, Parcelle 09, Lot 35, Section B, Ouaga 2000', '2026-04-30 14:51:19.932', 1, 'CL-002', 'BF OUA 2020M11403', '00009763S/RN-DF', '01 BP 390 Ouagadougou 01, Burkina Faso '),
-('e6837d0f-391d-472e-a489-6db2c0f12398', 'BOUNGOU', NULL, NULL, NULL, '2026-05-27 17:55:59.227', 1, NULL, NULL, NULL, NULL);
+('e6837d0f-391d-472e-a489-6db2c0f12398', 'Semafo BOUNGOU SA', NULL, '+226 25 37 59 44', 'OUAGA 2000 Secteur 54 Zone B3 Section G\nLot 41 Parcelle 03', '2026-05-27 17:55:59.227', 1, NULL, 'BFOUA2023M14048', '00079626 A ', '11 BP 1196 CMS OUAGADOUGOU 01');
 
 -- --------------------------------------------------------
 
@@ -1440,7 +1441,7 @@ CREATE TABLE IF NOT EXISTS `contract_bc_history` (
 --
 
 INSERT INTO `contract_bc_history` (`id`, `partner_id`, `order_id`, `bc_number`, `title`, `request_ref`, `items`, `created_at`, `attachment`) VALUES
-('98fa4627-3147-4f8b-bbf5-4a06e2d22bc6', 'cfao-fixed-id-001', '935f5aa1-8238-4c55-92a8-5c21e479afa7', 'BC-001-2805-2026', 'BON DE COMMANDE N°NSA-CFAO', 'REQUEST SEMAFO BURKINA FASO SA', '[{\"id\":1,\"orderId\":\"935f5aa1-8238-4c55-92a8-5c21e479afa7\",\"articleId\":2059,\"refSite\":null,\"code\":\"424914\",\"description\":\"DEFLECTOR BRAKE DRUM OIL RH/LH TOYOTA 42441-0K040\",\"quantity\":1,\"purchasePrice\":6498,\"sellPrice\":6498,\"refCfao\":\"424410K040\"}]', '2026-05-28 14:56:34', NULL);
+('d6631945-d9c2-4a2f-9226-74fd49ce51aa', 'cfao-fixed-id-001', '1d2fa4ca-2ed5-4d04-982c-e0d1799e2caa', 'BC-001-3105-2026', 'BON DE COMMANDE N°NSA-CFAO', 'REQUEST HOUNDÉ GOLD OPERATION', '[{\"id\":1,\"orderId\":\"1d2fa4ca-2ed5-4d04-982c-e0d1799e2caa\",\"articleId\":544,\"refSite\":null,\"code\":\"110151\",\"description\":\"CAP ASSY OIL FILLER TOYOTA 12180-38010\",\"quantity\":1,\"purchasePrice\":4758,\"sellPrice\":4758,\"refCfao\":\"1218038010\"},{\"isMetadata\":true,\"customCity\":\"Ouagadougou\",\"customDate\":\"2026-05-31\",\"customSupervisorName\":\"Guy Roland TONDE\",\"customSupervisorTitle\":\"SUPERVISEUR\",\"customSenderDetails\":\"NS AUTO SARL\\nSecteur 05, Parcelle C, Lot 1317 ter\\nRCCM : BF BBD 2018 B 0372\\nIFU : 00102506 K\\nBP 1245 Bobo-dioulasso\\nDivision des Grandes Entreprises\\nRéel Normal d\'Imposition\",\"customRecipientDetails\":\"CFAO Mobility \\n2280 Boulevard Tansoba\\nBP : 01 BP 23 Ouaga 01, Burkina Faso\\nTél : +226 25-49-88-00\\nRCCM : BF OUA 2000 B258\\nIFU : 00000300E /RNI-DGE\",\"supplierMyClientCode\":\"CLC 03977\",\"printNotes\":\"\",\"customTvaRate\":\"18.00\",\"isExempt\":false,\"exemptionMention\":\"\",\"bcColNo\":\"N°\",\"bcColSite\":\"Site\",\"bcColDesc\":\"Article\",\"bcColCode\":\"Code\",\"bcColRef\":\"Ref. CFAO\",\"bcColQty\":\"Qté\",\"bcColPrice\":\"Prix HTVA (F. CFA)\",\"bcColTotal\":\"Total HTVA (F. CFA)\",\"sectionTitle\":\"FOURNITURE DE PIECES DE RECHANGE\"}]', '2026-05-31 21:36:22', NULL);
 
 -- --------------------------------------------------------
 
@@ -5438,7 +5439,10 @@ CREATE TABLE IF NOT EXISTS `contract_orders` (
 --
 
 INSERT INTO `contract_orders` (`id`, `storeId`, `partner_id`, `clientId`, `supplierId`, `status`, `totalAmount`, `contractAmount`, `margin`, `notes`, `createdAt`, `updatedAt`, `attachment`, `delivery_date`, `orderNumber`, `tva_rate`) VALUES
-('935f5aa1-8238-4c55-92a8-5c21e479afa7', '0', 'cfao-fixed-id-001', '9e101dc9-9160-4ee0-8b87-11702815ef8e', NULL, 'demande', 6498, 6498, 0, '', '2026-05-28 14:56:27', '2026-05-28 14:56:27', NULL, NULL, 1, 18);
+('1d2fa4ca-2ed5-4d04-982c-e0d1799e2caa', '0', 'cfao-fixed-id-001', '97df7f2b-4227-4a76-9101-984bd0778beb', NULL, 'demande', 4758, 4758, 0, '', '2026-05-31 21:36:07', '2026-05-31 21:36:07', NULL, NULL, 1, 18),
+('597c00a2-fc7b-44bf-9a7f-aa26c51f7d38', '0', 'cfao-fixed-id-001', '97df7f2b-4227-4a76-9101-984bd0778beb', NULL, 'demande', 4758, 4758, 0, '', '2026-06-04 17:25:34', '2026-06-04 17:25:34', NULL, NULL, 3, 18),
+('7928dbb3-60ae-4f00-8e0c-8bf49ac56a08', '0', 'cfao-fixed-id-001', '97df7f2b-4227-4a76-9101-984bd0778beb', NULL, 'demande', 26373, 26373, 0, '', '2026-06-04 17:26:54', '2026-06-04 17:26:54', NULL, NULL, 4, 18),
+('ceec3d0c-6ea5-468b-adae-a34ad0e40e3c', '0', 'cfao-fixed-id-001', 'e6837d0f-391d-472e-a489-6db2c0f12398', NULL, 'demande', 178477, 178477, 0, '', '2026-05-31 22:05:49', '2026-05-31 22:33:52', NULL, '0000-00-00', 2, 18);
 
 -- --------------------------------------------------------
 
@@ -5456,14 +5460,17 @@ CREATE TABLE IF NOT EXISTS `contract_order_history` (
   `createdAt` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `orderId` (`orderId`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Déchargement des données de la table `contract_order_history`
 --
 
 INSERT INTO `contract_order_history` (`id`, `orderId`, `oldStatus`, `newStatus`, `userId`, `createdAt`) VALUES
-(1, '935f5aa1-8238-4c55-92a8-5c21e479afa7', NULL, 'demande', 'a8e63bf3-3616-42d0-acdd-86895297fd51', '2026-05-28 14:56:27');
+(1, '1d2fa4ca-2ed5-4d04-982c-e0d1799e2caa', NULL, 'demande', 'a8e63bf3-3616-42d0-acdd-86895297fd51', '2026-05-31 21:36:07'),
+(2, 'ceec3d0c-6ea5-468b-adae-a34ad0e40e3c', NULL, 'demande', 'a8e63bf3-3616-42d0-acdd-86895297fd51', '2026-05-31 22:05:49'),
+(3, '597c00a2-fc7b-44bf-9a7f-aa26c51f7d38', NULL, 'demande', 'a8e63bf3-3616-42d0-acdd-86895297fd51', '2026-06-04 17:25:34'),
+(4, '7928dbb3-60ae-4f00-8e0c-8bf49ac56a08', NULL, 'demande', 'a8e63bf3-3616-42d0-acdd-86895297fd51', '2026-06-04 17:26:54');
 
 -- --------------------------------------------------------
 
@@ -5486,14 +5493,18 @@ CREATE TABLE IF NOT EXISTS `contract_order_items` (
   PRIMARY KEY (`id`),
   KEY `fk_contract_order_items_articleId` (`articleId`),
   KEY `idx_coi_order_product` (`orderId`,`refCfao`(50),`code`(50),`quantity`,`purchasePrice`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Déchargement des données de la table `contract_order_items`
 --
 
 INSERT INTO `contract_order_items` (`id`, `orderId`, `articleId`, `refSite`, `code`, `description`, `quantity`, `purchasePrice`, `sellPrice`, `refCfao`) VALUES
-(1, '935f5aa1-8238-4c55-92a8-5c21e479afa7', 2059, NULL, '424914', 'DEFLECTOR BRAKE DRUM OIL RH/LH TOYOTA 42441-0K040', 1, 6498, 6498, '424410K040');
+(1, '1d2fa4ca-2ed5-4d04-982c-e0d1799e2caa', 544, NULL, '110151', 'CAP ASSY OIL FILLER TOYOTA 12180-38010', 1, 4758, 4758, '1218038010'),
+(3, 'ceec3d0c-6ea5-468b-adae-a34ad0e40e3c', 5903, NULL, '430124', 'COOLER ASSY OIL TOYOTA 15710-17021', 1, 170203, 170203, '1571017021'),
+(4, 'ceec3d0c-6ea5-468b-adae-a34ad0e40e3c', 5355, NULL, '109574', 'FILTER OIL TOYOTA 90915-20003 (LF3460)', 1, 8274, 8274, '90915YZZJ3'),
+(5, '597c00a2-fc7b-44bf-9a7f-aa26c51f7d38', 544, NULL, '110151', 'CAP ASSY OIL FILLER TOYOTA 12180-38010', 1, 4758, 4758, '1218038010'),
+(6, '7928dbb3-60ae-4f00-8e0c-8bf49ac56a08', 197, NULL, '119163', 'ABSORBER ASSY FRONT RH TOYOTA 48511-69676', 1, 26373, 26373, '4851169676');
 
 -- --------------------------------------------------------
 
@@ -5594,7 +5605,7 @@ CREATE TABLE IF NOT EXISTS `deliveries` (
 --
 
 INSERT INTO `deliveries` (`id`, `order_id`, `bl_number`, `items`, `created_at`, `attachment`) VALUES
-('2494df9c-9b35-4cab-8246-e9913a4a4a13', '935f5aa1-8238-4c55-92a8-5c21e479afa7', 'BL-001-2805-2026', '[{\"code\": \"424914\", \"refCfao\": \"424410K040\", \"quantity\": 1, \"description\": \"DEFLECTOR BRAKE DRUM OIL RH/LH TOYOTA 42441-0K040\"}]', '2026-05-28 14:56:55', NULL);
+('6292d89d-11e7-4818-b8db-09233e647e00', '1d2fa4ca-2ed5-4d04-982c-e0d1799e2caa', 'BL-001-3105-2026', '[{\"code\": \"110151\", \"refCfao\": \"1218038010\", \"quantity\": 1, \"description\": \"CAP ASSY OIL FILLER TOYOTA 12180-38010\"}, {\"blColNo\": \"N°\", \"blColQty\": \"Quantité\", \"blColRef\": \"Réf\", \"blColCode\": \"Code\", \"blColDesc\": \"Article\", \"blColSite\": \"Site\", \"customCity\": \"Ouagadougou\", \"customDate\": \"2026-05-31\", \"isMetadata\": true, \"printNotes\": \"\", \"sectionTitle\": \"FOURNITURE DE PIECES DE RECHANGE\", \"customSenderDetails\": \"NS AUTO SARL\\nSecteur 05, Parcelle C, Lot 1317 ter\\nRCCM : BF BBD 2018 B 0372\\nIFU : 00102506 K\\nBP 1245 Bobo-dioulasso\\nDivision des Grandes Entreprises\\nRéel Normal d\'Imposition\", \"customSupervisorName\": \"HUGUES CHRISTIAN SOW\", \"customSupervisorTitle\": \"RESPONSABLE LOGISTIQUE ADJOINT\", \"customRecipientDetails\": \"Houndé Gold Operation\\nSecteur 54, Parcelle 09, Lot 35, Section B, Ouaga 2000\\nBP : 06 BP 9214 OUAGA 06, Burkina Faso\\nTél : +226 25-37-59-44\\nRCCM : BF OUA 2015 B 1744\\nIFU : 00009763S/RNI-DGE\"}]', '2026-05-31 22:01:09', NULL);
 
 -- --------------------------------------------------------
 
@@ -5647,8 +5658,12 @@ CREATE TABLE IF NOT EXISTS `document_sequences` (
 --
 
 INSERT INTO `document_sequences` (`id`, `doc_type`, `doc_date`, `last_sequence`) VALUES
-('BC-2026-05-28', 'BC', '2026-05-28', 1),
-('BL-2026-05-28', 'BL', '2026-05-28', 1);
+('DAILY-2026-05-31', 'DAILY', '2026-05-31', 3),
+('DAILY-2026-06-04', 'DAILY', '2026-06-04', 2),
+('ORDER-1d2fa4ca-2ed5-4d04-982c-e0d1799e2caa', 'ORDER', '2026-05-31', 1),
+('ORDER-597c00a2-fc7b-44bf-9a7f-aa26c51f7d38', 'ORDER', '2026-06-04', 1),
+('ORDER-7928dbb3-60ae-4f00-8e0c-8bf49ac56a08', 'ORDER', '2026-06-04', 2),
+('ORDER-ceec3d0c-6ea5-468b-adae-a34ad0e40e3c', 'ORDER', '2026-05-31', 3);
 
 -- --------------------------------------------------------
 
@@ -5714,6 +5729,13 @@ CREATE TABLE IF NOT EXISTS `fiscal_years` (
   `createdAt` datetime DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Déchargement des données de la table `fiscal_years`
+--
+
+INSERT INTO `fiscal_years` (`id`, `name`, `startDate`, `endDate`, `status`, `createdAt`) VALUES
+('96263063-2b0e-4588-a415-6d8bf734394d', 'Exercice 2026', '2026-05-31 00:00:00', NULL, 'active', '2026-05-31 21:10:58');
 
 -- --------------------------------------------------------
 
@@ -5938,7 +5960,7 @@ INSERT INTO `inventory` (`id`, `storeId`, `articleId`, `quantity`, `minStock`, `
 ('220a3239-cfdd-4298-8c56-ef764f38a047', 4, 1102, 0, 0, '2026-04-30 09:04:13'),
 ('2226ea58-0510-4d5d-ae5d-4acbcd260276', 4, 747, 0, 0, '2026-04-30 09:04:12'),
 ('22cccc64-0a95-4a52-bc62-732b70513095', 4, 501, 0, 0, '2026-04-30 09:04:11'),
-('2302d7c9-a244-4439-bc76-5f28abd67a3a', 4, 245, 97, 0, '2026-05-22 11:58:24'),
+('2302d7c9-a244-4439-bc76-5f28abd67a3a', 4, 245, 96, 0, '2026-05-31 22:03:26'),
 ('230d7251-16ef-49db-9640-ac3fc1d88232', 4, 163, 0, 0, '2026-04-30 09:04:10'),
 ('2350014f-e753-4e97-a8ae-ba7613e84702', 4, 313, 0, 0, '2026-04-30 09:04:10'),
 ('237a60da-35d7-47f1-b80f-a6ff5d6f4861', 4, 306, 0, 0, '2026-04-30 09:04:10'),
@@ -6445,7 +6467,7 @@ INSERT INTO `inventory` (`id`, `storeId`, `articleId`, `quantity`, `minStock`, `
 ('8cae2a83-1cd8-4fb5-9f4f-04a2eef9a694', 4, 602, 0, 0, '2026-04-30 09:04:12'),
 ('8d326607-4a95-4b07-8b18-972060ae58b3', 4, 254, 0, 0, '2026-04-30 09:04:10'),
 ('8d4bc37e-c355-412f-af3a-7c7a3c4d7a78', 4, 1146, 0, 0, '2026-04-30 09:04:14'),
-('8d714c35-242a-4721-b911-d3520e35f2e4', 1, 1287, 3, 3, '2026-05-20 23:08:37'),
+('8d714c35-242a-4721-b911-d3520e35f2e4', 1, 1287, 103, 3, '2026-05-31 21:12:52'),
 ('8db47162-55d0-4ecb-84c4-8129aea27899', 4, 1059, 0, 0, '2026-04-30 09:04:13'),
 ('8dbf8855-50db-4394-b969-9d2c8791b09c', 4, 765, 0, 0, '2026-04-30 09:04:12'),
 ('8dc91136-bb8a-4737-9f06-08d9774771fd', 4, 138, 0, 1, '2026-04-30 09:04:10'),
@@ -7071,7 +7093,33 @@ CREATE TABLE IF NOT EXISTS `logs` (
 --
 
 INSERT INTO `logs` (`id`, `userId`, `action`, `details`, `storeId`, `timestamp`) VALUES
-('b06720d6-8275-4d28-b1ce-90a633b3ae3c', 'a8e63bf3-3616-42d0-acdd-86895297fd51', 'RESET_BASE_DE_DONNEES', '{\"details\":\"Réinitialisation complète de l\'historique effectuée via l\'interface interface.\"}', 1, '2026-05-28 14:56:12');
+('0565714c-2ab3-4cc6-a317-0baccdd98955', 'a8e63bf3-3616-42d0-acdd-86895297fd51', 'Suppression article du magasin', '{\"id\":\"1299\"}', 1, '2026-05-31 21:11:49'),
+('17e685c8-2b96-45eb-a568-8f100633118e', 'a8e63bf3-3616-42d0-acdd-86895297fd51', 'Impression BC', '{\"orderId\":\"1d2fa4ca-2ed5-4d04-982c-e0d1799e2caa\",\"bcNumber\":\"BC-001-3105-2026\"}', 1, '2026-05-31 21:36:22'),
+('18170b02-b3a9-4d23-b001-bad58d107f6c', 'a8e63bf3-3616-42d0-acdd-86895297fd51', 'Suppression document archive', '{\"id\":\"957ca50d-d6a2-40f0-bf0c-a31a0e06f031\",\"name\":\"Lettre de motivatin\"}', 1, '2026-05-31 21:14:16'),
+('1866006d-1e17-4ad9-96d9-b9116a162e13', 'a8e63bf3-3616-42d0-acdd-86895297fd51', 'Annulation vente', '{\"saleId\":\"7536eaf7-84d1-4c18-bd43-e6d477a3ebac\"}', 4, '2026-05-31 22:03:26'),
+('2c4655d8-f3c0-458c-a937-bd804960834d', 'a8e63bf3-3616-42d0-acdd-86895297fd51', 'Création fournisseur', '{\"name\":\"II\"}', NULL, '2026-05-31 21:13:13'),
+('2f9c150d-4c37-44be-acba-336fa8d5ad78', 'a8e63bf3-3616-42d0-acdd-86895297fd51', 'Connexion', '{\"ip\":\"API-NextJS\"}', 1, '2026-06-04 17:02:09'),
+('37f9c695-316a-464c-bae0-b3b60787db9c', 'a8e63bf3-3616-42d0-acdd-86895297fd51', 'Création utilisateur', '{\"username\":\"iii\",\"role\":\"vendeur\"}', 1, '2026-05-31 22:14:23'),
+('3b34179e-8b95-4a64-b024-524c387b440f', 'a8e63bf3-3616-42d0-acdd-86895297fd51', 'Connexion', '{\"ip\":\"API-NextJS\"}', 1, '2026-06-04 17:25:00'),
+('3db1a476-dc25-48f2-9422-44027e6e4995', 'a8e63bf3-3616-42d0-acdd-86895297fd51', 'Création article', '{\"name\":\"yoo\",\"initialStock\":12}', 1, '2026-05-31 21:11:35'),
+('49a5e069-be26-4f83-a40b-0d76672b36d1', 'a8e63bf3-3616-42d0-acdd-86895297fd51', 'Création document archive', '{\"id\":\"957ca50d-d6a2-40f0-bf0c-a31a0e06f031\",\"name\":\"Lettre de motivatin\",\"category\":\"Factures\"}', 1, '2026-05-31 21:14:11'),
+('5f81e534-d6b6-4390-8991-aa9a737be35a', 'a8e63bf3-3616-42d0-acdd-86895297fd51', 'Suppression magasin', '{\"id\":\"12\"}', NULL, '2026-05-31 21:14:45'),
+('64619ebc-ffa6-495c-9d13-d36e6791d48f', 'a8e63bf3-3616-42d0-acdd-86895297fd51', 'Création exercice fiscal', '{\"name\":\"Exercice 2026\"}', NULL, '2026-05-31 21:10:58'),
+('8c2a1846-2b9e-45ec-84c1-956572afc9ba', 'a8e63bf3-3616-42d0-acdd-86895297fd51', 'RESET_BASE_DE_DONNEES', '{\"details\":\"Réinitialisation complète de l\'historique effectuée via l\'interface interface.\"}', 1, '2026-05-31 21:10:29'),
+('978be94e-5383-4471-a109-1bab9e75a046', 'a8e63bf3-3616-42d0-acdd-86895297fd51', 'Mouvement Stock IN', '{\"articleId\":1287,\"quantity\":100}', 1, '2026-05-31 21:12:52'),
+('97d68ed0-a6d8-4939-89bc-397e8699fc05', 'a8e63bf3-3616-42d0-acdd-86895297fd51', 'Création dossier contrat', '{\"orderId\":\"1d2fa4ca-2ed5-4d04-982c-e0d1799e2caa\",\"partnerId\":\"cfao-fixed-id-001\",\"orderNumber\":1}', 1, '2026-05-31 21:36:07'),
+('a584f04a-12a1-4133-a371-acb78540e119', 'a8e63bf3-3616-42d0-acdd-86895297fd51', 'Création dossier contrat', '{\"orderId\":\"ceec3d0c-6ea5-468b-adae-a34ad0e40e3c\",\"partnerId\":\"cfao-fixed-id-001\",\"orderNumber\":2}', 1, '2026-05-31 22:05:49'),
+('ab097f1f-f311-440e-bf23-f05c8421de94', 'a8e63bf3-3616-42d0-acdd-86895297fd51', 'Modification magasin', '{\"name\":\"MM\"}', NULL, '2026-05-31 21:14:41'),
+('bbdc100e-6aaa-48fe-80a3-7c13602cb1f2', 'a8e63bf3-3616-42d0-acdd-86895297fd51', 'Création dossier contrat', '{\"orderId\":\"7928dbb3-60ae-4f00-8e0c-8bf49ac56a08\",\"partnerId\":\"cfao-fixed-id-001\",\"orderNumber\":4}', 1, '2026-06-04 17:26:54'),
+('c5ec4092-aaee-4108-9e9c-46f020728444', 'a8e63bf3-3616-42d0-acdd-86895297fd51', 'Création magasin', '{\"name\":\"M\"}', NULL, '2026-05-31 21:14:28'),
+('cdf3dfca-acbe-47f1-b23a-c599f3831970', 'a8e63bf3-3616-42d0-acdd-86895297fd51', 'Impression BL', '{\"orderId\":\"1d2fa4ca-2ed5-4d04-982c-e0d1799e2caa\",\"blNumber\":\"BL-001-3105-2026\"}', 1, '2026-05-31 22:01:09'),
+('d6247321-adb4-4dcb-8c02-f02239c0e332', 'a8e63bf3-3616-42d0-acdd-86895297fd51', 'Modification dossier contrat', '{\"orderId\":\"ceec3d0c-6ea5-468b-adae-a34ad0e40e3c\",\"status\":\"demande\"}', 1, '2026-05-31 22:33:52'),
+('e2b928fc-cdab-42af-9446-46b8ea32687a', 'a8e63bf3-3616-42d0-acdd-86895297fd51', 'Création client', '{\"name\":\"MPP\",\"clientCode\":\"\"}', 3, '2026-05-31 21:14:54'),
+('e5b312c5-dfb7-4d9c-a43d-606c0e10638c', 'a8e63bf3-3616-42d0-acdd-86895297fd51', 'Suppression fournisseur', '{\"id\":\"235d6d69-db2e-418e-a10d-d3e5a7a8421f\"}', 1, '2026-05-31 21:13:18'),
+('e69becaa-422e-4dec-af19-129af4fe600c', 'a8e63bf3-3616-42d0-acdd-86895297fd51', 'Nouvelle vente', '{\"saleId\":\"7536eaf7-84d1-4c18-bd43-e6d477a3ebac\",\"totalAmount\":37023.68}', 4, '2026-05-31 21:16:20'),
+('ee5c6410-843c-493f-b9b9-f13c1ff4ce8b', 'a8e63bf3-3616-42d0-acdd-86895297fd51', 'Suppression utilisateur', '{\"userId\":\"ffbe39f1-5335-433b-b189-a2f5bfd324c9\",\"username\":\"iii\"}', 1, '2026-05-31 22:14:30'),
+('f34d1daf-6e65-48b1-836a-920c979c87b1', 'a8e63bf3-3616-42d0-acdd-86895297fd51', 'Suppression client', '{\"id\":\"740150ba-9a2d-48aa-af7d-3c5ec5ddf74e\"}', 3, '2026-05-31 21:14:57'),
+('f954f411-852b-49d1-a7b2-3bee4969fa05', 'a8e63bf3-3616-42d0-acdd-86895297fd51', 'Création dossier contrat', '{\"orderId\":\"597c00a2-fc7b-44bf-9a7f-aa26c51f7d38\",\"partnerId\":\"cfao-fixed-id-001\",\"orderNumber\":3}', 1, '2026-06-04 17:25:35');
 
 -- --------------------------------------------------------
 
@@ -7097,6 +7145,15 @@ CREATE TABLE IF NOT EXISTS `mouvements` (
   KEY `fk_mouvements_storeId` (`storeId`),
   KEY `idx_mouvements_fy_store_date` (`fiscalYearId`,`storeId`,`date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Déchargement des données de la table `mouvements`
+--
+
+INSERT INTO `mouvements` (`id`, `articleId`, `type`, `quantity`, `date`, `notes`, `supplierId`, `fiscalYearId`, `storeId`) VALUES
+('923ca08c-7fea-4671-8af7-f723b7bab387', 245, 'OUT', 1, '2026-05-31T21:16:20.427Z', NULL, NULL, '96263063-2b0e-4588-a415-6d8bf734394d', 4),
+('9c534b6d-7bbf-4340-b8fc-e9ef78defb7c', 245, 'IN', 1, '2026-05-31T22:03:26.736Z', 'Annulation Vente #7536eaf7', NULL, '96263063-2b0e-4588-a415-6d8bf734394d', 4),
+('b4fb0131-70c8-4f51-8c32-b096026ff5e4', 1287, 'IN', 100, '2026-05-31T21:12:52.395Z', NULL, NULL, '96263063-2b0e-4588-a415-6d8bf734394d', 1);
 
 -- --------------------------------------------------------
 
@@ -7150,6 +7207,13 @@ CREATE TABLE IF NOT EXISTS `sales` (
   KEY `idx_sales_fy_store_date` (`fiscalYearId`,`storeId`,`date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Déchargement des données de la table `sales`
+--
+
+INSERT INTO `sales` (`id`, `clientId`, `userId`, `totalAmount`, `discount`, `tvaAmount`, `amountPaid`, `paymentType`, `status`, `dueDate`, `date`, `fiscalYearId`, `notes`, `storeId`) VALUES
+('7536eaf7-84d1-4c18-bd43-e6d477a3ebac', '97df7f2b-4227-4a76-9101-984bd0778beb', 'a8e63bf3-3616-42d0-acdd-86895297fd51', 37023.68, 0, 5647.679999999999, 0, 'credit', 'annulée', NULL, '2026-05-31T21:16:20.431Z', '96263063-2b0e-4588-a415-6d8bf734394d', NULL, 4);
+
 -- --------------------------------------------------------
 
 --
@@ -7170,6 +7234,13 @@ CREATE TABLE IF NOT EXISTS `sale_items` (
   KEY `idx_sale_items_article_sale_qty` (`articleId`,`saleId`,`quantity`),
   KEY `idx_sale_items_sale_article_qty` (`saleId`,`articleId`,`quantity`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Déchargement des données de la table `sale_items`
+--
+
+INSERT INTO `sale_items` (`id`, `saleId`, `articleId`, `quantity`, `unitPrice`, `description`) VALUES
+('383b3a74-b1fc-404e-a260-287fc372a8d4', '7536eaf7-84d1-4c18-bd43-e6d477a3ebac', 245, 1, 31376, 'ABSORBER ASSY SHOCK TOYOTA 48530-69395');
 
 -- --------------------------------------------------------
 
@@ -7239,7 +7310,7 @@ CREATE TABLE IF NOT EXISTS `stores` (
   `type` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT 'physical',
   PRIMARY KEY (`id`),
   UNIQUE KEY `temp_id` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Déchargement des données de la table `stores`
@@ -7466,11 +7537,3 @@ COMMIT;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
-
-CREATE TABLE IF NOT EXISTS `document_sequences` (
-  `id` varchar(50) NOT NULL,
-  `doc_type` varchar(10) NOT NULL,
-  `doc_date` date NOT NULL,
-  `last_sequence` int(11) NOT NULL DEFAULT 0,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
