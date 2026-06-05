@@ -104,6 +104,7 @@ export default function ClientReportPage() {
       supervisorName: settings?.supervisorName || 'Guy Roland TONDE',
       supervisorTitle: settings?.supervisorTitle || 'SUPERVISEUR',
       notes: '',
+      notesTitle: 'Notes / Conditions Particulières',
       colHeaders: {
         code: 'CODE',
         barcode: 'RÉFÉRENCE',
@@ -458,6 +459,16 @@ export default function ClientReportPage() {
                     <td colSpan={numLeftCols + (hasQty ? 1 : 0)} style={{ textAlign: 'right', padding: '4px', border: '1px solid #000' }}>TOTAL NET À RÉGLER</td>
                     {hasTotal && <td style={{ textAlign: 'right', padding: '4px', border: '1px solid #000', fontSize: '14px' }}>{formatPrice(printData?.summary?.totalAmount)} FCFA</td>}
                   </tr>
+                  {printData?.notes && (
+                    <tr className="no-print-border">
+                      <td colSpan={numLeftCols + (hasQty ? 1 : 0) + (hasTotal ? 1 : 0)} className="no-print-border" style={{ border: 'none', padding: '10px 0 0 0', textAlign: 'left', fontWeight: 'normal' }}>
+                        <div style={{ padding: '0' }}>
+                          <p style={{ margin: 0, fontSize: '12px', fontWeight: 'bold', color: '#666', textTransform: 'uppercase', marginBottom: '4px' }}>{printData.notesTitle || 'Notes / Conditions Particulières'} :</p>
+                          <p style={{ margin: 0, fontSize: '13px', whiteSpace: 'pre-wrap', color: '#333' }}>{printData.notes}</p>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
                 </React.Fragment>
               );
             })()}
@@ -470,12 +481,6 @@ export default function ClientReportPage() {
         </table>
 
         <div className="avoid-page-break" style={{ paddingTop: '20px', paddingBottom: '20px' }}>
-          {printData?.notes && (
-            <div style={{ marginTop: '10px', marginBottom: '15px', padding: '10px', border: '1px solid #000', fontSize: '12px' }}>
-              <strong>Notes / Conditions Particulières :</strong><br/>
-              {printData.notes.split('\n').map((line, i) => <React.Fragment key={i}>{line}<br/></React.Fragment>)}
-            </div>
-          )}
           <div style={{ marginTop: '20px', fontSize: '11px' }}>
             <p style={{ margin: '0 0 5px 0' }}>Arrêtée la présente facture à la somme de :</p>
             <p style={{ margin: 0, fontWeight: 'bold', fontSize: '12px', marginLeft: '40px' }}>
@@ -752,7 +757,14 @@ export default function ClientReportPage() {
                 </div>
               </div>
               <div className="form-group" style={{ marginBottom: '1rem' }}>
-                <label className="form-label" style={{ fontWeight: 'bold', fontSize: '0.85rem' }}>Notes / Conditions Particulières</label>
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  style={{ fontWeight: 'bold', fontSize: '0.85rem', marginBottom: '6px', color: 'var(--primary)', border: '1px dashed #ccc', padding: '4px 8px' }} 
+                  value={printData.notesTitle || ''} 
+                  onChange={e => setPrintData({...printData, notesTitle: e.target.value})} 
+                  placeholder="Titre de la section note"
+                />
                 <textarea 
                   className="form-control" 
                   rows="2" 
