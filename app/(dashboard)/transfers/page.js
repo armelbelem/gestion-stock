@@ -5,8 +5,10 @@ import { storage } from '../../lib/storage';
 import { Plus, X, ArrowRight, ArrowRightLeft, Download, FileText } from 'lucide-react';
 import AlertModal from '../../components/AlertModal';
 import { exportToExcel } from '../../utils/excelExport';
+import { useAuth } from '../../providers';
 
 export default function TransfersPage() {
+  const { user } = useAuth();
   const [transfers, setTransfers] = useState([]);
   const [stores, setStores] = useState([]);
   const [articles, setArticles] = useState([]);
@@ -165,9 +167,11 @@ export default function TransfersPage() {
           <button className="btn btn-secondary" onClick={handlePrintReport} title="Imprimer / PDF">
             <FileText size={18} /> PDF
           </button>
-          <button className="btn btn-primary" onClick={handleOpenModal}>
-            <Plus size={18} /> Nouveau Transfert
-          </button>
+          {user?.role !== 'observateur' && (
+            <button className="btn btn-primary" onClick={handleOpenModal}>
+              <Plus size={18} /> Nouveau Transfert
+            </button>
+          )}
         </div>
       </div>
 

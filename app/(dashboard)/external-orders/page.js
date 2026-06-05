@@ -401,12 +401,14 @@ export default function ExternalOrdersPage() {
           <button className="btn btn-secondary" onClick={handleExport} disabled={filteredOrders.length === 0}>
             <Download size={16} /> Exporter
           </button>
-          <button 
-            className="btn btn-primary" 
-            onClick={handleOpenModal}
-          >
-            <Plus size={16} /> Nouvelle Commande Spéciale
-          </button>
+          {currentUser?.role !== 'observateur' && (
+            <button 
+              className="btn btn-primary" 
+              onClick={handleOpenModal}
+            >
+              <Plus size={16} /> Nouvelle Commande Spéciale
+            </button>
+          )}
         </div>
       </div>
 
@@ -524,14 +526,14 @@ export default function ExternalOrdersPage() {
                       <td>
                         {order.status === 'en_attente' ? (
                           <div style={{ display: 'flex', gap: '0.5rem' }}>
-                            <button className="btn btn-success" title="Réceptionner et Vendre" onClick={() => handleAction(order.id, 'vendre')}><CheckCircle size={16} /></button>
+                            {currentUser?.role !== 'observateur' && <button className="btn btn-success" title="Réceptionner et Vendre" onClick={() => handleAction(order.id, 'vendre')}><CheckCircle size={16} /></button>}
                             <button className="btn btn-secondary" title="Imprimer le bon de commande" onClick={() => handlePrint(order)}><Printer size={16} /></button>
-                            <button className="btn btn-warning" title="Annuler" onClick={() => handleAction(order.id, 'annuler')}><XCircle size={16} /></button>
+                            {currentUser?.role !== 'observateur' && <button className="btn btn-warning" title="Annuler" onClick={() => handleAction(order.id, 'annuler')}><XCircle size={16} /></button>}
                           </div>
                         ) : (
                           <div style={{ display: 'flex', gap: '0.5rem' }}>
                             <button className="btn btn-secondary" title="Imprimer le reçu" onClick={() => handlePrint(order)}><Printer size={16} /></button>
-                            <button className="btn btn-danger-outline" title="Supprimer l'historique" onClick={() => handleAction(order.id, 'delete')}><Trash2 size={16} /></button>
+                            {currentUser?.role !== 'observateur' && <button className="btn btn-danger-outline" title="Supprimer l'historique" onClick={() => handleAction(order.id, 'delete')}><Trash2 size={16} /></button>}
                           </div>
                         )}
                       </td>

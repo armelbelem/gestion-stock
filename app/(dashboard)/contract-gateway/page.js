@@ -2686,18 +2686,20 @@ export default function ContractGatewayPage() {
           <div className="content-card">
             <div className="toolbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
               <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                <button className="btn btn-primary" onClick={() => {
-                  if (selectedPartner?.id === 'all') {
-                    showAlert('info', 'Sélection Requise', 'Veuillez d\'abord choisir un partenaire spécifique dans le menu en haut pour créer un nouveau dossier.');
-                  } else if (!selectedMine) {
-                    showAlert('warning', 'Sélection Mine Requise', 'Veuillez d\'abord sélectionner une Mine dans le filtre en haut de la page avant de créer un dossier.');
-                  } else {
-                    setItemSearch('');
-                    setSuggestions([]);
-                    setNewOrder({ clientId: selectedMine, supplierId: '', notes: '', items: [], deliveryDate: '' });
-                    setIsModalOpen(true);
-                  }
-                }}><Plus size={18} /> Nouveau Dossier</button>
+                {user?.role !== 'observateur' && (
+                  <button className="btn btn-primary" onClick={() => {
+                    if (selectedPartner?.id === 'all') {
+                      showAlert('info', 'Sélection Requise', 'Veuillez d\'abord choisir un partenaire spécifique dans le menu en haut pour créer un nouveau dossier.');
+                    } else if (!selectedMine) {
+                      showAlert('warning', 'Sélection Mine Requise', 'Veuillez d\'abord sélectionner une Mine dans le filtre en haut de la page avant de créer un dossier.');
+                    } else {
+                      setItemSearch('');
+                      setSuggestions([]);
+                      setNewOrder({ clientId: selectedMine, supplierId: '', notes: '', items: [], deliveryDate: '' });
+                      setIsModalOpen(true);
+                    }
+                  }}><Plus size={18} /> Nouveau Dossier</button>
+                )}
                 <button className="btn btn-secondary" onClick={exportOrdersToExcel} title="Exporter tous les dossiers affichés"><FileSpreadsheet size={18} /> Excel</button>
               </div>
               
@@ -2761,18 +2763,18 @@ export default function ContractGatewayPage() {
                         </td>
                         <td style={{ textAlign: 'right' }}>
                           <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                            <button className="btn btn-secondary btn-sm" onClick={() => handleEditOrder(order.id)} title="Modifier le dossier" disabled={order.status === 'termine' || order.status === 'annule'}><Edit size={16} /></button>
+                            {user?.role !== 'observateur' && <button className="btn btn-secondary btn-sm" onClick={() => handleEditOrder(order.id)} title="Modifier le dossier" disabled={order.status === 'termine' || order.status === 'annule'}><Edit size={16} /></button>}
                             <button className="btn btn-secondary btn-sm" onClick={() => viewOrder(order.id)} title="Voir les détails"><Eye size={16} /></button>
-                            {order.status === 'demande' && <button className="btn btn-secondary btn-sm" onClick={() => updateOrderStatus(order.id, 'facture_recue')} title="Facture reçue"><ArrowRight size={16} /></button>}
-                            {(order.status === 'facture_recue' || order.status === 'po_envoye') && <button className="btn btn-success btn-sm" onClick={() => updateOrderStatus(order.id, 'termine')} title="Clôturer le dossier"><CheckCircle2 size={16} /></button>}
-                            {order.status !== 'termine' && order.status !== 'annule' && <button className="btn btn-danger-outline btn-sm" onClick={() => updateOrderStatus(order.id, 'annule')} title="Annuler le dossier"><XCircle size={16} /></button>}
+                            {order.status === 'demande' && user?.role !== 'observateur' && <button className="btn btn-secondary btn-sm" onClick={() => updateOrderStatus(order.id, 'facture_recue')} title="Facture reçue"><ArrowRight size={16} /></button>}
+                            {(order.status === 'facture_recue' || order.status === 'po_envoye') && user?.role !== 'observateur' && <button className="btn btn-success btn-sm" onClick={() => updateOrderStatus(order.id, 'termine')} title="Clôturer le dossier"><CheckCircle2 size={16} /></button>}
+                            {order.status !== 'termine' && order.status !== 'annule' && user?.role !== 'observateur' && <button className="btn btn-danger-outline btn-sm" onClick={() => updateOrderStatus(order.id, 'annule')} title="Annuler le dossier"><XCircle size={16} /></button>}
                             <button className="btn btn-secondary btn-sm" onClick={() => handlePrint(order.id)} title="Imprimer BC"><Printer size={16} /> BC</button>
                             <button className="btn btn-secondary btn-sm" title="Historique BC" onClick={() => loadBCHistory(order.id)}><History size={16} /></button>
-                            <button className="btn btn-secondary btn-sm" style={{ color: 'var(--success)' }} title="Générer BL" onClick={() => handleOpenBLModal(order.id)}>
+                            {user?.role !== 'observateur' && <button className="btn btn-secondary btn-sm" style={{ color: 'var(--success)' }} title="Générer BL" onClick={() => handleOpenBLModal(order.id)}>
                               <Truck size={16} /> BL
-                            </button>
+                            </button>}
                             <button className="btn btn-secondary btn-sm" title="Historique BL" onClick={() => loadDeliveries(order.id)}><History size={16} /></button>
-                            <button className="btn btn-danger-outline btn-sm" onClick={() => deleteOrder(order.id)} title="Supprimer le dossier"><Trash2 size={16} /></button>
+                            {user?.role !== 'observateur' && <button className="btn btn-danger-outline btn-sm" onClick={() => deleteOrder(order.id)} title="Supprimer le dossier"><Trash2 size={16} /></button>}
                           </div>
                         </td>
                       </tr>
@@ -2856,42 +2858,46 @@ export default function ContractGatewayPage() {
               <input type="text" className="form-control" placeholder="Ex: BON DE COMMANDE URGENT" id="spec-title" />
             </div>
             <div style={{ marginTop: '2rem', display: 'flex', flexDirection: 'column', gap: '0.8rem' }}>
-              <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => {
-                const clientName = document.getElementById('spec-client').value;
-                const supplierName = document.getElementById('spec-supplier').value;
-                const title = document.getElementById('spec-title').value;
-                if (!clientName) return showAlert('error', 'Champs requis', 'Veuillez saisir au moins le nom du client.');
+              {user?.role !== 'observateur' && (
+                <>
+                  <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => {
+                    const clientName = document.getElementById('spec-client').value;
+                    const supplierName = document.getElementById('spec-supplier').value;
+                    const title = document.getElementById('spec-title').value;
+                    if (!clientName) return showAlert('error', 'Champs requis', 'Veuillez saisir au moins le nom du client.');
 
-                const newDoc = {
-                  id: Date.now(),
-                  clientName,
-                  supplierName: supplierName || 'NS AUTO SARL',
-                  title: title,
-                  createdAt: new Date().toISOString(),
-                  items: [{ refSite: '', description: '', refCfao: '', quantity: 1, purchasePrice: 0 }]
-                };
-                handlePrintSpecial(newDoc, 'BC');
-              }}>
-                <Printer size={18} /> Préparer & Imprimer BC
-              </button>
-              <button className="btn btn-success" style={{ width: '100%' }} onClick={() => {
-                const clientName = document.getElementById('spec-client').value;
-                const supplierName = document.getElementById('spec-supplier').value;
-                const title = document.getElementById('spec-title').value;
-                if (!clientName) return showAlert('error', 'Champs requis', 'Veuillez saisir au moins le nom du client.');
+                    const newDoc = {
+                      id: Date.now(),
+                      clientName,
+                      supplierName: supplierName || 'NS AUTO SARL',
+                      title: title,
+                      createdAt: new Date().toISOString(),
+                      items: [{ refSite: '', description: '', refCfao: '', quantity: 1, purchasePrice: 0 }]
+                    };
+                    handlePrintSpecial(newDoc, 'BC');
+                  }}>
+                    <Printer size={18} /> Préparer & Imprimer BC
+                  </button>
+                  <button className="btn btn-success" style={{ width: '100%' }} onClick={() => {
+                    const clientName = document.getElementById('spec-client').value;
+                    const supplierName = document.getElementById('spec-supplier').value;
+                    const title = document.getElementById('spec-title').value;
+                    if (!clientName) return showAlert('error', 'Champs requis', 'Veuillez saisir au moins le nom du client.');
 
-                const newDoc = {
-                  id: Date.now(),
-                  clientName,
-                  supplierName: supplierName || 'NS AUTO SARL',
-                  title: title,
-                  createdAt: new Date().toISOString(),
-                  items: [{ refSite: '', description: '', refCfao: '', quantity: 1, purchasePrice: 0 }]
-                };
-                handlePrintSpecial(newDoc, 'BL');
-              }}>
-                <Truck size={18} /> Préparer & Imprimer BL
-              </button>
+                    const newDoc = {
+                      id: Date.now(),
+                      clientName,
+                      supplierName: supplierName || 'NS AUTO SARL',
+                      title: title,
+                      createdAt: new Date().toISOString(),
+                      items: [{ refSite: '', description: '', refCfao: '', quantity: 1, purchasePrice: 0 }]
+                    };
+                    handlePrintSpecial(newDoc, 'BL');
+                  }}>
+                    <Truck size={18} /> Préparer & Imprimer BL
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
@@ -2925,9 +2931,11 @@ export default function ContractGatewayPage() {
                             <button className="btn btn-secondary btn-sm" onClick={() => handlePrintSpecial(doc, 'BC')} title="Ré-imprimer BC"><Printer size={15} /> BC</button>
                             <button className="btn btn-secondary btn-sm" style={{ color: 'var(--success)' }} onClick={() => handlePrintSpecial(doc, 'BL')} title="Ré-imprimer BL"><Truck size={15} /> BL</button>
 
-                            <button className="btn btn-secondary btn-sm" onClick={() => handleFileUpload(doc.id, 'special')} title={doc.attachment ? "Changer le scan" : "Joindre un scan/fichier"} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '32px' }}>
-                              <Paperclip size={15} style={{ color: doc.attachment ? 'var(--primary)' : '#64748b' }} />
-                            </button>
+                            {user?.role !== 'observateur' && (
+                              <button className="btn btn-secondary btn-sm" onClick={() => handleFileUpload(doc.id, 'special')} title={doc.attachment ? "Changer le scan" : "Joindre un scan/fichier"} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '32px' }}>
+                                <Paperclip size={15} style={{ color: doc.attachment ? 'var(--primary)' : '#64748b' }} />
+                              </button>
+                            )}
 
                             {doc.attachment && (
                               <a href={doc.attachment} target="_blank" rel="noopener noreferrer" className="btn btn-info-outline btn-sm" title="Voir le scan joint" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '32px' }}>
@@ -2935,7 +2943,7 @@ export default function ContractGatewayPage() {
                               </a>
                             )}
 
-                            <button className="btn btn-danger-outline btn-sm" onClick={() => deleteSpecialDoc(doc.id)}><Trash2 size={15} /></button>
+                            {user?.role !== 'observateur' && <button className="btn btn-danger-outline btn-sm" onClick={() => deleteSpecialDoc(doc.id)}><Trash2 size={15} /></button>}
                           </div>
                         </td>
                       </tr>
@@ -3009,8 +3017,12 @@ export default function ContractGatewayPage() {
           <div className="content-card">
             <div className="toolbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button className="btn btn-primary" onClick={() => { setCatalogItem({ code: '', refCfao: '', name: '', purchasePrice: 0, clientId: selectedCatalogClient }); setIsCatalogModalOpen(true); }}><Plus size={18} /> Ajouter Article</button>
-                <button className="btn btn-secondary" onClick={() => setIsImportModalOpen(true)}><Download size={18} style={{ transform: 'rotate(180deg)' }} /> Importer</button>
+                {user?.role !== 'observateur' && (
+                  <>
+                    <button className="btn btn-primary" onClick={() => { setCatalogItem({ code: '', refCfao: '', name: '', purchasePrice: 0, clientId: selectedCatalogClient }); setIsCatalogModalOpen(true); }}><Plus size={18} /> Ajouter Article</button>
+                    <button className="btn btn-secondary" onClick={() => setIsImportModalOpen(true)}><Download size={18} style={{ transform: 'rotate(180deg)' }} /> Importer</button>
+                  </>
+                )}
                 <button className="btn btn-secondary" onClick={exportCatalogToExcel} title="Exporter en Excel"><FileSpreadsheet size={18} /> Excel</button>
                 <button className="btn btn-secondary" onClick={handlePrintCatalog} title="Imprimer / PDF"><Printer size={18} /> PDF</button>
               </div>
@@ -3072,8 +3084,8 @@ export default function ContractGatewayPage() {
                       {hasPermission(user, 'stock', 'view_cost_price') && <td style={{ fontWeight: 600 }}>{formatPrice(item.purchasePrice || 0)} FCFA</td>}
                       <td style={{ textAlign: 'right' }}>
                         <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                          <button className="btn btn-secondary btn-sm" onClick={() => { setCatalogItem(item); setIsCatalogModalOpen(true); }}><Edit size={16} /></button>
-                          <button className="btn btn-danger-outline btn-sm" onClick={() => deleteCatalogItem(item.id)}><Trash2 size={16} /></button>
+                          {user?.role !== 'observateur' && <button className="btn btn-secondary btn-sm" onClick={() => { setCatalogItem(item); setIsCatalogModalOpen(true); }}><Edit size={16} /></button>}
+                          {user?.role !== 'observateur' && <button className="btn btn-danger-outline btn-sm" onClick={() => deleteCatalogItem(item.id)}><Trash2 size={16} /></button>}
                         </div>
                       </td>
                     </tr>

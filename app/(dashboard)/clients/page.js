@@ -191,7 +191,7 @@ export default function ClientsPage() {
           <button className="btn btn-secondary" onClick={handlePrintReport} title="Imprimer / PDF">
             <FileText size={18} /> PDF
           </button>
-          {user?.role !== 'vendeur' && (
+          {user?.role !== 'vendeur' && user?.role !== 'observateur' && (
             <button className="btn btn-primary" onClick={() => handleOpenModal()}>
               <Plus size={16} /> Nouveau Client
             </button>
@@ -223,7 +223,7 @@ export default function ClientsPage() {
                 <th>Email</th>
                 <th>Téléphone</th>
                 <th>Dette Totale</th>
-                {user?.role !== 'vendeur' && <th style={{ width: '150px' }}>Actions</th>}
+                {user?.role !== 'vendeur' && user?.role !== 'observateur' && <th style={{ width: '150px' }}>Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -254,7 +254,7 @@ export default function ClientsPage() {
                         <span className="text-success" style={{ fontWeight: 600 }}>0 FCFA</span>
                       )}
                     </td>
-                    {user?.role !== 'vendeur' && (
+                    {user?.role !== 'vendeur' && user?.role !== 'observateur' && (
                       <td>
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
                           <button className="btn btn-secondary" onClick={() => handleOpenModal(client)}><Edit2 size={16} /></button>

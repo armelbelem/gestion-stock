@@ -5,8 +5,10 @@ import { storage } from '../../lib/storage';
 import { Plus, Edit2, Trash2, X, Truck, Search, ChevronLeft, ChevronRight, Download, FileText } from 'lucide-react';
 import AlertModal from '../../components/AlertModal';
 import { exportToExcel } from '../../utils/excelExport';
+import { useAuth } from '../../providers';
 
 export default function SuppliersPage() {
+  const { user } = useAuth();
   const [suppliers, setSuppliers] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isReporting, setIsReporting] = useState(false);
@@ -190,9 +192,11 @@ export default function SuppliersPage() {
           <button className="btn btn-secondary" onClick={handlePrintReport} title="Imprimer / PDF">
             <FileText size={18} /> PDF
           </button>
-          <button className="btn btn-primary" onClick={() => handleOpenModal()}>
-            <Plus size={16} /> Nouveau Fournisseur
-          </button>
+          {user?.role !== 'observateur' && (
+            <button className="btn btn-primary" onClick={() => handleOpenModal()}>
+              <Plus size={16} /> Nouveau Fournisseur
+            </button>
+          )}
         </div>
       </div>
 
@@ -221,7 +225,7 @@ export default function SuppliersPage() {
                 <th>RCCM</th>
                 <th>BP</th>
                 <th>IFU</th>
-                <th style={{ width: '150px' }}>Actions</th>
+                {user?.role !== 'observateur' && <th style={{ width: '150px' }}>Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -245,12 +249,14 @@ export default function SuppliersPage() {
                     <td>{supplier.rccm || '-'}</td>
                     <td>{supplier.bp || '-'}</td>
                     <td>{supplier.nif || '-'}</td>
-                    <td>
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button className="btn btn-secondary" onClick={() => handleOpenModal(supplier)}><Edit2 size={16} /></button>
-                        <button className="btn btn-danger-outline" onClick={() => handleDelete(supplier.id)}><Trash2 size={16} /></button>
-                      </div>
-                    </td>
+                    {user?.role !== 'observateur' && (
+                      <td>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button className="btn btn-secondary" onClick={() => handleOpenModal(supplier)}><Edit2 size={16} /></button>
+                          <button className="btn btn-danger-outline" onClick={() => handleDelete(supplier.id)}><Trash2 size={16} /></button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))
               )}

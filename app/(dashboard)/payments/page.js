@@ -6,8 +6,10 @@ import {
   DollarSign, Printer, Search, History, ListFilter, X 
 } from 'lucide-react';
 import AlertModal from '../../components/AlertModal';
+import { useAuth } from '../../providers';
 
 export default function PaymentsPage() {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('history'); 
   const [payments, setPayments] = useState([]);
   const [outstandingSales, setOutstandingSales] = useState([]);
@@ -107,7 +109,11 @@ export default function PaymentsPage() {
                     <td style={{ textAlign: 'right' }}>{s.totalAmount.toLocaleString()}</td>
                     <td style={{ textAlign: 'right', color: 'var(--success)' }}>{s.amountPaid.toLocaleString()}</td>
                     <td style={{ textAlign: 'right', fontWeight: 800, color: 'var(--danger)' }}>{(s.totalAmount - s.amountPaid).toLocaleString()} FCFA</td>
-                    <td><button className="btn btn-primary btn-sm" onClick={() => setPayModal({ open: true, sale: s, amount: '', notes: '' })}><DollarSign size={16} /> Encaisser</button></td>
+                    <td>
+                      {user?.role !== 'observateur' && (
+                        <button className="btn btn-primary btn-sm" onClick={() => setPayModal({ open: true, sale: s, amount: '', notes: '' })}><DollarSign size={16} /> Encaisser</button>
+                      )}
+                    </td>
                   </tr>
                 ))
               )}
