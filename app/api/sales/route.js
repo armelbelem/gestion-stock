@@ -73,6 +73,11 @@ export async function GET(request) {
       conditions.push("s.status != 'proforma'");
     }
 
+    const isSeller = auth.user.role === 'vendeur' || auth.user.role === 'vendeurs';
+    if (isSeller) {
+      conditions.push("(u.role = 'vendeur' OR u.role = 'Vendeur')");
+    }
+
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
     let total = 0;
@@ -85,6 +90,7 @@ export async function GET(request) {
         `SELECT SUM(s.totalAmount) as totalAmount 
          FROM sales s 
          LEFT JOIN clients c ON s.clientId = c.id 
+         LEFT JOIN users u ON s.userId = u.id
          ${whereClause} AND s.status != 'annulée'`,
         params
       );
@@ -94,6 +100,7 @@ export async function GET(request) {
         `SELECT COUNT(*) as total 
          FROM sales s 
          LEFT JOIN clients c ON s.clientId = c.id 
+         LEFT JOIN users u ON s.userId = u.id
          ${whereClause}`,
         params
       );

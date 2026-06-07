@@ -5,6 +5,7 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const type = searchParams.get('type');
   const orderId = searchParams.get('orderId');
+  const preview = searchParams.get('preview') === 'true';
 
   if (!type || (type !== 'BC' && type !== 'BL')) {
     return NextResponse.json({ error: 'Type invalide. Doit être BC ou BL.' }, { status: 400 });
@@ -25,7 +26,7 @@ export async function GET(request) {
       // --- CAS 1 : Un orderId est fourni ---
       // On cherche si ce dossier a déjà une séquence attribuée
       if (orderId) {
-        const orderKey = `ORDER-${orderId}`;
+        const orderKey = `ORDER-${type}-${orderId}`;
         const [existing] = await connection.query(
           'SELECT last_sequence, doc_date FROM document_sequences WHERE id = ?',
           [orderKey]
@@ -47,23 +48,33 @@ export async function GET(request) {
       }
 
       // --- CAS 2 : Première impression pour ce dossier (ou pas d'orderId) ---
-      // Générer un nouveau numéro journalier partagé (compteur du jour)
-      const dailyKey = `DAILY-${dbDate}`;
-      await connection.query(`
-        INSERT INTO document_sequences (id, doc_type, doc_date, last_sequence)
-        VALUES (?, 'DAILY', ?, 1)
-        ON DUPLICATE KEY UPDATE last_sequence = last_sequence + 1
-      `, [dailyKey, dbDate]);
+      // Générer un nouveau numéro journalier indépendant par type (compteur du jour)
+      const dailyKey = `DAILY-${type}-${dbDate}`;
+      let sequence;
+      
+      if (preview) {
+        const [dailyRows] = await connection.query(
+          'SELECT last_sequence FROM document_sequences WHERE id = ?',
+          [dailyKey]
+        );
+        sequence = dailyRows.length > 0 ? dailyRows[0].last_sequence + 1 : 1;
+      } else {
+        await connection.query(`
+          INSERT INTO document_sequences (id, doc_type, doc_date, last_sequence)
+          VALUES (?, 'DAILY', ?, 1)
+          ON DUPLICATE KEY UPDATE last_sequence = last_sequence + 1
+        `, [dailyKey, dbDate]);
 
-      const [dailyRows] = await connection.query(
-        'SELECT last_sequence FROM document_sequences WHERE id = ?',
-        [dailyKey]
-      );
-      const sequence = dailyRows[0].last_sequence;
+        const [dailyRows] = await connection.query(
+          'SELECT last_sequence FROM document_sequences WHERE id = ?',
+          [dailyKey]
+        );
+        sequence = dailyRows[0].last_sequence;
+      }
 
       // Mémoriser ce numéro pour ce dossier (pour les réimpressions futures)
-      if (orderId) {
-        const orderKey = `ORDER-${orderId}`;
+      if (orderId && !preview) {
+        const orderKey = `ORDER-${type}-${orderId}`;
         await connection.query(`
           INSERT INTO document_sequences (id, doc_type, doc_date, last_sequence)
           VALUES (?, 'ORDER', ?, ?)

@@ -180,12 +180,17 @@ export default function DocumentsCentralizedPage() {
 
         let apiPath = '';
         if (doc.docType === 'BL') {
-          apiPath = `/api/deliveries?id=${doc.id}`;
+          if (doc.docSource === 'libre') {
+            apiPath = `/api/grouped-discharge?id=${doc.id}`;
+          } else {
+            apiPath = `/api/deliveries?id=${doc.id}`;
+          }
         } else if (doc.docType === 'BC' && doc.docSource === 'partenaire') {
           apiPath = `/api/contract-bc-history?id=${doc.id}`;
+        } else if (doc.docType === 'BC' && doc.docSource === 'externe') {
+          apiPath = `/api/external-orders/${doc.id}`;
         } else {
-          // Commande Spéciale Externe (pas de support upload dans son API standard)
-          throw new Error("Le téléversement n'est supporté que pour les BL et BC Partenaires.");
+          throw new Error("Le téléversement n'est supporté que pour les BL, les BC Partenaires et les Commandes Spéciales.");
         }
 
         // 2. Associer la pièce jointe en base de données via PATCH

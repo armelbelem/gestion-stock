@@ -156,7 +156,7 @@ export async function GET(request) {
       SELECT p.name, SUM(o.contractAmount * (1 + COALESCE(o.tva_rate, 0) / 100)) as total 
       FROM contract_orders o
       JOIN contract_partners p ON o.partner_id = p.id
-      WHERE o.status != "annule"
+      WHERE (o.status = "CLÔTURÉ" OR o.status = "termine")
     `;
     let conPurchParams = [];
     if (startDate && endDate) {

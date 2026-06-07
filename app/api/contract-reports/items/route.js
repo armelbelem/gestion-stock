@@ -27,13 +27,13 @@ export async function GET(request) {
         coi.refCfao,
         coi.description,
         coi.purchasePrice as unitPrice,
-        SUM(coi.quantity) as totalQuantity,
-        SUM(coi.quantity * coi.purchasePrice) as totalHT,
+        SUM(coi.delivered_quantity) as totalQuantity,
+        SUM(coi.delivered_quantity * coi.purchasePrice) as totalHT,
         p.name as partnerName
       FROM contract_order_items coi
       JOIN contract_orders co ON coi.orderId = co.id
       LEFT JOIN contract_partners p ON co.partner_id = p.id
-      WHERE co.status = 'termine'
+      WHERE co.status = 'CLÔTURÉ'
     `;
     const params = [];
 

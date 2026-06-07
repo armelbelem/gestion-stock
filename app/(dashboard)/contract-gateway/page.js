@@ -55,6 +55,7 @@ const blinkingStyle = `
   .print-only { display: none; }
 `;
 
+
 export default function ContractGatewayPage() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('dossiers');
@@ -103,6 +104,10 @@ export default function ContractGatewayPage() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [currentDeliveries, setCurrentDeliveries] = useState([]);
+  const [isSimpleDeliveryModalOpen, setIsSimpleDeliveryModalOpen] = useState(false);
+  const [selectedOrderForSimpleDelivery, setSelectedOrderForSimpleDelivery] = useState(null);
+  const [simpleDeliveryItems, setSimpleDeliveryItems] = useState([]);
+  const [orderDeliveries, setOrderDeliveries] = useState([]);
 
   // States Données
   const [newOrder, setNewOrder] = useState({ clientId: '', notes: '', items: [], deliveryDate: '' });
@@ -182,11 +187,18 @@ export default function ContractGatewayPage() {
   const [reportLoading, setReportLoading] = useState(false);
 
   // États pour les rapports d'achat par produit
-  const [reportSubTab, setReportSubTab] = useState('dashboard'); // 'dashboard' ou 'products'
+  const [reportSubTab, setReportSubTab] = useState('dashboard'); // 'dashboard', 'products', or 'purchases'
   const [productReports, setProductReports] = useState([]);
   const [productReportsLoading, setProductReportsLoading] = useState(false);
   const [productSearch, setProductSearch] = useState('');
   const [productPage, setProductPage] = useState(1);
+
+  // Nouvel état pour le Rapport Financier d'Achats CFAO par Mine
+  const [purchasesReport, setPurchasesReport] = useState([]);
+  const [purchasesLoading, setPurchasesLoading] = useState(false);
+  const [purchasesMineId, setPurchasesMineId] = useState('all');
+  const [purchasesStatus, setPurchasesStatus] = useState('all');
+  const [purchasesSearch, setPurchasesSearch] = useState('');
 
   useEffect(() => {
     setProductPage(1);
@@ -205,18 +217,46 @@ export default function ContractGatewayPage() {
 
   const handleReprintBL = async (del) => {
     try {
-      const rawItems = typeof del.items === 'string' ? JSON.parse(del.items || '[]') : (del.items || []);
-      const items = rawItems.filter(it => !it.isMetadata);
-      const meta = rawItems.find(it => it.isMetadata) || {};
+      setLoading(true);
+      let generatedNumber = del.bl_number;
+      const token = sessionStorage.getItem('token');
 
       const fullOrder = await storage.get(`contract-orders/${del.order_id}`);
       const client = clients.find(c => String(c.id) === String(fullOrder.clientId || fullOrder.client_id));
       const partner = partners.find(s => String(s.id) === String(fullOrder.partner_id || fullOrder.partnerId));
 
+      if (!generatedNumber || generatedNumber === 'Non imprimé') {
+        const seqRes = await fetch(`/api/sequence?type=BL&orderId=${del.order_id}`);
+        const seqData = await seqRes.json();
+        const fallbackName = client?.name || fullOrder.clientName || '';
+        generatedNumber = formatDocumentNumber(seqData, settings?.blNumberFormat, fallbackName);
+
+        const putRes = await fetch('/api/deliveries', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : ''
+          },
+          body: JSON.stringify({
+            id: del.id,
+            blNumber: generatedNumber
+          })
+        });
+        if (!putRes.ok) throw new Error("Erreur lors de l'enregistrement du numéro de BL");
+
+        del.bl_number = generatedNumber;
+        setOrderDeliveries(prev => prev.map(d => d.id === del.id ? { ...d, bl_number: generatedNumber } : d));
+        setCurrentDeliveries(prev => prev.map(d => d.id === del.id ? { ...d, bl_number: generatedNumber } : d));
+      }
+
+      const rawItems = typeof del.items === 'string' ? JSON.parse(del.items || '[]') : (del.items || []);
+      const items = rawItems.filter(it => !it.isMetadata);
+      const meta = rawItems.find(it => it.isMetadata) || {};
+
       setPrintData({
         ...fullOrder,
         items,
-        orderNumber: del.bl_number.split('-')[1],
+        orderNumber: generatedNumber.split('-')[1] || generatedNumber,
         clientName: client?.name || fullOrder.clientName || 'Client Non Défini',
         clientCode: client ? client.clientCode : 'Non Défini',
         supplierName: partner?.name || 'Fournisseur Non Défini',
@@ -256,24 +296,27 @@ export default function ContractGatewayPage() {
         blColRef: meta.blColRef || selectedPartner?.bl_col_ref || 'Ref',
         blColQty: meta.blColQty || selectedPartner?.bl_col_qty || 'Qté',
         sectionTitle: meta.sectionTitle || 'FOURNITURE DE PIECES DE RECHANGE',
-        blNumber: del.bl_number,
-        customDocNumber: del.bl_number.split('-').length === 2 
-          ? `BL-${del.bl_number.split('-')[1]}-${new Date(del.created_at || Date.now()).toISOString().split('T')[0].split('-')[2]}${new Date(del.created_at || Date.now()).toISOString().split('T')[0].split('-')[1]}-${new Date(del.created_at || Date.now()).toISOString().split('T')[0].split('-')[0]}`
-          : del.bl_number,
+        blNumber: generatedNumber,
+        customDocNumber: generatedNumber.split('-').length === 2 
+          ? `BL-${generatedNumber.split('-')[1]}-${new Date(del.created_at || Date.now()).toISOString().split('T')[0].split('-')[2]}${new Date(del.created_at || Date.now()).toISOString().split('T')[0].split('-')[1]}-${new Date(del.created_at || Date.now()).toISOString().split('T')[0].split('-')[0]}`
+          : generatedNumber,
         customDate: meta.customDate || (del.created_at ? new Date(del.created_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0])
       });
       setIsPrintingBL(true);
       setTimeout(() => { 
         const originalTitle = document.title;
-        document.title = del.bl_number.split('-').length === 2 
-          ? `BL-${del.bl_number.split('-')[1]}-${new Date(del.created_at || Date.now()).toISOString().split('T')[0].split('-')[2]}${new Date(del.created_at || Date.now()).toISOString().split('T')[0].split('-')[1]}-${new Date(del.created_at || Date.now()).toISOString().split('T')[0].split('-')[0]}`
-          : del.bl_number;
+        const finalTitle = generatedNumber.split('-').length === 2 
+          ? `BL-${generatedNumber.split('-')[1]}-${new Date(del.created_at || Date.now()).toISOString().split('T')[0].split('-')[2]}${new Date(del.created_at || Date.now()).toISOString().split('T')[0].split('-')[1]}-${new Date(del.created_at || Date.now()).toISOString().split('T')[0].split('-')[0]}`
+          : generatedNumber;
+        document.title = finalTitle;
         window.print(); 
         document.title = originalTitle;
         setIsPrintingBL(false); 
         setPrintData(null); 
+        setLoading(false);
       }, 800);
     } catch (error) {
+      setLoading(false);
       console.error('Error reprinting BL:', error);
     }
   };
@@ -345,9 +388,10 @@ export default function ContractGatewayPage() {
       setIsPrinting(true);
       setTimeout(() => { 
         const originalTitle = document.title;
-        document.title = bc.bc_number.split('-').length === 2
+        const finalTitle = bc.bc_number.split('-').length === 2
           ? `BC-${bc.bc_number.split('-')[1]}-${new Date(bc.created_at || Date.now()).toISOString().split('T')[0].split('-')[2]}${new Date(bc.created_at || Date.now()).toISOString().split('T')[0].split('-')[1]}-${new Date(bc.created_at || Date.now()).toISOString().split('T')[0].split('-')[0]}`
           : bc.bc_number;
+        document.title = finalTitle;
         window.print(); 
         document.title = originalTitle;
         setIsPrinting(false); 
@@ -414,7 +458,7 @@ export default function ContractGatewayPage() {
 
   useEffect(() => {
     if (isVoiceEnabled && orders.length > 0) {
-      const lateCount = orders.filter(o => o.status !== 'termine' && o.delivery_date && new Date(o.delivery_date) <= new Date()).length;
+      const lateCount = orders.filter(o => o.status !== 'CLÔTURÉ' && o.status !== 'termine' && o.status !== 'ANNULÉ' && o.status !== 'annule' && o.delivery_date && new Date(o.delivery_date) <= new Date()).length;
       if (lateCount > 0) {
         // Petit délai pour éviter les conflits audio au démarrage
         const timer = setTimeout(() => {
@@ -509,11 +553,68 @@ export default function ContractGatewayPage() {
     XLSX.writeFile(wb, `Rapport_Consommation_Produits_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
+  const loadPurchasesReport = async () => {
+    setPurchasesLoading(true);
+    try {
+      const url = `/api/contract-reports/purchases?startDate=${reportStartDate}&endDate=${reportEndDate}&partnerId=${reportPartnerId}&clientId=${purchasesMineId}&status=${purchasesStatus}&_t=${Date.now()}`;
+      const res = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${sessionStorage.getItem('token')}` }
+      });
+      const data = await res.json();
+      setPurchasesReport(data || []);
+    } catch (err) {
+      console.error("Error loading purchases report:", err);
+    } finally {
+      setPurchasesLoading(false);
+    }
+  };
+
+  const exportPurchasesReportToExcel = () => {
+    if (!purchasesReport || purchasesReport.length === 0) {
+      showAlert('warning', 'Aucune donnée', 'Il n\'y a aucune donnée à exporter pour ce rapport.');
+      return;
+    }
+
+    const formatExcelNumber = (val) => {
+      const num = Number(val) || 0;
+      if (settings?.roundAmounts !== 0 && settings?.roundAmounts !== false) {
+        return Math.trunc(num);
+      }
+      return Number(num.toFixed(2));
+    };
+
+    const data = purchasesReport.map(item => ({
+      'Mine (Client)': item.clientName || 'N/A',
+      'N° BC': item.bcNumber,
+      'Date Commande': item.orderDate ? new Date(item.orderDate).toLocaleDateString('fr-FR') : '-',
+      'Code Article': item.code || '-',
+      'Référence': item.refCfao || '-',
+      'Désignation': item.description,
+      'Prix Achat HT': formatExcelNumber(item.purchasePrice),
+      'Qté Commandée': item.quantityOrdered,
+      'Qté Livrée': item.quantityDelivered,
+      'Qté Restante': item.quantityRemaining,
+      'Achat Commandé (HT)': formatExcelNumber(item.totalHTOrdered),
+      'Achat Livré (HT)': formatExcelNumber(item.totalHTDelivered),
+      'Achat Reste à Livrer (HT)': formatExcelNumber(item.totalHTRemaining),
+      'Taux TVA (%)': item.tvaRate,
+      'Achat Livré (TTC)': formatExcelNumber(item.totalTTCDelivered),
+      'Statut': item.orderStatus
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Achats CFAO");
+    XLSX.writeFile(wb, `Rapport_Achats_CFAO_Details_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
   useEffect(() => {
     if (activeTab === 'rapports' && reportSubTab === 'products') {
       loadProductReports();
+    } else if (activeTab === 'rapports' && reportSubTab === 'purchases') {
+      loadPurchasesReport();
     }
-  }, [activeTab, reportSubTab, reportPartnerId]);
+  }, [activeTab, reportSubTab, reportStartDate, reportEndDate, reportPartnerId, purchasesMineId, purchasesStatus]);
 
   useEffect(() => {
     if (selectedPartner) {
@@ -740,8 +841,8 @@ export default function ContractGatewayPage() {
            generatedNumber = formatDocumentNumber(seqData, settings?.bcNumberFormat, client?.name);
         }
       } else {
-        // Obtenir un nouveau numéro séquentiel
-        const seqRes = await fetch(`/api/sequence?type=BC&orderId=${orderId}`);
+        // Obtenir un nouveau numéro séquentiel (mode prévisualisation)
+        const seqRes = await fetch(`/api/sequence?type=BC&orderId=${orderId}&preview=true`);
         const seqData = await seqRes.json();
         generatedNumber = formatDocumentNumber(seqData, settings?.bcNumberFormat, client?.name);
       }
@@ -788,6 +889,8 @@ export default function ContractGatewayPage() {
          ...fullOrder,
          docNumber: generatedNumber,
          customDocNumber: generatedNumber,
+         generatedPreviewNumber: generatedNumber,
+         hasExistingBc: !!existingBc,
          clientName: client?.name || fullOrder.clientName || 'Client Non Défini',
          clientCode: client ? client.clientCode : 'Non Défini',
          supplierName: (partner?.name) || 'Fournisseur Non Défini',
@@ -845,86 +948,110 @@ export default function ContractGatewayPage() {
     }
   };
 
-  const handleExecutePrintBC = async () => {
-    setIsBCPrintModalOpen(false);
+  const handleExecutePrintBC = () => {
+    setAlertModal({
+      open: true,
+      type: 'confirm',
+      title: "Confirmer l'impression",
+      message: "Confirmez-vous avoir bien saisi toutes les informations avant de lancer l'impression du Bon de Commande ?",
+      onConfirm: async () => {
+        closeAlert();
+        setIsBCPrintModalOpen(false);
 
-    // Save to history if it's a standard order (or special if needed)
-    if (printData && !printData.isCatalog) {
-      try {
-        const token = sessionStorage.getItem('token');
-        const dateObj = printData.customDate ? new Date(printData.customDate) : new Date();
+        // Save to history if it's a standard order (or special if needed)
+        if (printData && !printData.isCatalog) {
+          try {
+            const token = sessionStorage.getItem('token');
+            const dateObj = printData.customDate ? new Date(printData.customDate) : new Date();
+            const client = clients.find(c => c.name === printData.clientName);
 
-        const bcNumber = printData.customDocNumber || `BC-${String(printData.orderNumber || 'SPEC').padStart(3, '0')}`;
+            let bcNumber = printData.customDocNumber || `BC-${String(printData.orderNumber || 'SPEC').padStart(3, '0')}`;
 
-        const metadataItem = {
-          isMetadata: true,
-          customCity: printData.customCity,
-          customDate: printData.customDate,
-          customSupervisorName: printData.customSupervisorName,
-          customSupervisorTitle: printData.customSupervisorTitle,
-          customSenderDetails: printData.customSenderDetails,
-          customRecipientDetails: printData.customRecipientDetails,
-          customSite: printData.customSite,
-          supplierMyClientCode: printData.supplierMyClientCode,
-          printNotes: printData.printNotes,
-          customTvaRate: printData.customTvaRate,
-          isExempt: printData.isExempt,
-          exemptionMention: printData.exemptionMention,
-          bcColNo: printData.bcColNo,
-          bcColSite: printData.bcColSite,
-          bcColDesc: printData.bcColDesc,
-          bcColCode: printData.bcColCode,
-          bcColRef: printData.bcColRef,
-          bcColQty: printData.bcColQty,
-          bcColPrice: printData.bcColPrice,
-          bcColTotal: printData.bcColTotal,
-          sectionTitle: printData.sectionTitle
-        };
+            if (!printData.hasExistingBc) {
+              try {
+                const seqRes = await fetch(`/api/sequence?type=BC&orderId=${printData.id}`);
+                const seqData = await seqRes.json();
+                const officialNumber = formatDocumentNumber(seqData, settings?.bcNumberFormat, client?.name);
+                if (printData.customDocNumber === printData.generatedPreviewNumber) {
+                  bcNumber = officialNumber;
+                  printData.customDocNumber = officialNumber;
+                }
+              } catch (seqErr) {
+                console.error("Erreur d'incrémentation de la séquence officielle BC :", seqErr);
+              }
+            }
 
-        const savedItems = [...(printData.items || []), metadataItem];
+            const metadataItem = {
+              isMetadata: true,
+              customCity: printData.customCity,
+              customDate: printData.customDate,
+              customSupervisorName: printData.customSupervisorName,
+              customSupervisorTitle: printData.customSupervisorTitle,
+              customSenderDetails: printData.customSenderDetails,
+              customRecipientDetails: printData.customRecipientDetails,
+              customSite: printData.customSite,
+              supplierMyClientCode: printData.supplierMyClientCode,
+              printNotes: printData.printNotes,
+              customTvaRate: printData.customTvaRate,
+              isExempt: printData.isExempt,
+              exemptionMention: printData.exemptionMention,
+              bcColNo: printData.bcColNo,
+              bcColSite: printData.bcColSite,
+              bcColDesc: printData.bcColDesc,
+              bcColCode: printData.bcColCode,
+              bcColRef: printData.bcColRef,
+              bcColQty: printData.bcColQty,
+              bcColPrice: printData.bcColPrice,
+              bcColTotal: printData.bcColTotal,
+              sectionTitle: printData.sectionTitle
+            };
 
-        await fetch('/api/contract-bc-history', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': token ? `Bearer ${token}` : ''
-          },
-          body: JSON.stringify({
-            orderId: printData.id,
-            partnerId: printData.partner_id || printData.partnerId || selectedPartner?.id,
-            bcNumber: bcNumber,
-            title: printData.bcTitleOverride,
-            requestRef: printData.requestRef,
-            items: savedItems
-          })
-        });
-      } catch (err) {
-        console.error("Erreur sauvegarde historique BC:", err);
+            const savedItems = [...(printData.items || []), metadataItem];
+
+            await fetch('/api/contract-bc-history', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': token ? `Bearer ${token}` : ''
+              },
+              body: JSON.stringify({
+                orderId: printData.id,
+                partnerId: printData.partner_id || printData.partnerId || selectedPartner?.id,
+                bcNumber: bcNumber,
+                title: printData.bcTitleOverride,
+                requestRef: printData.requestRef,
+                items: savedItems
+              })
+            });
+          } catch (err) {
+            console.error("Erreur sauvegarde historique BC:", err);
+          }
+        }
+
+        // Save if it's a special document
+        if (printData?.isSpecial) {
+          handleSaveSpecialDoc(printData);
+        } else {
+          loadData();
+        }
+
+        setIsPrinting(true);
+        const originalTitle = document.title;
+        if (printData?.customDocNumber) {
+           document.title = printData.customDocNumber;
+        } else if (printData?.docNumber) {
+           document.title = printData.docNumber;
+        } else if (printData?.bc_number) {
+           document.title = printData.bc_number;
+        }
+        setTimeout(() => {
+          window.print();
+          document.title = originalTitle;
+          setIsPrinting(false);
+          setPrintData(null);
+        }, 800);
       }
-    }
-
-    // Save if it's a special document
-    if (printData?.isSpecial) {
-      handleSaveSpecialDoc(printData);
-    } else {
-      loadData();
-    }
-
-    setIsPrinting(true);
-    const originalTitle = document.title;
-    if (printData?.customDocNumber) {
-       document.title = printData.customDocNumber;
-    } else if (printData?.docNumber) {
-       document.title = printData.docNumber;
-    } else if (printData?.bc_number) {
-       document.title = printData.bc_number;
-    }
-    setTimeout(() => {
-      window.print();
-      document.title = originalTitle;
-      setIsPrinting(false);
-      setPrintData(null);
-    }, 800);
+    });
   };
 
   const handlePrintSpecial = async (doc, type) => {
@@ -1162,6 +1289,141 @@ export default function ContractGatewayPage() {
     });
   };
 
+  const handleOpenSimpleDeliveryModal = async (orderId) => {
+    try {
+      setLoading(true);
+      const fullOrder = await storage.get(`contract-orders/${orderId}?storeId=all`);
+      if (!fullOrder || fullOrder.error) throw new Error("Dossier introuvable");
+
+      const token = sessionStorage.getItem('token');
+      const deliveryRes = await fetch(`/api/deliveries?orderId=${orderId}&_t=${Date.now()}`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        cache: 'no-store'
+      });
+      const existingDeliveries = await deliveryRes.json();
+      
+      setSelectedOrderForSimpleDelivery(fullOrder);
+      setOrderDeliveries(Array.isArray(existingDeliveries) ? existingDeliveries : []);
+      
+      const items = (fullOrder.items || []).map(it => {
+        const delivered = it.delivered_quantity || 0;
+        const remaining = Math.max(0, it.quantity - delivered);
+        return {
+          ...it,
+          orderedQuantity: it.quantity,
+          deliveredQuantity: delivered,
+          remainingQuantity: remaining,
+          quantity_to_deliver: ''
+        };
+      });
+      setSimpleDeliveryItems(items);
+      setIsSimpleDeliveryModalOpen(true);
+    } catch (err) {
+      showAlert('error', 'Erreur', err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleItemSimpleDeliveryChange = (idx, val) => {
+    const updated = [...simpleDeliveryItems];
+    updated[idx].quantity_to_deliver = val;
+    setSimpleDeliveryItems(updated);
+  };
+
+  const handleSimpleDeliverySubmit = async (e) => {
+    e.preventDefault();
+    
+    const hasQty = simpleDeliveryItems.some(it => (Number(it.quantity_to_deliver) || 0) > 0);
+    if (!hasQty) {
+      showAlert('error', 'Erreur', 'Veuillez saisir au moins une quantité à livrer.');
+      return;
+    }
+
+    for (const item of simpleDeliveryItems) {
+      const qtyToDeliver = Number(item.quantity_to_deliver) || 0;
+      if (qtyToDeliver < 0) {
+        showAlert('error', 'Quantité invalide', `La quantité à livrer ne peut pas être négative pour l'article "${item.description}".`);
+        return;
+      }
+      if (qtyToDeliver > item.remainingQuantity) {
+        showAlert('error', 'Quantité invalide', `La quantité à livrer (${qtyToDeliver}) pour l'article "${item.description}" dépasse la quantité restante (${item.remainingQuantity}).`);
+        return;
+      }
+    }
+
+    setAlertModal({
+      open: true,
+      type: 'confirm',
+      title: "Confirmer la livraison",
+      message: "Voulez-vous valider cette livraison ?",
+      onConfirm: async () => {
+        closeAlert();
+        try {
+          setLoading(true);
+          const token = sessionStorage.getItem('token');
+
+          const client = clients.find(c => String(c.id) === String(selectedOrderForSimpleDelivery.clientId || selectedOrderForSimpleDelivery.client_id));
+          const generatedNumber = 'Non imprimé';
+
+          const metadataItem = {
+            isMetadata: true,
+            customCity: settings?.city || 'Ouagadougou',
+            customDate: new Date().toISOString().split('T')[0],
+            customSupervisorName: selectedPartner?.bl_supervisor_name || settings?.blSupervisorName || 'Huges Christian SOW',
+            customSupervisorTitle: selectedPartner?.bl_supervisor_title || settings?.blSupervisorTitle || 'Responsable Logistique Adjoint',
+            customSenderDetails: selectedPartner?.bl_sender_details || settings?.blSenderDetails || '',
+            customRecipientDetails: client ? `${client.name}\n${client.clientCode}` : '',
+            customSite: '',
+            printNotes: '',
+            blColNo: 'N',
+            blColSite: 'Site',
+            blColDesc: 'Désignation',
+            blColCode: 'Code',
+            blColRef: 'Référence',
+            blColQty: 'Qté',
+            sectionTitle: 'FOURNITURE DE PIECES DE RECHANGE'
+          };
+
+          const itemsToSave = simpleDeliveryItems.map(item => ({
+            description: item.description,
+            code: item.code,
+            refCfao: item.refCfao || item.code,
+            orderedQuantity: item.orderedQuantity,
+            deliveredQuantity: item.deliveredQuantity,
+            remainingQuantity: item.remainingQuantity,
+            quantity: Number(item.quantity_to_deliver) || 0
+          }));
+
+          const savedItems = [...itemsToSave, metadataItem];
+
+          const res = await fetch('/api/deliveries', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': token ? `Bearer ${token}` : ''
+            },
+            body: JSON.stringify({
+              orderId: selectedOrderForSimpleDelivery.id,
+              blNumber: generatedNumber,
+              items: savedItems
+            })
+          });
+
+          if (!res.ok) throw new Error("Erreur lors de la sauvegarde du BL");
+
+          showAlert('success', 'Livraison validée', `La livraison a été enregistrée avec succès.`);
+          setIsSimpleDeliveryModalOpen(false);
+          loadData();
+        } catch (err) {
+          showAlert('error', 'Erreur', err.message);
+        } finally {
+          setLoading(false);
+        }
+      }
+    });
+  };
+
   const loadBCHistory = async (orderId) => {
     try {
       setSelectedOrder({ id: orderId });
@@ -1221,61 +1483,41 @@ export default function ContractGatewayPage() {
       const existingDeliveryData = await deliveryRes.json();
       const existingDelivery = Array.isArray(existingDeliveryData) && existingDeliveryData.length > 0 ? existingDeliveryData[0] : null;
 
-      let generatedNumber = '';
-      if (existingDelivery && existingDelivery.bl_number) {
-        generatedNumber = existingDelivery.bl_number;
-        // Correction des anciens numéros mal formatés (ex: "BL-002" sans la date)
-        if (generatedNumber.split('-').length === 2) {
-           const idPart = generatedNumber.split('-')[1];
-           const seqData = { sequence: idPart, date: new Date().toISOString().split('T')[0] };
-           generatedNumber = formatDocumentNumber(seqData, settings?.blNumberFormat, fallbackName);
-        }
-      } else {
-        const seqRes = await fetch(`/api/sequence?type=BL&orderId=${orderId}`);
-        const seqData = await seqRes.json();
-        generatedNumber = formatDocumentNumber(seqData, settings?.blNumberFormat, fallbackName);
-      }
+       let generatedNumber = '';
+       let isTemporaryNumber = false;
+       if (existingDelivery && existingDelivery.bl_number) {
+         generatedNumber = existingDelivery.bl_number;
+         // Correction des anciens numéros mal formatés (ex: "BL-002" sans la date)
+         if (generatedNumber.split('-').length === 2) {
+            const idPart = generatedNumber.split('-')[1];
+            const seqData = { sequence: idPart, date: new Date().toISOString().split('T')[0] };
+            generatedNumber = formatDocumentNumber(seqData, settings?.blNumberFormat, fallbackName);
+         }
+       } else {
+         const seqRes = await fetch(`/api/sequence?type=BL&preview=true&orderId=${orderId}`);
+         const seqData = await seqRes.json();
+         generatedNumber = formatDocumentNumber(seqData, settings?.blNumberFormat, fallbackName);
+         isTemporaryNumber = true;
+       }
 
        const fullOrderItems = (fullOrder.items || []).map(it => ({
          description: it.description,
          code: it.code,
          refCfao: it.refCfao || it.code,
-         quantity: it.quantity
+         orderedQuantity: it.quantity,
+         deliveredQuantity: it.delivered_quantity || 0,
+         remainingQuantity: Math.max(0, it.quantity - (it.delivered_quantity || 0)),
+         quantity: ''
        }));
-       let rawItems = [];
-       if (existingDelivery?.items) {
-         const existingItems = typeof existingDelivery.items === 'string' ? JSON.parse(existingDelivery.items) : existingDelivery.items;
-         const existingMeta = existingItems.filter(it => it.isMetadata);
-         const existingArticles = existingItems.filter(it => !it.isMetadata);
-         
-         const reconciledArticles = fullOrderItems.map(foItem => {
-           const match = existingArticles.find(histItem => 
-             (foItem.code && histItem.code === foItem.code) || 
-             (foItem.refCfao && histItem.refCfao === foItem.refCfao) ||
-             (histItem.description === foItem.description)
-           );
-           if (match) {
-             return {
-               ...match,
-               quantity: foItem.quantity
-             };
-           } else {
-             return foItem;
-           }
-         });
-         
-         rawItems = [...reconciledArticles, ...existingMeta];
-       } else {
-         rawItems = fullOrderItems;
-       }
-       const itemsToUse = rawItems.filter(it => !it.isMetadata);
-       const meta = rawItems.find(it => it.isMetadata) || {};
+       const itemsToUse = fullOrderItems;
+       const meta = {};
  
        setPrintData({
          ...fullOrder,
          docNumber: generatedNumber,
          customDocNumber: generatedNumber,
          client: client || null,
+         isTemporaryNumber: isTemporaryNumber,
          clientName: fallbackName || 'Client Non Défini',
          clientCode: client ? client.clientCode : 'Non Défini',
          blTitleOverride: meta.blTitleOverride || defaultPrefix,
@@ -1321,122 +1563,128 @@ export default function ContractGatewayPage() {
   };
 
   const handleSaveAndPrintBL = async (deliveryData) => {
-    try {
-      setLoading(true);
-      const token = sessionStorage.getItem('token');
-
-      const dateObj = deliveryData.customDate ? new Date(deliveryData.customDate) : new Date();
-      const blNumber = deliveryData.customDocNumber || `BL-${String(deliveryData.orderNumber || 'SPEC').padStart(3, '0')}`;
-
-      const metadataItem = {
-        isMetadata: true,
-        customCity: deliveryData.customCity,
-        customDate: deliveryData.customDate,
-        customSupervisorName: deliveryData.customSupervisorName,
-        customSupervisorTitle: deliveryData.customSupervisorTitle,
-        customSenderDetails: deliveryData.customSenderDetails,
-        customRecipientDetails: deliveryData.customRecipientDetails,
-        customSite: deliveryData.customSite,
-        printNotes: deliveryData.printNotes,
-        blColNo: deliveryData.blColNo,
-        blColSite: deliveryData.blColSite,
-        blColDesc: deliveryData.blColDesc,
-        blColCode: deliveryData.blColCode,
-        blColRef: deliveryData.blColRef,
-        blColQty: deliveryData.blColQty,
-        sectionTitle: deliveryData.sectionTitle
-      };
-
-      const savedItems = [...(deliveryData.items || []), metadataItem];
-
-      if (!deliveryData.isSpecial) {
-        const res = await fetch('/api/deliveries', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': token ? `Bearer ${token}` : ''
-          },
-          body: JSON.stringify({
-            orderId: deliveryData.id,
-            blNumber: blNumber,
-            items: savedItems
-          })
-        });
-
-        if (!res.ok) throw new Error("Erreur lors de la sauvegarde du BL");
+    // Sécurité : Bloquer les dépassements de quantité et valeurs négatives
+    if (!deliveryData.isSpecial) {
+      const hasQty = (deliveryData.items || []).some(item => (Number(item.quantity) || 0) > 0);
+      if (!hasQty) {
+        showAlert('error', 'Erreur', 'Veuillez saisir au moins une quantité à livrer.');
+        return;
       }
-
-      // Save to special history if it's a special doc
-      if (deliveryData.isSpecial) {
-        handleSaveSpecialDoc(deliveryData);
-      } else {
-        loadData();
+      for (const item of (deliveryData.items || [])) {
+        const qtyToDeliver = Number(item.quantity) || 0;
+        const remaining = Number(item.remainingQuantity) || 0;
+        if (qtyToDeliver < 0) {
+          showAlert('error', 'Quantité invalide', `La quantité à livrer ne peut pas être négative pour l'article "${item.description}".`);
+          return;
+        }
+        if (qtyToDeliver > remaining) {
+          showAlert('error', 'Quantité invalide', `La quantité à livrer (${qtyToDeliver}) pour l'article "${item.description}" dépasse la quantité restante (${remaining}).`);
+          return;
+        }
       }
-
-      setPrintData(deliveryData);
-      setIsPrintingBL(true);
-      setIsBLModalOpen(false);
-      setLoading(false);
-
-      const originalTitle = document.title;
-      if (deliveryData?.customDocNumber) {
-         document.title = deliveryData.customDocNumber;
-      } else if (deliveryData?.docNumber) {
-         document.title = deliveryData.docNumber;
-      } else if (blNumber) {
-         document.title = blNumber;
-      }
-
-      setTimeout(() => {
-        window.print();
-        document.title = originalTitle;
-        setIsPrintingBL(false);
-        setPrintData(null);
-      }, 800);
-    } catch (err) {
-      setLoading(false);
-      showAlert('error', 'Erreur', err.message);
     }
+
+    setAlertModal({
+      open: true,
+      type: 'confirm',
+      title: "Confirmer l'enregistrement",
+      message: "Confirmez-vous avoir bien saisi toutes les informations avant de sauvegarder et d'imprimer ce Bon de Livraison ?",
+      onConfirm: async () => {
+        closeAlert();
+        try {
+          setLoading(true);
+          const token = sessionStorage.getItem('token');
+
+          const dateObj = deliveryData.customDate ? new Date(deliveryData.customDate) : new Date();
+          let blNumber = deliveryData.customDocNumber || `BL-${String(deliveryData.orderNumber || 'SPEC').padStart(3, '0')}`;
+
+          if (deliveryData.isTemporaryNumber && (!deliveryData.customDocNumber || deliveryData.customDocNumber === deliveryData.docNumber)) {
+            try {
+              const seqRes = await fetch(`/api/sequence?type=BL&orderId=${deliveryData.id}`);
+              const seqData = await seqRes.json();
+              const client = clients.find(c => String(c.id) === String(deliveryData.clientId || deliveryData.client_id));
+              const fallbackName = client?.name || deliveryData.clientName || '';
+              blNumber = formatDocumentNumber(seqData, settings?.blNumberFormat, fallbackName);
+            } catch (e) {
+              console.error("Error generating actual sequence:", e);
+            }
+          }
+
+          const metadataItem = {
+            isMetadata: true,
+            customCity: deliveryData.customCity,
+            customDate: deliveryData.customDate,
+            customSupervisorName: deliveryData.customSupervisorName,
+            customSupervisorTitle: deliveryData.customSupervisorTitle,
+            customSenderDetails: deliveryData.customSenderDetails,
+            customRecipientDetails: deliveryData.customRecipientDetails,
+            customSite: deliveryData.customSite,
+            printNotes: deliveryData.printNotes,
+            blColNo: deliveryData.blColNo,
+            blColSite: deliveryData.blColSite,
+            blColDesc: deliveryData.blColDesc,
+            blColCode: deliveryData.blColCode,
+            blColRef: deliveryData.blColRef,
+            blColQty: deliveryData.blColQty,
+            sectionTitle: deliveryData.sectionTitle
+          };
+
+          const savedItems = [...(deliveryData.items || []), metadataItem];
+
+          if (!deliveryData.isSpecial) {
+            const res = await fetch('/api/deliveries', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': token ? `Bearer ${token}` : ''
+              },
+              body: JSON.stringify({
+                orderId: deliveryData.id,
+                blNumber: blNumber,
+                items: savedItems
+              })
+            });
+
+            if (!res.ok) throw new Error("Erreur lors de la sauvegarde du BL");
+          }
+
+          // Save to special history if it's a special doc
+          if (deliveryData.isSpecial) {
+            handleSaveSpecialDoc(deliveryData);
+          } else {
+            loadData();
+          }
+
+          setPrintData(deliveryData);
+          setIsPrintingBL(true);
+          setIsBLModalOpen(false);
+          setLoading(false);
+
+          const originalTitle = document.title;
+          if (deliveryData?.customDocNumber) {
+             document.title = deliveryData.customDocNumber;
+          } else if (deliveryData?.docNumber) {
+             document.title = deliveryData.docNumber;
+          } else if (blNumber) {
+             document.title = blNumber;
+          }
+
+          setTimeout(() => {
+            window.print();
+            document.title = originalTitle;
+            setIsPrintingBL(false);
+            setPrintData(null);
+          }, 800);
+        } catch (err) {
+          setLoading(false);
+          showAlert('error', 'Erreur', err.message);
+        }
+      }
+    });
   };
 
   const handlePrintBL = async (deliveryData) => {
-    try {
-      setLoading(true);
-      // Vérifier si un BL existe déjà
-      const deliveryRes = await fetch(`/api/deliveries?orderId=${deliveryData.id}`);
-      const existingDeliveryData = await deliveryRes.json();
-      const existingDelivery = existingDeliveryData && existingDeliveryData.length > 0 ? existingDeliveryData[0] : null;
-
-      let generatedNumber = '';
-      if (existingDelivery && existingDelivery.bl_number) {
-        generatedNumber = existingDelivery.bl_number;
-      } else {
-        const seqRes = await fetch('/api/sequence?type=BL');
-        const seqData = await seqRes.json();
-        generatedNumber = formatDocumentNumber(seqData, settings?.blNumberFormat, deliveryData.clientName);
-      }
-
-      const baseBlTitle = selectedPartner?.bl_prefix || settings?.blTitlePrefix || 'BORDEREAU DE LIVRAISON';
-
-      setPrintData({
-        ...deliveryData,
-        docNumber: generatedNumber,
-        customDocNumber: generatedNumber,
-        blTitleOverride: baseBlTitle
-      });
-      setIsPrintingBL(true);
-      setIsBLModalOpen(false);
-
-      setTimeout(() => {
-        window.print();
-        setIsPrintingBL(false);
-        setPrintData(null);
-        setLoading(false);
-      }, 800);
-    } catch (err) {
-      setLoading(false);
-      showAlert('error', 'Erreur', err.message);
-    }
+    await handleReprintBL(deliveryData);
   };
 
   const handlePrintCatalog = () => {
@@ -1615,7 +1863,7 @@ export default function ContractGatewayPage() {
       code: article ? article.code : '',
       refCfao: article ? article.refCfao : '',
       description: article ? article.name : itemSearch,
-      quantity: 1,
+      quantity: '',
       purchasePrice: article ? article.purchasePrice || 0 : 0,
       sellPrice: 0
     };
@@ -1654,31 +1902,51 @@ export default function ContractGatewayPage() {
 
   const handleSubmitOrder = async () => {
     if (!newOrder.clientId) return showAlert('error', 'Erreur', 'Sélectionnez un client.');
-    try {
-      const orderToSave = {
-        ...newOrder,
-        items: newOrder.items.map(item => ({
-          ...item,
-          sellPrice: item.sellPrice || item.purchasePrice // Default to PA if PV is 0
-        }))
-      };
-
-      if (isEditing && selectedOrder) {
-        await storage.update('contract-orders', selectedOrder.id, orderToSave);
-        showAlert('success', 'Dossier Modifié', 'Le dossier a été mis à jour.');
-      } else {
-        await storage.create('contract-orders', { ...orderToSave, partnerId: selectedPartner.id });
-        showAlert('success', 'Dossier Créé', 'La demande a été enregistrée.');
-      }
-
-      setIsModalOpen(false);
-      setIsEditing(false);
-      setSelectedOrder(null);
-      setNewOrder({ clientId: '', notes: '', items: [], deliveryDate: '' });
-      loadData();
-    } catch (err) {
-      showAlert('error', 'Erreur', err.message);
+    if (!newOrder.items || newOrder.items.length === 0) {
+      return showAlert('error', 'Erreur', 'Ajoutez au moins un article.');
     }
+    for (const item of newOrder.items) {
+      if (item.quantity === undefined || item.quantity === null || String(item.quantity).trim() === '' || Number(item.quantity) <= 0) {
+        return showAlert('error', 'Quantité manquante', `Veuillez saisir une quantité supérieure à 0 pour l'article "${item.description || 'sans désignation'}".`);
+      }
+    }
+    
+    setAlertModal({
+      open: true,
+      type: 'confirm',
+      title: isEditing ? "Confirmer la modification" : "Confirmer la création",
+      message: isEditing 
+        ? "Confirmez-vous avoir bien saisi toutes les informations pour modifier ce dossier ?"
+        : "Confirmez-vous avoir bien saisi toutes les informations pour créer ce dossier ?",
+      onConfirm: async () => {
+        closeAlert();
+        try {
+          const orderToSave = {
+            ...newOrder,
+            items: newOrder.items.map(item => ({
+              ...item,
+              sellPrice: item.sellPrice || item.purchasePrice // Default to PA if PV is 0
+            }))
+          };
+
+          if (isEditing && selectedOrder) {
+            await storage.update('contract-orders', selectedOrder.id, orderToSave);
+            showAlert('success', 'Dossier Modifié', 'Le dossier a été mis à jour.');
+          } else {
+            await storage.create('contract-orders', { ...orderToSave, partnerId: selectedPartner.id });
+            showAlert('success', 'Dossier Créé', 'La demande a été enregistrée.');
+          }
+
+          setIsModalOpen(false);
+          setIsEditing(false);
+          setSelectedOrder(null);
+          setNewOrder({ clientId: '', notes: '', items: [], deliveryDate: '' });
+          loadData();
+        } catch (err) {
+          showAlert('error', 'Erreur', err.message);
+        }
+      }
+    });
   };
 
   const handleEditOrder = async (orderId) => {
@@ -1734,26 +2002,58 @@ export default function ContractGatewayPage() {
   };
 
   const updateOrderStatus = async (id, newStatus) => {
-    const label = newStatus === 'termine' ? 'Clôturer' : newStatus === 'annule' ? 'Annuler' : 'Valider';
+    const label = newStatus === 'CLÔTURÉ' || newStatus === 'termine' ? 'Clôturer' : newStatus === 'ANNULÉ' || newStatus === 'annule' ? 'Annuler' : 'Valider';
+    
+    if (newStatus === 'CLÔTURÉ' || newStatus === 'termine') {
+      try {
+        setLoading(true);
+        const fullOrder = await storage.get(`contract-orders/${id}`);
+        setLoading(false);
+        if (fullOrder && fullOrder.items) {
+          const hasMismatch = fullOrder.items.some(item => (item.delivered_quantity || 0) !== item.quantity);
+          if (hasMismatch) {
+            setAlertModal({
+              open: true,
+              type: 'confirm',
+              title: 'Écart de Livraison détecté',
+              message: 'Les quantités livrées ne correspondent pas à 100% aux quantités commandées. Souhaitez-vous tout de même clôturer ce Bon de Commande ?',
+              onConfirm: async () => {
+                closeAlert();
+                await executeStatusUpdate(id, newStatus);
+              }
+            });
+            return;
+          }
+        }
+      } catch (err) {
+        console.error("Error checking quantities for closure warning", err);
+        setLoading(false);
+      }
+    }
+
     setAlertModal({
       open: true,
       type: 'confirm',
       title: `${label} le dossier ?`,
-      message: newStatus === 'annule' ? 'Voulez-vous réellement annuler ce dossier ? Il sera exclu des statistiques.' : `Voulez-vous passer ce dossier au statut : ${newStatus.replace('_', ' ')} ?`,
+      message: newStatus === 'ANNULÉ' || newStatus === 'annule' ? 'Voulez-vous réellement annuler ce dossier ? Il sera exclu des statistiques.' : `Voulez-vous passer ce dossier au statut : ${newStatus.replace('_', ' ')} ?`,
       onConfirm: async () => {
         closeAlert();
-        setLoading(true);
-        try {
-          await storage.update('contract-orders', id, { status: newStatus });
-          await loadData();
-          showAlert('success', 'Mis à jour', 'Le statut a été modifié.');
-        } catch (err) {
-          showAlert('error', 'Erreur', err.message);
-        } finally {
-          setLoading(false);
-        }
+        await executeStatusUpdate(id, newStatus);
       }
     });
+  };
+
+  const executeStatusUpdate = async (id, newStatus) => {
+    setLoading(true);
+    try {
+      await storage.update('contract-orders', id, { status: newStatus });
+      await loadData();
+      showAlert('success', 'Mis à jour', 'Le statut a été modifié.');
+    } catch (err) {
+      showAlert('error', 'Erreur', err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // --- HELPERS POUR IMPRESSION ---
@@ -1855,7 +2155,7 @@ export default function ContractGatewayPage() {
       );
     }
 
-    const isPurchaseDoc = ['demande', 'facture_recue', 'po_envoye', 'bc_genere'].includes(printData.status);
+    const isPurchaseDoc = ['BROUILLON', 'VALIDÉ', 'PARTIELLEMENT_LIVRÉ', 'LIVRÉ', 'demande', 'facture_recue', 'po_envoye', 'bc_genere'].includes(printData.status);
 
     // Calcul robuste du montant HT si non présent dans printData (ex: Documents Libres)
     let amountHT = isPurchaseDoc ? (printData.contractAmount || 0) : (printData.totalAmount || 0);
@@ -1990,18 +2290,24 @@ export default function ContractGatewayPage() {
             <tbody>
               <tr>
                 <td style={{ width: '50%', verticalAlign: 'top', padding: '6px' }}>
-                  <p style={{ margin: '0 0 6px 0', fontSize: '9px' }}><strong>{settings?.companyName}</strong> / Code client : {printData.supplierMyClientCode}</p>
-                  <p style={{ margin: '0 0 2px 0', fontSize: '9px' }}>{settings?.address}</p>
-                  <p style={{ margin: '0 0 2px 0', fontSize: '9px' }}>RCCM : {settings?.rccm || 'BF BBD 2018 B 0372'}</p>
-                  <p style={{ margin: '0 0 2px 0', fontSize: '9px' }}>IFU : {settings?.nif || '00102506 K'}</p>
-                  <p style={{ margin: '0 0 2px 0', fontSize: '9px' }}>{settings?.bp || 'BP 1245 Bobo-dioulasso'}</p>
-                  <p style={{ margin: '0 0 2px 0', fontSize: '9px' }}>{settings?.division || 'Division des Grandes Entreprises'}</p>
-                  <p style={{ margin: '0 0 2px 0', fontSize: '9px' }}>{settings?.taxSystem || 'Réel Normal d\'Imposition'}</p>
+                  <div style={{ fontSize: '11px', fontWeight: 'bold', lineHeight: '1.3' }}>
+                    <p style={{ margin: '0 0 6px 0' }}><strong>{settings?.companyName}</strong>{printData.supplierMyClientCode ? ` / Code client : ${printData.supplierMyClientCode}` : ''}</p>
+                    <p style={{ margin: '0 0 2px 0' }}>{settings?.address}</p>
+                    <p style={{ margin: '0 0 2px 0' }}>RCCM : {settings?.rccm || 'BF BBD 2018 B 0372'}</p>
+                    <p style={{ margin: '0 0 2px 0' }}>IFU : {settings?.nif || '00102506 K'}</p>
+                    <p style={{ margin: '0 0 2px 0' }}>{settings?.bp || 'BP 1245 Bobo-dioulasso'}</p>
+                    <p style={{ margin: '0 0 2px 0' }}>{settings?.division || 'Division des Grandes Entreprises'}</p>
+                    <p style={{ margin: '0 0 2px 0' }}>{settings?.taxSystem || 'Réel Normal d\'Imposition'}</p>
+                  </div>
                 </td>
                 <td style={{ width: '50%', verticalAlign: 'top', padding: '6px' }}>
-                  <div style={{ fontSize: '11px', whiteSpace: 'pre-wrap' }}>
+                  <div style={{ fontSize: '11px' }}>
                     {printData.customRecipientDetails ? (
-                      <div style={{ fontWeight: 'bold' }}>{printData.customRecipientDetails}</div>
+                      <div style={{ fontWeight: 'bold', lineHeight: '1.3' }}>
+                        {printData.customRecipientDetails.split('\n').map((line, idx) => (
+                          <p key={idx} style={{ margin: idx === 0 ? '0 0 6px 0' : '0 0 2px 0' }}>{line}</p>
+                        ))}
+                      </div>
                     ) : (
                       <>
                         <div style={{ fontWeight: 'bold', fontSize: '12px', marginBottom: '8px' }}>
@@ -2011,11 +2317,11 @@ export default function ContractGatewayPage() {
                         </div>
                         {!printData.isSpecial && (
                           <>
-                            {printData.supplierAddress && <p style={{ margin: '0 0 3px 0' }}>{printData.supplierAddress}</p>}
-                            {printData.supplierBP && <p style={{ margin: '0 0 3px 0' }}>{printData.supplierBP}</p>}
-                            {printData.supplierPhone && <p style={{ margin: '0 0 3px 0' }}>Tél : {printData.supplierPhone}</p>}
-                            {printData.supplierRCCM && <p style={{ margin: '0 0 3px 0' }}>RCCM : {printData.supplierRCCM}</p>}
-                            {printData.supplierNIF && <p style={{ margin: '0 0 3px 0' }}>N° IFU : {printData.supplierNIF}</p>}
+                            {printData.supplierAddress && <p style={{ margin: '0 0 2px 0' }}>{printData.supplierAddress}</p>}
+                            {printData.supplierBP && <p style={{ margin: '0 0 2px 0' }}>{printData.supplierBP}</p>}
+                            {printData.supplierPhone && <p style={{ margin: '0 0 2px 0' }}>Tél : {printData.supplierPhone}</p>}
+                            {printData.supplierRCCM && <p style={{ margin: '0 0 2px 0' }}>RCCM : {printData.supplierRCCM}</p>}
+                            {printData.supplierNIF && <p style={{ margin: '0 0 2px 0' }}>N° IFU : {printData.supplierNIF}</p>}
                           </>
                         )}
                       </>
@@ -2285,18 +2591,24 @@ export default function ContractGatewayPage() {
             <tbody>
               <tr>
                 <td style={{ width: '50%', verticalAlign: 'top', padding: '6px', border: printBorder }}>
-                  <p style={{ margin: '0 0 6px 0', fontSize: '9px' }}><strong>{settings?.companyName}</strong></p>
-                  <p style={{ margin: '0 0 2px 0', fontSize: '9px' }}>{settings?.address}</p>
-                  <p style={{ margin: '0 0 2px 0', fontSize: '9px' }}>RCCM : {settings?.rccm || 'BF BBD 2018 B 0372'}</p>
-                  <p style={{ margin: '0 0 2px 0', fontSize: '9px' }}>IFU : {settings?.nif || '00102506 K'}</p>
-                  <p style={{ margin: '0 0 2px 0', fontSize: '9px' }}>{settings?.bp || 'BP 1245 Bobo-dioulasso'}</p>
-                  <p style={{ margin: '0 0 2px 0', fontSize: '9px' }}>{settings?.division || 'Division des Grandes Entreprises'}</p>
-                  <p style={{ margin: '0 0 2px 0', fontSize: '9px' }}>{settings?.taxSystem || 'Réel Normal d\'Imposition'}</p>
+                  <div style={{ fontSize: '11px', fontWeight: 'bold', lineHeight: '1.3' }}>
+                    <p style={{ margin: '0 0 6px 0' }}><strong>{settings?.companyName}</strong></p>
+                    <p style={{ margin: '0 0 2px 0' }}>{settings?.address}</p>
+                    <p style={{ margin: '0 0 2px 0' }}>RCCM : {settings?.rccm || 'BF BBD 2018 B 0372'}</p>
+                    <p style={{ margin: '0 0 2px 0' }}>IFU : {settings?.nif || '00102506 K'}</p>
+                    <p style={{ margin: '0 0 2px 0' }}>{settings?.bp || 'BP 1245 Bobo-dioulasso'}</p>
+                    <p style={{ margin: '0 0 2px 0' }}>{settings?.division || 'Division des Grandes Entreprises'}</p>
+                    <p style={{ margin: '0 0 2px 0' }}>{settings?.taxSystem || 'Réel Normal d\'Imposition'}</p>
+                  </div>
                 </td>
                 <td style={{ width: '50%', verticalAlign: 'top', padding: '6px', border: printBorder }}>
-                  <div style={{ fontSize: '11px', whiteSpace: 'pre-wrap' }}>
+                  <div style={{ fontSize: '11px' }}>
                     {printData.customRecipientDetails ? (
-                      <div style={{ fontWeight: 'bold' }}>{printData.customRecipientDetails}</div>
+                      <div style={{ fontWeight: 'bold', lineHeight: '1.3' }}>
+                        {printData.customRecipientDetails.split('\n').map((line, idx) => (
+                          <p key={idx} style={{ margin: idx === 0 ? '0 0 6px 0' : '0 0 2px 0' }}>{line}</p>
+                        ))}
+                      </div>
                     ) : (
                       <>
                         <div style={{ fontWeight: 'bold', fontSize: '12px', marginBottom: '8px' }}>
@@ -2306,11 +2618,11 @@ export default function ContractGatewayPage() {
                         </div>
                         {!printData.isSpecial && (
                           <>
-                            {printData.client?.address && <p style={{ margin: '0 0 3px 0' }}>{printData.client.address}</p>}
-                            {printData.client?.bp && <p style={{ margin: '0 0 3px 0' }}>{printData.client.bp}</p>}
-                            {printData.client?.phone && <p style={{ margin: '0 0 3px 0' }}>Tél : {printData.client.phone}</p>}
-                            {printData.client?.rccm && <p style={{ margin: '0 0 3px 0' }}>RCCM : {printData.client.rccm}</p>}
-                            {printData.client?.nif && <p style={{ margin: '0 0 3px 0' }}>IFU : {printData.client.nif}</p>}
+                            {printData.client?.address && <p style={{ margin: '0 0 2px 0' }}>{printData.client.address}</p>}
+                            {printData.client?.bp && <p style={{ margin: '0 0 2px 0' }}>{printData.client.bp}</p>}
+                            {printData.client?.phone && <p style={{ margin: '0 0 2px 0' }}>Tél : {printData.client.phone}</p>}
+                            {printData.client?.rccm && <p style={{ margin: '0 0 2px 0' }}>RCCM : {printData.client.rccm}</p>}
+                            {printData.client?.nif && <p style={{ margin: '0 0 2px 0' }}>IFU : {printData.client.nif}</p>}
                           </>
                         )}
                       </>
@@ -2720,8 +3032,8 @@ export default function ContractGatewayPage() {
                 <thead><tr><th>Réf. Dossier</th>{selectedPartner?.id === 'all' && <th>Partenaire</th>}<th>Client</th><th>Livraison</th><th>Statut</th><th>Montant Achat</th><th>Actions</th></tr></thead>
                 <tbody>
                   {orders.map(order => {
-                    const isOldRequest = order.status === 'demande' && (new Date() - new Date(order.createdAt)) > (48 * 60 * 60 * 1000);
-                    const isLateDelivery = order.status !== 'termine' && order.delivery_date && new Date(order.delivery_date) <= new Date();
+                    const isOldRequest = (order.status === 'BROUILLON' || order.status === 'demande') && (new Date() - new Date(order.createdAt)) > (48 * 60 * 60 * 1000);
+                    const isLateDelivery = order.status !== 'CLÔTURÉ' && order.status !== 'termine' && order.status !== 'ANNULÉ' && order.status !== 'annule' && order.delivery_date && new Date(order.delivery_date) <= new Date();
                     
                     return (
                       <tr key={order.id} className={isLateDelivery ? 'row-urgent' : isOldRequest ? 'row-urgent' : ''}>
@@ -2752,7 +3064,7 @@ export default function ContractGatewayPage() {
                           )}
                         </td>
                         <td>
-                          <span className={`badge badge-${order.status === 'termine' ? 'success' : order.status === 'annule' ? 'danger' : 'warning'} ${isOldRequest ? 'badge-urgent' : ''}`}>
+                          <span className={`badge badge-${(order.status === 'CLÔTURÉ' || order.status === 'termine' || order.status === 'LIVRÉ') ? 'success' : (order.status === 'ANNULÉ' || order.status === 'annule') ? 'danger' : 'warning'} ${isOldRequest ? 'badge-urgent' : ''}`}>
                             {order.status} {isOldRequest && '⚠️'}
                           </span>
                         </td>
@@ -2763,13 +3075,18 @@ export default function ContractGatewayPage() {
                         </td>
                         <td style={{ textAlign: 'right' }}>
                           <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                            {user?.role !== 'observateur' && <button className="btn btn-secondary btn-sm" onClick={() => handleEditOrder(order.id)} title="Modifier le dossier" disabled={order.status === 'termine' || order.status === 'annule'}><Edit size={16} /></button>}
+                            {user?.role !== 'observateur' && <button className="btn btn-secondary btn-sm" onClick={() => handleEditOrder(order.id)} title="Modifier le dossier" disabled={order.status === 'CLÔTURÉ' || order.status === 'termine' || order.status === 'ANNULÉ' || order.status === 'annule'}><Edit size={16} /></button>}
                             <button className="btn btn-secondary btn-sm" onClick={() => viewOrder(order.id)} title="Voir les détails"><Eye size={16} /></button>
-                            {order.status === 'demande' && user?.role !== 'observateur' && <button className="btn btn-secondary btn-sm" onClick={() => updateOrderStatus(order.id, 'facture_recue')} title="Facture reçue"><ArrowRight size={16} /></button>}
-                            {(order.status === 'facture_recue' || order.status === 'po_envoye') && user?.role !== 'observateur' && <button className="btn btn-success btn-sm" onClick={() => updateOrderStatus(order.id, 'termine')} title="Clôturer le dossier"><CheckCircle2 size={16} /></button>}
-                            {order.status !== 'termine' && order.status !== 'annule' && user?.role !== 'observateur' && <button className="btn btn-danger-outline btn-sm" onClick={() => updateOrderStatus(order.id, 'annule')} title="Annuler le dossier"><XCircle size={16} /></button>}
+                            {(order.status === 'BROUILLON' || order.status === 'demande') && user?.role !== 'observateur' && <button className="btn btn-secondary btn-sm" onClick={() => updateOrderStatus(order.id, 'VALIDÉ')} title="Valider le dossier"><ArrowRight size={16} /></button>}
+                            {(order.status === 'VALIDÉ' || order.status === 'PARTIELLEMENT_LIVRÉ' || order.status === 'LIVRÉ' || order.status === 'facture_recue' || order.status === 'po_envoye') && user?.role !== 'observateur' && <button className="btn btn-success btn-sm" onClick={() => updateOrderStatus(order.id, 'CLÔTURÉ')} title="Clôturer le dossier"><CheckCircle2 size={16} /></button>}
+                            {order.status !== 'CLÔTURÉ' && order.status !== 'termine' && order.status !== 'ANNULÉ' && order.status !== 'annule' && user?.role !== 'observateur' && <button className="btn btn-danger-outline btn-sm" onClick={() => updateOrderStatus(order.id, 'ANNULÉ')} title="Annuler le dossier"><XCircle size={16} /></button>}
                             <button className="btn btn-secondary btn-sm" onClick={() => handlePrint(order.id)} title="Imprimer BC"><Printer size={16} /> BC</button>
                             <button className="btn btn-secondary btn-sm" title="Historique BC" onClick={() => loadBCHistory(order.id)}><History size={16} /></button>
+                            {user?.role !== 'observateur' && (
+                              <button className="btn btn-secondary btn-sm" style={{ color: 'var(--primary)' }} title="Réceptionner & Livrer" onClick={() => handleOpenSimpleDeliveryModal(order.id)} disabled={order.status === 'CLÔTURÉ' || order.status === 'termine' || order.status === 'ANNULÉ' || order.status === 'annule'}>
+                                <Package size={16} /> Livrer
+                              </button>
+                            )}
                             {user?.role !== 'observateur' && <button className="btn btn-secondary btn-sm" style={{ color: 'var(--success)' }} title="Générer BL" onClick={() => handleOpenBLModal(order.id)}>
                               <Truck size={16} /> BL
                             </button>}
@@ -3138,6 +3455,13 @@ export default function ContractGatewayPage() {
             >
               📦 Analyse de Consommation par Produit
             </button>
+            <button 
+              className={`btn btn-sm ${reportSubTab === 'purchases' ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ borderRadius: '20px', padding: '6px 16px', fontWeight: 700 }}
+              onClick={() => setReportSubTab('purchases')}
+            >
+              💰 Rapport Financier Détaillé par Mine
+            </button>
           </div>
 
           {reportSubTab === 'products' ? (
@@ -3354,6 +3678,287 @@ export default function ContractGatewayPage() {
               </>
             )}
           </div>
+          ) : reportSubTab === 'purchases' ? (
+            <div className="content-card" style={{ padding: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800 }}>💰 Rapport Financier Détaillé des Achats CFAO par Mine</h3>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                    Suivi précis des engagements financiers, des livraisons réelles et des reliquats.
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <button className="btn btn-secondary" onClick={exportPurchasesReportToExcel}>
+                    <FileSpreadsheet size={18} /> Exporter Excel
+                  </button>
+                  <button className="btn btn-secondary" onClick={() => window.print()} title="Imprimer le rapport">
+                    <Printer size={18} /> PDF
+                  </button>
+                </div>
+              </div>
+
+              {/* FILTRES DU RAPPORT */}
+              <div style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: '1rem',
+                padding: '1rem',
+                backgroundColor: 'var(--bg-light)',
+                borderRadius: '12px',
+                marginBottom: '1.5rem',
+                alignItems: 'center',
+                border: '1px solid var(--border-light)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)' }}>Période du :</span>
+                  <input
+                    type="date"
+                    className="form-control"
+                    style={{ width: 'auto', height: '38px' }}
+                    value={reportStartDate}
+                    onChange={(e) => setReportStartDate(e.target.value)}
+                  />
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)' }}>au</span>
+                  <input
+                    type="date"
+                    className="form-control"
+                    style={{ width: 'auto', height: '38px' }}
+                    value={reportEndDate}
+                    onChange={(e) => setReportEndDate(e.target.value)}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: '180px' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)' }}>Partenaire :</span>
+                  <select
+                    className="form-control"
+                    style={{ height: '38px' }}
+                    value={reportPartnerId}
+                    onChange={(e) => setReportPartnerId(e.target.value)}
+                  >
+                    <option value="all">🌍 Tous</option>
+                    {partners.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: '180px' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)' }}>Mine :</span>
+                  <select
+                    className="form-control"
+                    style={{ height: '38px' }}
+                    value={purchasesMineId}
+                    onChange={(e) => setPurchasesMineId(e.target.value)}
+                  >
+                    <option value="all">🏢 Toutes les mines</option>
+                    {clients.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: '150px' }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-muted)' }}>Statut :</span>
+                  <select
+                    className="form-control"
+                    style={{ height: '38px' }}
+                    value={purchasesStatus}
+                    onChange={(e) => setPurchasesStatus(e.target.value)}
+                  >
+                    <option value="all">Tout (Sauf Annulés)</option>
+                    <option value="VALIDÉ">Validé</option>
+                    <option value="PARTIELLEMENT_LIVRÉ">Partiellement Livré</option>
+                    <option value="LIVRÉ">Livré</option>
+                    <option value="CLÔTURÉ">Clôturé</option>
+                  </select>
+                </div>
+
+                <div className="search-box" style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
+                  <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Rechercher BC, réf, désignation..."
+                    style={{ paddingLeft: '40px', height: '38px' }}
+                    value={purchasesSearch}
+                    onChange={e => setPurchasesSearch(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {purchasesLoading ? (
+                <div style={{ textAlign: 'center', padding: '5rem' }}>
+                  <div className="loader" style={{ margin: '0 auto 1rem' }}></div>
+                  <p className="text-muted">Calcul des statistiques d'achat en cours...</p>
+                </div>
+              ) : (
+                <>
+                  {/* KPI CARDS */}
+                  {(() => {
+                    const totalOrdered = purchasesReport.reduce((sum, it) => sum + (it.totalHTOrdered || 0), 0);
+                    const totalDelivered = purchasesReport.reduce((sum, it) => sum + (it.totalHTDelivered || 0), 0);
+                    const totalRemaining = purchasesReport.reduce((sum, it) => sum + (it.totalHTRemaining || 0), 0);
+                    const totalDeliveredTTC = purchasesReport.reduce((sum, it) => sum + (it.totalTTCDelivered || 0), 0);
+                    const deliveryProgress = totalOrdered > 0 ? (totalDelivered / totalOrdered) * 100 : 0;
+
+                    return (
+                      <div className="dashboard-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', marginBottom: '1.5rem', gap: '1rem' }}>
+                        <div className="stat-card" style={{ padding: '1rem 1.25rem' }}>
+                          <div className="stat-value" style={{ fontSize: '1.4rem' }}>{formatPrice(totalOrdered)} FCFA</div>
+                          <div className="stat-label" style={{ fontSize: '0.8rem' }}>Total Commandé (HT)</div>
+                        </div>
+                        <div className="stat-card" style={{ padding: '1rem 1.25rem', borderLeft: '4px solid var(--success)' }}>
+                          <div className="stat-value" style={{ fontSize: '1.4rem', color: 'var(--success)' }}>{formatPrice(totalDelivered)} FCFA</div>
+                          <div className="stat-label" style={{ fontSize: '0.8rem' }}>Total Livré Réel (HT)</div>
+                        </div>
+                        <div className="stat-card" style={{ padding: '1rem 1.25rem', borderLeft: '4px solid var(--warning)' }}>
+                          <div className="stat-value" style={{ fontSize: '1.4rem', color: 'var(--warning)' }}>{formatPrice(totalRemaining)} FCFA</div>
+                          <div className="stat-label" style={{ fontSize: '0.8rem' }}>Reste à Livrer (HT)</div>
+                        </div>
+                        <div className="stat-card" style={{ padding: '1rem 1.25rem', borderLeft: '4px solid var(--primary)' }}>
+                          <div className="stat-value" style={{ fontSize: '1.4rem', color: 'var(--primary)' }}>{formatPrice(totalDeliveredTTC)} FCFA</div>
+                          <div className="stat-label" style={{ fontSize: '0.8rem' }}>Total Livré (TTC)</div>
+                        </div>
+                        <div className="stat-card" style={{ padding: '1rem 1.25rem' }}>
+                          <div className="stat-value" style={{ fontSize: '1.4rem' }}>{deliveryProgress.toFixed(1)}%</div>
+                          <div className="stat-label" style={{ fontSize: '0.8rem' }}>Taux de Livraison</div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* SYNTHESE PAR MINE */}
+                  <h4 style={{ marginBottom: '0.75rem', fontWeight: 700 }}>🏢 Synthèse Financière par Mine (Client)</h4>
+                  <div className="table-wrapper" style={{ marginBottom: '2rem' }}>
+                    <table>
+                      <thead>
+                        <tr style={{ backgroundColor: 'var(--bg-light)' }}>
+                          <th>Nom de la Mine</th>
+                          <th style={{ textAlign: 'center' }}>Nombre de BC</th>
+                          <th style={{ textAlign: 'right' }}>Total Commandé (HT)</th>
+                          <th style={{ textAlign: 'right' }}>Total Livré HT (Réel)</th>
+                          <th style={{ textAlign: 'right' }}>Reste à Livrer HT</th>
+                          <th style={{ textAlign: 'right' }}>Total Livré TTC</th>
+                          <th style={{ width: '120px', textAlign: 'center' }}>Taux Livraison</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(() => {
+                          const minesMap = {};
+                          purchasesReport.forEach(it => {
+                            const name = it.clientName || 'Inconnu / Autre';
+                            if (!minesMap[name]) {
+                              minesMap[name] = { name, countBC: new Set(), ordered: 0, delivered: 0, remaining: 0, deliveredTTC: 0 };
+                            }
+                            minesMap[name].countBC.add(it.bcNumber);
+                            minesMap[name].ordered += (it.totalHTOrdered || 0);
+                            minesMap[name].delivered += (it.totalHTDelivered || 0);
+                            minesMap[name].remaining += (it.totalHTRemaining || 0);
+                            minesMap[name].deliveredTTC += (it.totalTTCDelivered || 0);
+                          });
+
+                          const minesList = Object.values(minesMap);
+                          if (minesList.length === 0) {
+                            return <tr><td colSpan="7" style={{ textAlign: 'center', padding: '1.5rem' }}>Aucune mine trouvée.</td></tr>;
+                          }
+
+                          return minesList.map((m, idx) => {
+                            const rate = m.ordered > 0 ? (m.delivered / m.ordered) * 100 : 0;
+                            return (
+                              <tr key={idx}>
+                                <td style={{ fontWeight: 700 }}>{m.name}</td>
+                                <td style={{ textAlign: 'center', fontWeight: 600 }}>{m.countBC.size}</td>
+                                <td style={{ textAlign: 'right' }}>{formatPrice(m.ordered)}</td>
+                                <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--success)' }}>{formatPrice(m.delivered)}</td>
+                                <td style={{ textAlign: 'right', fontWeight: 600, color: 'var(--warning)' }}>{formatPrice(m.remaining)}</td>
+                                <td style={{ textAlign: 'right', fontWeight: 700, color: 'var(--primary)' }}>{formatPrice(m.deliveredTTC)}</td>
+                                <td style={{ textAlign: 'center' }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                                    <span style={{ fontSize: '0.75rem', fontWeight: 700 }}>{rate.toFixed(0)}%</span>
+                                    <div style={{ width: '50px', height: '6px', backgroundColor: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
+                                      <div style={{ width: `${rate}%`, height: '100%', backgroundColor: 'var(--success)' }}></div>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          });
+                        })()}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* DETAILS PAR PIECE / ARTICLE */}
+                  <h4 style={{ marginBottom: '0.75rem', fontWeight: 700 }}>📦 Détails Ligne par Ligne des Pièces Commandées</h4>
+                  <div className="table-wrapper">
+                    <table className="table-sm">
+                      <thead>
+                        <tr style={{ backgroundColor: 'var(--bg-light)' }}>
+                          <th>Mine (Client)</th>
+                          <th style={{ width: '130px' }}>N° BC</th>
+                          <th style={{ width: '90px' }}>Date</th>
+                          <th>Code / Réf</th>
+                          <th>Désignation (Pièce)</th>
+                          <th style={{ textAlign: 'right', width: '90px' }}>P.A (HT)</th>
+                          <th style={{ textAlign: 'center', width: '70px' }}>Cmdé</th>
+                          <th style={{ textAlign: 'center', width: '70px' }}>Livré</th>
+                          <th style={{ textAlign: 'center', width: '70px' }}>Reste</th>
+                          <th style={{ textAlign: 'right', width: '110px' }}>Livré HT</th>
+                          <th style={{ textAlign: 'right', width: '110px' }}>Reste HT</th>
+                          <th style={{ width: '100px', textAlign: 'center' }}>Statut</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(() => {
+                          const query = purchasesSearch.toLowerCase();
+                          const filtered = purchasesReport.filter(it => 
+                            (it.clientName || '').toLowerCase().includes(query) ||
+                            (it.bcNumber || '').toLowerCase().includes(query) ||
+                            (it.code || '').toLowerCase().includes(query) ||
+                            (it.refCfao || '').toLowerCase().includes(query) ||
+                            (it.description || '').toLowerCase().includes(query)
+                          );
+
+                          if (filtered.length === 0) {
+                            return <tr><td colSpan="12" style={{ textAlign: 'center', padding: '2rem' }}>Aucune pièce trouvée.</td></tr>;
+                          }
+
+                          return filtered.map((item, idx) => {
+                            let statusBadge = <span className="badge badge-secondary" style={{ fontSize: '0.7rem' }}>Non Livré</span>;
+                            if (item.quantityDelivered >= item.quantityOrdered) {
+                              statusBadge = <span className="badge badge-success" style={{ fontSize: '0.7rem' }}>Complet</span>;
+                            } else if (item.quantityDelivered > 0) {
+                              statusBadge = <span className="badge badge-warning" style={{ fontSize: '0.7rem' }}>Partiel</span>;
+                            }
+
+                            return (
+                              <tr key={idx}>
+                                <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{item.clientName}</td>
+                                <td style={{ fontWeight: 700, fontSize: '0.8rem' }}>{item.bcNumber}</td>
+                                <td style={{ fontSize: '0.8rem' }}>{item.orderDate ? new Date(item.orderDate).toLocaleDateString('fr-FR') : '-'}</td>
+                                <td style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                                  {item.code || '-'}<br/>
+                                  <span style={{ fontSize: '0.7rem', color: 'var(--primary)' }}>{item.refCfao}</span>
+                                </td>
+                                <td style={{ fontWeight: 600, fontSize: '0.8rem' }}>{item.description}</td>
+                                <td style={{ textAlign: 'right', fontSize: '0.8rem' }}>{formatPrice(item.purchasePrice)}</td>
+                                <td style={{ textAlign: 'center', fontSize: '0.8rem', fontWeight: 600 }}>{item.quantityOrdered}</td>
+                                <td style={{ textAlign: 'center', fontSize: '0.8rem', fontWeight: 700, color: 'var(--success)' }}>{item.quantityDelivered}</td>
+                                <td style={{ textAlign: 'center', fontSize: '0.8rem', fontWeight: 600, color: 'var(--warning)' }}>{item.quantityRemaining}</td>
+                                <td style={{ textAlign: 'right', fontSize: '0.8rem', fontWeight: 700, color: 'var(--success)' }}>{formatPrice(item.totalHTDelivered)}</td>
+                                <td style={{ textAlign: 'right', fontSize: '0.8rem', fontWeight: 600, color: 'var(--warning)' }}>{formatPrice(item.totalHTRemaining)}</td>
+                                <td style={{ textAlign: 'center' }}>{statusBadge}</td>
+                              </tr>
+                            );
+                          });
+                        })()}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+            </div>
           ) : statsLoading ? (
             <div className="content-card" style={{ textAlign: 'center', padding: '5rem' }}>
               <div className="loader" style={{ margin: '0 auto 1rem' }}></div>
@@ -3754,25 +4359,33 @@ export default function ContractGatewayPage() {
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       {dayOrders.map(o => {
-                        const isLate = o.status !== 'termine' && o.delivery_date && new Date(o.delivery_date) <= new Date();
+                        const isLate = o.status !== 'CLÔTURÉ' && o.status !== 'termine' && o.status !== 'ANNULÉ' && o.status !== 'annule' && o.delivery_date && new Date(o.delivery_date) <= new Date();
                         
                         // Définition des couleurs selon le statut
                         let bgColor = '#eff6ff';
                         let textColor = '#1e40af';
                         let borderColor = 'var(--primary)';
-
+ 
                         if (isLate) {
                           bgColor = '#fee2e2';
                           textColor = '#b91c1c';
                           borderColor = 'var(--danger)';
-                        } else if (o.status === 'termine') {
+                        } else if (o.status === 'CLÔTURÉ' || o.status === 'termine') {
                           bgColor = '#f0fdf4';
                           textColor = '#15803d';
                           borderColor = '#22c55e';
-                        } else if (o.status === 'facture_recue' || o.status === 'po_envoye') {
+                        } else if (o.status === 'VALIDÉ' || o.status === 'facture_recue' || o.status === 'po_envoye') {
                           bgColor = '#fff7ed';
                           textColor = '#9a3412';
                           borderColor = '#f97316';
+                        } else if (o.status === 'PARTIELLEMENT_LIVRÉ') {
+                          bgColor = '#fef3c7';
+                          textColor = '#d97706';
+                          borderColor = '#f59e0b';
+                        } else if (o.status === 'LIVRÉ') {
+                          bgColor = '#ecfdf5';
+                          textColor = '#047857';
+                          borderColor = '#10b981';
                         }
 
                         return (
@@ -4290,11 +4903,14 @@ export default function ContractGatewayPage() {
                 <table>
                   <thead>
                     <tr>
-                      <th style={{ width: '15%' }}>Code</th>
-                      <th style={{ width: '35%' }}>Désignation</th>
-                      <th style={{ width: '25%' }}>Référence</th>
-                      <th style={{ width: '15%' }}>Quantité</th>
-                      <th style={{ width: '10%' }}></th>
+                      <th style={{ width: '10%' }}>Code</th>
+                      <th style={{ width: '30%' }}>Désignation</th>
+                      <th style={{ width: '15%' }}>Référence</th>
+                      <th style={{ width: '10%', textAlign: 'center' }}>Qté Cmd</th>
+                      <th style={{ width: '10%', textAlign: 'center' }}>Déjà Livré</th>
+                      <th style={{ width: '10%', textAlign: 'center' }}>Reste</th>
+                      <th style={{ width: '10%' }}>À Livrer</th>
+                      <th style={{ width: '5%' }}></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -4315,7 +4931,10 @@ export default function ContractGatewayPage() {
                           newItems[idx].refCfao = e.target.value;
                           setPrintData({ ...printData, items: newItems });
                         }} /></td>
-                        <td><input type="number" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} min="0" className="form-control" value={item.quantity} onChange={e => {
+                        <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{item.orderedQuantity !== undefined ? item.orderedQuantity : '-'}</td>
+                        <td style={{ textAlign: 'center', color: 'var(--success)', fontWeight: 'bold' }}>{item.deliveredQuantity !== undefined ? item.deliveredQuantity : '-'}</td>
+                        <td style={{ textAlign: 'center', color: 'var(--text-muted)', fontWeight: 'bold' }}>{item.remainingQuantity !== undefined ? item.remainingQuantity : '-'}</td>
+                        <td><input type="number" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} min="0" className="form-control" style={{ fontWeight: 'bold', borderColor: 'var(--primary)' }} value={item.quantity} onChange={e => {
                           const newItems = [...printData.items];
                           newItems[idx].quantity = e.target.value;
                           setPrintData({ ...printData, items: newItems });
@@ -4344,6 +4963,103 @@ export default function ContractGatewayPage() {
               <button className="btn btn-primary" onClick={() => handleSaveAndPrintBL(printData)}>
                 <Truck size={18} /> Sauvegarder & Imprimer le BL
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isSimpleDeliveryModalOpen && selectedOrderForSimpleDelivery && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '950px', width: '95%' }}>
+            <div className="modal-header">
+              <h3>Réceptionner & Livrer (Bon de Livraison) - Dossier #{String(selectedOrderForSimpleDelivery.orderNumber).padStart(3, '0')}</h3>
+              <button className="modal-close" onClick={() => setIsSimpleDeliveryModalOpen(false)}><X size={20} /></button>
+            </div>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '1.5rem', padding: '1.5rem' }}>
+              <div>
+                <form onSubmit={handleSimpleDeliverySubmit}>
+                  <h4 style={{ marginBottom: '1rem' }}>Préparer la livraison courante</h4>
+                  <div className="table-wrapper" style={{ maxHeight: '45vh', overflowY: 'auto', marginBottom: '1.5rem' }}>
+                    <table style={{ minWidth: '100%' }}>
+                      <thead>
+                        <tr>
+                          <th>Produit</th>
+                          <th style={{ textAlign: 'center' }}>Cmdé</th>
+                          <th style={{ textAlign: 'center' }}>Livré</th>
+                          <th style={{ textAlign: 'center' }}>Restant</th>
+                          <th style={{ width: '100px', textAlign: 'center' }}>À livrer</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {simpleDeliveryItems.map((item, idx) => {
+                          const remaining = item.remainingQuantity;
+                          return (
+                            <tr key={idx}>
+                              <td style={{ fontSize: '0.85rem' }}>{item.description}</td>
+                              <td style={{ textAlign: 'center' }}>{item.orderedQuantity}</td>
+                              <td style={{ textAlign: 'center', color: 'var(--success)' }}>{item.deliveredQuantity}</td>
+                              <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{remaining}</td>
+                              <td>
+                                <input
+                                  type="number"
+                                  disabled={remaining <= 0}
+                                  className="form-control"
+                                  style={{ textAlign: 'center', padding: '4px' }}
+                                  min="0"
+                                  max={remaining}
+                                  value={item.quantity_to_deliver}
+                                  onKeyDown={e => { if (e.key.length === 1 && !/^[0-9]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }}
+                                  onChange={e => handleItemSimpleDeliveryChange(idx, e.target.value)}
+                                />
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="modal-footer" style={{ padding: '0', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                    <button type="button" className="btn btn-secondary" onClick={() => setIsSimpleDeliveryModalOpen(false)}>Annuler</button>
+                    <button type="submit" className="btn btn-primary">Valider la livraison</button>
+                  </div>
+                </form>
+              </div>
+
+              <div style={{ borderLeft: '1px solid var(--border-color)', paddingLeft: '1.5rem' }}>
+                <h4 style={{ marginBottom: '1rem' }}>Historique des Bons de Livraison</h4>
+                {orderDeliveries.length === 0 ? (
+                  <div style={{ padding: '2rem', textAlign: 'center', background: 'var(--bg-light)', borderRadius: '8px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                    <Truck size={24} style={{ marginBottom: '0.5rem', opacity: 0.5 }} /><br/>
+                    Aucune livraison n'a encore été effectuée.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', maxHeight: '55vh', overflowY: 'auto' }}>
+                    {orderDeliveries.map(delivery => {
+                      const itemsList = typeof delivery.items === 'string' ? JSON.parse(delivery.items) : delivery.items;
+                      const filteredItems = itemsList?.filter(it => !it.isMetadata) || [];
+                      return (
+                        <div key={delivery.id} style={{ background: 'var(--bg-light)', padding: '0.75rem 1rem', borderRadius: '10px', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{delivery.bl_number}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                              Le {new Date(delivery.created_at).toLocaleDateString()} par {delivery.created_by || 'Système'}
+                            </div>
+                            <div style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                              {filteredItems.map((it, idx) => (
+                                <span key={idx} style={{ marginRight: '6px', background: 'rgba(0,0,0,0.05)', padding: '2px 6px', borderRadius: '4px' }}>
+                                  {it.quantity}x {it.description?.substring(0, 15)}...
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

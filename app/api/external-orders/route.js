@@ -16,7 +16,7 @@ export async function GET(request) {
     const endDate = searchParams.get('endDate');
 
     let query = `
-      SELECT e.id, e.clientId, e.supplierId, e.status, e.saleId, e.date, e.storeId, e.amountPaid, e.paymentType, c.name as clientName, f.name as supplierName
+      SELECT e.id, e.clientId, e.supplierId, e.status, e.saleId, e.date, e.storeId, e.amountPaid, e.paymentType, e.metadata, e.delivery_date, c.name as clientName, f.name as supplierName
       FROM external_orders e
       LEFT JOIN clients c ON e.clientId = c.id
       LEFT JOIN fournisseurs f ON e.supplierId = f.id
@@ -51,7 +51,7 @@ export async function POST(request) {
   const connection = await db.getConnection();
   try {
     await connection.beginTransaction();
-    const { clientId, supplierId, items, storeId: bodyStoreId } = await request.json();
+    const { clientId, supplierId, items, storeId: bodyStoreId, metadata, deliveryDate } = await request.json();
     const orderId = uuidv4();
     const storeId = (auth.user.role === 'admin' || auth.user.role === 'gestionnaire') ? (bodyStoreId !== undefined ? bodyStoreId : auth.user.storeId) : auth.user.storeId;
 
@@ -61,14 +61,14 @@ export async function POST(request) {
     
     const formattedDate = new Date().toISOString().slice(0, 19).replace('T', ' ');
     await connection.query(
-      'INSERT INTO external_orders (id, clientId, supplierId, date, storeId, fiscalYearId) VALUES (?, ?, ?, ?, ?, ?)',
-      [orderId, clientId, supplierId, formattedDate, storeId, activeYear.id]
+      'INSERT INTO external_orders (id, clientId, supplierId, date, storeId, fiscalYearId, metadata, delivery_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [orderId, clientId, supplierId, formattedDate, storeId, activeYear.id, metadata ? JSON.stringify(metadata) : null, deliveryDate || null]
     );
     
     for (const item of items) {
       await connection.query(
-        'INSERT INTO external_order_items (id, externalOrderId, description, quantity, purchasePrice, sellPrice) VALUES (?, ?, ?, ?, ?, ?)',
-        [uuidv4(), orderId, item.description, item.quantity, item.purchasePrice, item.sellPrice]
+        'INSERT INTO external_order_items (id, externalOrderId, description, quantity, purchasePrice, sellPrice, code, ref) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [uuidv4(), orderId, item.description, item.quantity, item.purchasePrice, item.sellPrice !== undefined && item.sellPrice !== null ? item.sellPrice : item.purchasePrice, item.code || null, item.ref || null]
       );
     }
     

@@ -549,6 +549,14 @@
       "Key": "",
       "Default": null,
       "Extra": ""
+    },
+    {
+      "Field": "delivered_quantity",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "0",
+      "Extra": ""
     }
   ],
   "contract_orders": [
@@ -594,10 +602,10 @@
     },
     {
       "Field": "status",
-      "Type": "enum('demande','facture_recue','po_envoye','termine','annule')",
+      "Type": "enum('BROUILLON','VALIDÉ','PARTIELLEMENT_LIVRÉ','LIVRÉ','CLÔTURÉ','ANNULÉ')",
       "Null": "YES",
       "Key": "MUL",
-      "Default": "demande",
+      "Default": "BROUILLON",
       "Extra": ""
     },
     {
@@ -1085,6 +1093,48 @@
       "Key": "",
       "Default": null,
       "Extra": ""
+    },
+    {
+      "Field": "grouped_discharge_id",
+      "Type": "varchar(100)",
+      "Null": "YES",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    }
+  ],
+  "document_sequences": [
+    {
+      "Field": "id",
+      "Type": "varchar(50)",
+      "Null": "NO",
+      "Key": "PRI",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "doc_type",
+      "Type": "varchar(10)",
+      "Null": "NO",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "doc_date",
+      "Type": "date",
+      "Null": "NO",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "last_sequence",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "",
+      "Default": "0",
+      "Extra": ""
     }
   ],
   "documents": [
@@ -1462,6 +1512,104 @@
       "Null": "YES",
       "Key": "",
       "Default": null,
+      "Extra": ""
+    }
+  ],
+  "grouped_discharges": [
+    {
+      "Field": "id",
+      "Type": "varchar(100)",
+      "Null": "NO",
+      "Key": "PRI",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "discharge_number",
+      "Type": "varchar(50)",
+      "Null": "NO",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "client_id",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "MUL",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "client_name",
+      "Type": "varchar(255)",
+      "Null": "YES",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "partner_id",
+      "Type": "varchar(100)",
+      "Null": "YES",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "partner_name",
+      "Type": "varchar(255)",
+      "Null": "YES",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "delivery_ids",
+      "Type": "json",
+      "Null": "YES",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "items",
+      "Type": "json",
+      "Null": "YES",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "notes",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "created_at",
+      "Type": "datetime",
+      "Null": "YES",
+      "Key": "MUL",
+      "Default": "CURRENT_TIMESTAMP",
+      "Extra": "DEFAULT_GENERATED"
+    },
+    {
+      "Field": "created_by",
+      "Type": "varchar(100)",
+      "Null": "YES",
+      "Key": "",
+      "Default": null,
+      "Extra": ""
+    },
+    {
+      "Field": "status",
+      "Type": "varchar(20)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "valide",
       "Extra": ""
     }
   ],
@@ -2125,6 +2273,22 @@
       "Key": "",
       "Default": "1",
       "Extra": ""
+    },
+    {
+      "Field": "bcNumberFormat",
+      "Type": "varchar(100)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "BC-{ID}-{DATE}",
+      "Extra": ""
+    },
+    {
+      "Field": "blNumberFormat",
+      "Type": "varchar(100)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "BL-{ID}-{DATE}",
+      "Extra": ""
     }
   ],
   "stores": [
@@ -2272,7 +2436,7 @@
       "Field": "role",
       "Type": "varchar(191)",
       "Null": "YES",
-      "Key": "",
+      "Key": "MUL",
       "Default": "admin",
       "Extra": ""
     },

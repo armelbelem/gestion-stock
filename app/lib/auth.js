@@ -61,6 +61,14 @@ export function hasPermission(user, category, action) {
     return true;
   }
   
+  // 2b. Le gestionnaire 2 a accès uniquement à la Décharge Groupée (BL Libre)
+  if (user.role === 'gestionnaire2' || user.role === 'gestionnaire 2') {
+    if (category === 'procurement') {
+      return action === 'view';
+    }
+    return false;
+  }
+  
   // 3. Le vendeur a un accès strictement limité aux opérations de vente
   if (user.role === 'vendeur' || user.role === 'vendeurs') {
     // Le vendeur peut VOIR les articles, mais ne peut rien modifier ni faire de mouvements

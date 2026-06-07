@@ -6,8 +6,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { 
   LayoutDashboard, Tags, Package, ArrowRightLeft, LogOut, 
   Users, ShoppingCart, Sun, Moon, UserCog, Coins, BarChart3, 
-  Truck, Menu, X, Wallet, AlertCircle, Calendar, Store, ShieldAlert, PackageOpen, Settings, Brain, TrendingDown, Globe, Archive, Search,
-  FileText
+  Truck, Menu, X, Wallet, AlertCircle, Calendar, Store, ShieldAlert, PackageOpen, Settings, Brain, TrendingDown, TrendingUp, Globe, Archive, Search,
+  FileText, PackageCheck
 } from 'lucide-react';
 import { useAuth } from '../providers';
 import { storage } from '../lib/storage';
@@ -23,9 +23,11 @@ const routePermissions = [
   { path: '/external-orders', category: 'procurement', action: 'view' },
   { path: '/contract-gateway', category: 'procurement', action: 'view' },
   { path: '/documents-bl-bc', category: 'procurement', action: 'view' },
+  { path: '/grouped-discharge', category: 'procurement', action: 'view' },
   { path: '/finances', category: 'finances', action: 'view' },
   { path: '/payments', category: 'finances', action: 'view' },
   { path: '/reports', category: 'finances', action: 'view' },
+  { path: '/reporting-vendeurs', category: 'finances', action: 'view' },
   { path: '/intelligence', category: 'finances', action: 'view' },
   { path: '/archives', category: 'admin', action: 'settings' },
   { path: '/exercices', category: 'admin', action: 'settings' },
@@ -120,6 +122,9 @@ export default function ClientLayout({ children }) {
   // Calcul synchrone de l'autorisation pour éviter le "flash" de contenu interdit
   const isAuthorized = (() => {
     if (!user) return true; // On attend que useAuth nous donne l'utilisateur
+    if (user.role === 'gestionnaire2' || user.role === 'gestionnaire 2') {
+      return pathname.startsWith('/grouped-discharge');
+    }
     const route = routePermissions.find(rp => pathname === rp.path || (rp.path !== '/' && pathname.startsWith(rp.path)));
     if (route) {
       return hasPermission(user, route.category, route.action);
@@ -131,7 +136,11 @@ export default function ClientLayout({ children }) {
   useEffect(() => {
     if (user && !isAuthorized) {
       console.warn(`Access denied for ${user.role} on ${pathname}. Redirecting...`);
-      router.push('/sales');
+      if (user.role === 'gestionnaire2' || user.role === 'gestionnaire 2') {
+        router.push('/grouped-discharge');
+      } else {
+        router.push('/sales');
+      }
     }
   }, [isAuthorized, user, pathname, router]);
 
@@ -224,12 +233,13 @@ export default function ClientLayout({ children }) {
             </>
           )}
 
-          {(hasPermission(user, 'procurement', 'view') || hasPermission(user, 'stock', 'view_cost_price')) && (
+          {(hasPermission(user, 'procurement', 'view') || hasPermission(user, 'stock', 'view_cost_price') || user?.role === 'gestionnaire2' || user?.role === 'gestionnaire 2') && (
             <>
-              <NavItem href="/fournisseurs" icon={Truck} label="Fournisseurs" />
-              <NavItem href="/external-orders" icon={PackageOpen} label="Commandes Spéciales" />
-              <NavItem href="/contract-gateway" icon={Globe} label="Achats Partenaires" />
-              <NavItem href="/documents-bl-bc" icon={FileText} label="Centralisation BL/BC" />
+              {(user?.role !== 'gestionnaire2' && user?.role !== 'gestionnaire 2') && <NavItem href="/fournisseurs" icon={Truck} label="Fournisseurs" />}
+              {(user?.role !== 'gestionnaire2' && user?.role !== 'gestionnaire 2') && <NavItem href="/external-orders" icon={PackageOpen} label="Commandes Spéciales" />}
+              {(user?.role !== 'gestionnaire2' && user?.role !== 'gestionnaire 2') && <NavItem href="/contract-gateway" icon={Globe} label="Achats Partenaires" />}
+              {(user?.role !== 'gestionnaire2' && user?.role !== 'gestionnaire 2') && <NavItem href="/documents-bl-bc" icon={FileText} label="Centralisation BL/BC" />}
+              <NavItem href="/grouped-discharge" icon={PackageCheck} label="Décharge Groupée" />
             </>
           )}
 
@@ -238,6 +248,7 @@ export default function ClientLayout({ children }) {
               {/* <NavItem href="/finances" icon={Coins} label="Finances" /> */}
               <NavItem href="/payments" icon={Wallet} label="Règlements" />
               <NavItem href="/reports" icon={BarChart3} label="Rapports" />
+              <NavItem href="/reporting-vendeurs" icon={TrendingUp} label="Perf. Vendeurs" />
               <NavItem href="/intelligence" icon={Brain} label="Intelligence" />
             </>
           )}
@@ -253,7 +264,7 @@ export default function ClientLayout({ children }) {
           {hasPermission(user, 'clients', 'view') && (
             <NavItem href="/clients" icon={Users} label="Clients" />
           )}
-          <NavItem href="/sales" icon={ShoppingCart} label="Ventes" />
+          {(user?.role !== 'gestionnaire2' && user?.role !== 'gestionnaire 2') && <NavItem href="/sales" icon={ShoppingCart} label="Ventes" />}
 
           {hasPermission(user, 'admin', 'settings') && (
             <NavItem href="/settings" icon={Settings} label="Paramètres" />

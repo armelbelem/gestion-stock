@@ -81,7 +81,7 @@ export async function GET(request) {
     const queryParams = [...params];
     if (isPaginated) queryParams.push(limit, offset);
 
-    let query = `SELECT m.*, a.name as articleName, s.name as storeName FROM mouvements m JOIN articles a ON m.articleId = a.id LEFT JOIN stores s ON m.storeId = s.id ${whereClause} ORDER BY m.date DESC ${isPaginated ? 'LIMIT ? OFFSET ?' : ''}`;
+    let query = `SELECT m.*, a.name as articleName, a.code as articleCode, a.barcode as articleBarcode, a.price as articlePrice, s.name as storeName FROM mouvements m JOIN articles a ON m.articleId = a.id LEFT JOIN stores s ON m.storeId = s.id ${whereClause} ORDER BY m.date DESC ${isPaginated ? 'LIMIT ? OFFSET ?' : ''}`;
     
     const [mouv] = await db.query(query, queryParams);
 

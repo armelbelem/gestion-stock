@@ -64,10 +64,10 @@ export async function GET(request) {
       const statsQuery = `
         SELECT 
           COUNT(*) as total,
-          SUM(CASE WHEN co.status != 'termine' AND co.status != 'annule' THEN (co.contractAmount * (1 + IFNULL(co.tva_rate, 0) / 100)) ELSE 0 END) as achatsEnCours,
-          SUM(CASE WHEN co.status = 'termine' THEN (co.contractAmount * (1 + IFNULL(co.tva_rate, 0) / 100)) ELSE 0 END) as achatsClotures,
-          SUM(CASE WHEN co.status = 'demande' THEN 1 ELSE 0 END) as enDemande,
-          SUM(CASE WHEN co.status != 'termine' AND co.status != 'annule' AND co.delivery_date IS NOT NULL AND co.delivery_date <= CURDATE() THEN 1 ELSE 0 END) as retardLivraison
+          SUM(CASE WHEN co.status NOT IN ('CLÔTURÉ', 'ANNULÉ') THEN (co.contractAmount * (1 + IFNULL(co.tva_rate, 0) / 100)) ELSE 0 END) as achatsEnCours,
+          SUM(CASE WHEN co.status = 'CLÔTURÉ' THEN (co.contractAmount * (1 + IFNULL(co.tva_rate, 0) / 100)) ELSE 0 END) as achatsClotures,
+          SUM(CASE WHEN co.status = 'BROUILLON' THEN 1 ELSE 0 END) as enDemande,
+          SUM(CASE WHEN co.status NOT IN ('CLÔTURÉ', 'ANNULÉ') AND co.delivery_date IS NOT NULL AND co.delivery_date <= CURDATE() THEN 1 ELSE 0 END) as retardLivraison
         ${baseQuery}
       `;
       const [statsRows] = await db.query(statsQuery, params);
@@ -145,13 +145,13 @@ export async function POST(request) {
     // 1. Créer l'en-tête du dossier (avec capture du taux de TVA immuable)
     await connection.query(
       'INSERT INTO contract_orders (id, clientId, notes, status, attachment, orderNumber, partner_id, storeId, tva_rate, delivery_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [id, clientId, notes, 'demande', body.attachment || null, nextNum, partnerId, storeId, currentTvaRate, deliveryDate || null]
+      [id, clientId, notes, 'BROUILLON', body.attachment || null, nextNum, partnerId, storeId, currentTvaRate, deliveryDate || null]
     );
 
     // 1b. Enregistrer l'historique initial
     await connection.query(
       'INSERT INTO contract_order_history (orderId, oldStatus, newStatus, userId) VALUES (?, ?, ?, ?)',
-      [id, null, 'demande', auth.user.id]
+      [id, null, 'BROUILLON', auth.user.id]
     );
 
     // 2. Ajouter les articles

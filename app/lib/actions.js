@@ -13,7 +13,12 @@ export const logAction = async (userId, storeId, action, details = null) => {
 };
 
 export const getStoreConstraint = (user, queryStoreId) => {
-  if (user.role === 'admin') {
+  if (
+    user.role === 'admin' || 
+    user.role === 'gestionnaire' || 
+    user.role === 'gestionnaire2' || 
+    user.role === 'gestionnaire 2'
+  ) {
     if (!queryStoreId || queryStoreId === 'all') return null;
     return queryStoreId; 
   }

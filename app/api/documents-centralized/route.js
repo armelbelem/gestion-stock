@@ -13,6 +13,17 @@ export async function GET(request) {
     return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
   }
 
+  // Ensure 'attachment' column exists on grouped_discharges
+  try {
+    await db.query("SELECT attachment FROM grouped_discharges LIMIT 1");
+  } catch (e) {
+    try {
+      await db.query("ALTER TABLE grouped_discharges ADD COLUMN attachment VARCHAR(255) DEFAULT NULL");
+    } catch (err) {
+      console.error('Error adding attachment column to grouped_discharges:', err);
+    }
+  }
+
   const { searchParams } = new URL(request.url);
   const type = searchParams.get('type') || 'all'; // 'all', 'BC', 'BL'
   const partnerId = searchParams.get('partnerId') || 'all';
@@ -109,12 +120,9 @@ export async function GET(request) {
             eo.id,
             'BC' as docType,
             'externe' as docSource,
-            CONCAT('BCE-', UPPER(LEFT(eo.id, 8))) as docNumber,
-            'Commande Spéciale' as title,
-            NULL as ref,
-            NULL as attachment,
             eo.date as date,
             eo.supplierId,
+            eo.metadata,
             f.name as supplierName,
             eo.clientId,
             c.name as clientName
@@ -133,11 +141,37 @@ export async function GET(request) {
         const [bcExternes] = await db.query(bcExternesQuery, paramsExt);
 
         for (let eo of bcExternes) {
-          const [extItems] = await db.query('SELECT description, quantity, purchasePrice, sellPrice FROM external_order_items WHERE externalOrderId = ?', [eo.id]);
-          
+          let docNumber = '';
+          let ref = '';
+          let attachment = null;
+          let title = 'Commande Spéciale';
+          let hasDocNumber = false;
+
+          if (eo.metadata) {
+            try {
+              const meta = typeof eo.metadata === 'string' ? JSON.parse(eo.metadata) : eo.metadata;
+              if (meta.customDocNumber) {
+                docNumber = meta.customDocNumber;
+                hasDocNumber = true;
+              }
+              if (meta.requestRef) ref = meta.requestRef;
+              if (meta.bcTitleOverride) title = meta.bcTitleOverride;
+              if (meta.attachment) attachment = meta.attachment;
+            } catch (e) {}
+          }
+
+          // Si la commande n'a pas encore été imprimée (pas de numéro de BC généré), on ne l'affiche pas dans la centralisation
+          if (!hasDocNumber) {
+            continue;
+          }
+
+          const [extItems] = await db.query('SELECT description, quantity, purchasePrice, sellPrice, code, ref FROM external_order_items WHERE externalOrderId = ?', [eo.id]);
+
           const hasPricePermission = hasPermission(auth.user, 'stock', 'view_cost_price');
           const cleanedItems = extItems.map(item => ({
             description: item.description || '',
+            code: item.code || '',
+            refCfao: item.ref || '',
             quantity: parseInt(item.quantity) || 0,
             purchasePrice: hasPricePermission ? (parseFloat(item.purchasePrice) || 0) : 0,
             sellPrice: parseFloat(item.sellPrice) || 0
@@ -147,10 +181,10 @@ export async function GET(request) {
             id: eo.id,
             docType: 'BC',
             docSource: 'externe',
-            docNumber: eo.docNumber,
-            title: `Bon de Commande Externe #${eo.docNumber.split('-')[1]}`,
-            ref: '',
-            attachment: eo.attachment || null,
+            docNumber: docNumber,
+            title: title,
+            ref: ref,
+            attachment: attachment,
             date: eo.date,
             partnerId: eo.clientId || null,
             partnerName: eo.clientName || 'Client Inconnu',
@@ -182,7 +216,7 @@ export async function GET(request) {
         FROM deliveries d
         LEFT JOIN contract_orders co ON d.order_id = co.id
         LEFT JOIN contract_partners p ON co.partner_id = p.id
-        WHERE 1=1
+        WHERE 1=1 AND d.bl_number IS NOT NULL AND d.bl_number != '' AND d.bl_number != 'Non imprimé'
       `;
       const paramsBL = [];
       if (partnerId !== 'all') {
@@ -234,6 +268,75 @@ export async function GET(request) {
       });
 
       allDocuments.push(...formattedBl);
+
+      // --- NOUVEAU : Récupération des décharges libres (BL libres) ---
+      let freeBlQuery = `
+        SELECT 
+          gd.id,
+          'BL' as docType,
+          'libre' as docSource,
+          gd.discharge_number as docNumber,
+          'Décharge Groupée (BL Libre)' as title,
+          gd.items as itemsJson,
+          gd.attachment,
+          gd.created_at as date,
+          gd.client_name as partnerName,
+          gd.partner_id as partnerId
+        FROM grouped_discharges gd
+        WHERE 1=1
+      `;
+      const paramsFreeBL = [];
+      if (partnerId !== 'all') {
+        freeBlQuery += ' AND gd.partner_id = ?';
+        paramsFreeBL.push(partnerId);
+      }
+      if (startDate && endDate) {
+        freeBlQuery += ' AND gd.created_at BETWEEN ? AND ?';
+        paramsFreeBL.push(`${startDate} 00:00:00`, `${endDate} 23:59:59`);
+      }
+      freeBlQuery += ' ORDER BY gd.created_at DESC';
+
+      const [freeBlRows] = await db.query(freeBlQuery, paramsFreeBL);
+
+      const formattedFreeBl = freeBlRows.map(doc => {
+        let items = [];
+        try {
+          items = doc.itemsJson ? (typeof doc.itemsJson === 'string' ? JSON.parse(doc.itemsJson) : doc.itemsJson) : [];
+        } catch (e) {
+          console.error("Error parsing items for free BL:", doc.id, e);
+        }
+
+        const hasPricePermission = hasPermission(auth.user, 'stock', 'view_cost_price');
+        // Filter out metadata items
+        const filteredItems = items.filter(it => !it.isMetadata);
+        const cleanedItems = filteredItems.map(item => ({
+          description: item.description || item.name || '',
+          code: item.code || '',
+          refCfao: item.refCfao || item.ref || '',
+          quantity: parseInt(item.quantity) || 0,
+          purchasePrice: hasPricePermission ? (parseFloat(item.purchasePrice || item.price || 0)) : 0,
+          sellPrice: parseFloat(item.sellPrice || 0)
+        }));
+
+        return {
+          id: doc.id,
+          docType: 'BL',
+          docSource: 'libre',
+          docNumber: doc.docNumber,
+          title: `Décharge Groupée N°${doc.docNumber}`,
+          ref: '',
+          attachment: doc.attachment || null,
+          date: doc.date,
+          partnerId: doc.partnerId,
+          partnerName: doc.partnerName || 'Client Inconnu',
+          supplierName: null,
+          folderNumber: null,
+          folderId: null,
+          items: cleanedItems
+        };
+      });
+
+      allDocuments.push(...formattedFreeBl);
     }
 
     // --- 3. FILTRAGE PAR STATUT DE PIÈCE JOINTE ---

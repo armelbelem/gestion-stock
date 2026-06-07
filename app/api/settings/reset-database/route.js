@@ -33,7 +33,8 @@ export async function POST(request) {
       'contract_bc_history',
       'deliveries',
       'contract_special_docs',
-      'document_sequences'
+      'document_sequences',
+      'grouped_discharges'
     ];
 
     console.log('Début du reset base de données par admin:', auth.user.username);

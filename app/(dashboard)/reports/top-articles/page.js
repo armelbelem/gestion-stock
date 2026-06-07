@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { storage } from '../../../lib/storage';
-import { TrendingUp, Download, Search, Calendar, User, Package, Coins, Filter } from 'lucide-react';
+import { TrendingUp, Download, Search, Calendar, User, Package, Coins, Filter, Clock } from 'lucide-react';
 import { exportToExcel } from '../../../utils/excelExport';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -123,6 +123,9 @@ export default function TopArticlesReportPage() {
         </Link>
         <Link href="/reports/top-articles" className={`nav-item ${pathname === '/reports/top-articles' ? 'active' : ''}`} style={{ borderRadius: '0', padding: '0.75rem 1.5rem', marginBottom: '-1px' }}>
           <TrendingUp size={18} /> Top Articles / Client
+        </Link>
+        <Link href="/reports/dead-stock" className={`nav-item ${pathname === '/reports/dead-stock' ? 'active' : ''}`} style={{ borderRadius: '0', padding: '0.75rem 1.5rem', marginBottom: '-1px' }}>
+          <Clock size={18} /> Articles Dormants
         </Link>
       </div>
 

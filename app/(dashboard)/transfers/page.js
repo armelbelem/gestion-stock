@@ -16,15 +16,37 @@ export default function TransfersPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isReporting, setIsReporting] = useState(false);
   const [settings, setSettings] = useState(null);
+  const [articleSearch, setArticleSearch] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
   const [formData, setFormData] = useState({
     articleId: '',
     fromStoreId: '',
     toStoreId: '',
-    quantity: 1,
+    quantity: '',
     notes: ''
   });
 
   const [alertModal, setAlertModal] = useState({ open: false, type: 'info', title: '', message: '' });
+
+  const handleArticleSearch = (val) => {
+    setArticleSearch(val);
+    if (val.length > 1) {
+      const filtered = articles.filter(a => 
+        a.name.toLowerCase().includes(val.toLowerCase()) || 
+        (a.code && a.code.toLowerCase().includes(val.toLowerCase())) ||
+        (a.barcode && a.barcode.toLowerCase().includes(val.toLowerCase()))
+      ).slice(0, 10);
+      setSuggestions(filtered);
+    } else {
+      setSuggestions([]);
+    }
+  };
+
+  const selectArticle = (article) => {
+    setFormData({ ...formData, articleId: article.id });
+    setArticleSearch(`${article.name} (${article.code || ''})`);
+    setSuggestions([]);
+  };
 
   useEffect(() => {
     loadData();
@@ -85,12 +107,14 @@ export default function TransfersPage() {
 
   const handleOpenModal = () => {
     setFormData({
-      articleId: articles[0]?.id || '',
+      articleId: '',
       fromStoreId: '',
       toStoreId: '',
-      quantity: 1,
+      quantity: '',
       notes: ''
     });
+    setArticleSearch('');
+    setSuggestions([]);
     setIsModalOpen(true);
   };
 
@@ -217,12 +241,28 @@ export default function TransfersPage() {
             </div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body">
-                <div className="form-group">
-                  <label className="form-label">Article</label>
-                  <select className="form-control" value={formData.articleId} onChange={(e) => setFormData({...formData, articleId: e.target.value})} required>
-                    <option value="">Sélectionner...</option>
-                    {articles.map(a => <option key={a.id} value={a.id}>{a.name} (Global: {a.currentStock})</option>)}
-                  </select>
+                <div className="form-group" style={{ position: 'relative' }}>
+                  <label className="form-label">Rechercher l'article (Nom, Code ou Scan)</label>
+                  <input 
+                    type="text" 
+                    className="form-control" 
+                    placeholder="Saisissez le nom, code ou scan..." 
+                    value={articleSearch}
+                    required
+                    onChange={(e) => handleArticleSearch(e.target.value)}
+                  />
+                  {suggestions.length > 0 && (
+                    <div className="search-suggestions" style={{ top: '100%', left: 0, right: 0, zIndex: 1000 }}>
+                      {suggestions.map(a => (
+                        <div key={a.id} className="suggestion-item" onClick={() => selectArticle(a)}>
+                          <div style={{ fontWeight: 600 }}>{a.name}</div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                            Code: {a.code || '-'} | Stock Global: <span style={{ fontWeight: 'bold' }}>{a.currentStock}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <div className="form-group"><label className="form-label">De</label><select className="form-control" value={formData.fromStoreId} onChange={(e) => setFormData({...formData, fromStoreId: e.target.value})} required>

@@ -126,6 +126,8 @@ export default function MouvementsPage() {
       { key: 'dateFormatted', label: 'Date' },
       { key: 'typeLabel', label: 'Type' },
       { key: 'articleName', label: 'Article' },
+      { key: 'articleCode', label: 'Référence' },
+      { key: 'articlePrice', label: 'Prix Unitaire (FCFA)' },
       { key: 'quantity', label: 'Quantité' },
       { key: 'notes', label: 'Notes' }
     ];
@@ -133,7 +135,9 @@ export default function MouvementsPage() {
       ...mov,
       dateFormatted: formatDate(mov.date),
       typeLabel: mov.type === 'IN' ? 'Entrée' : 'Sortie',
-      articleName: mov.articleName || getArticleName(mov.articleId)
+      articleName: mov.articleName || getArticleName(mov.articleId),
+      articleCode: mov.articleCode || getArticleCode(mov.articleId),
+      articlePrice: mov.articlePrice !== undefined ? mov.articlePrice : getArticlePrice(mov.articleId)
     }));
     closeAlert();
     exportToExcel(dataToExport, headers, 'rapport_mouvements', {
@@ -214,6 +218,14 @@ export default function MouvementsPage() {
   };
 
   const getArticleName = (id) => articles.find(x => x.id === id)?.name || 'Article Inconnu';
+  const getArticleCode = (id) => {
+    const art = articles.find(x => x.id === id);
+    return art ? (art.code || art.barcode || '') : '';
+  };
+  const getArticlePrice = (id) => {
+    const art = articles.find(x => x.id === id);
+    return art ? art.price : 0;
+  };
   const formatDate = (iso) => new Date(iso).toLocaleString('fr-FR');
 
   // L'export continue de télécharger toutes les données correspondantes.
@@ -290,7 +302,14 @@ export default function MouvementsPage() {
               <tr key={mov.id} style={{ borderBottom: '1px solid #eee' }}>
                 <td style={{ padding: '8px' }}>{formatDate(mov.date)}</td>
                 <td style={{ padding: '8px' }}>{mov.type === 'IN' ? 'Entrée' : 'Sortie'}</td>
-                <td style={{ padding: '8px' }}>{mov.articleName || getArticleName(mov.articleId)}</td>
+                <td style={{ padding: '8px' }}>
+                  {mov.articleName || getArticleName(mov.articleId)}
+                  {(mov.articleCode || getArticleCode(mov.articleId)) && (
+                    <span style={{ display: 'block', fontSize: '0.75rem', color: '#666', marginTop: '2px' }}>
+                      Ref: {mov.articleCode || getArticleCode(mov.articleId)}
+                    </span>
+                  )}
+                </td>
                 <td style={{ textAlign: 'right', padding: '8px', fontWeight: 'bold' }}>{mov.type === 'IN' ? '+' : '-'}{mov.quantity}</td>
                 <td style={{ padding: '8px', fontSize: '0.9rem' }}>{mov.notes || '-'}</td>
               </tr>
@@ -374,7 +393,14 @@ export default function MouvementsPage() {
                 <tr key={mov.id}>
                   <td>{formatDate(mov.date)}</td>
                   <td><span className={`badge ${mov.type === 'IN' ? 'badge-success' : 'badge-danger'}`}>{mov.type === 'IN' ? 'Entrée' : 'Sortie'}</span></td>
-                  <td style={{ fontWeight: 500 }}>{mov.articleName || getArticleName(mov.articleId)}</td>
+                  <td style={{ fontWeight: 500 }}>
+                    {mov.articleName || getArticleName(mov.articleId)}
+                    {(mov.articleCode || getArticleCode(mov.articleId)) && (
+                      <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                        Ref: {mov.articleCode || getArticleCode(mov.articleId)}
+                      </span>
+                    )}
+                  </td>
                   <td>{mov.supplierName || '-'}</td>
                   <td style={{ fontWeight: 'bold' }}>{mov.type === 'IN' ? '+' : '-'}{mov.quantity}</td>
                   <td className="text-muted">{mov.notes}</td>

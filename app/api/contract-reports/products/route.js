@@ -50,14 +50,14 @@ export async function GET(request) {
         -- 2. Regroupement des achats réels par référence unique (toutes mines confondues)
         SELECT 
           COALESCE(NULLIF(coi.refCfao, ''), coi.code) as orderProductRef,
-          SUM(coi.quantity) as totalQuantity,
-          SUM(coi.quantity * coi.purchasePrice) as totalHT,
-          SUM(CASE WHEN co.createdAt >= NOW() - INTERVAL 2 MONTH THEN coi.quantity ELSE 0 END) as qty2Months,
-          SUM(CASE WHEN co.createdAt >= NOW() - INTERVAL 3 MONTH THEN coi.quantity ELSE 0 END) as qty3Months,
-          SUM(CASE WHEN co.createdAt >= NOW() - INTERVAL 6 MONTH THEN coi.quantity ELSE 0 END) as qty6Months,
-          SUM(CASE WHEN co.createdAt >= NOW() - INTERVAL 12 MONTH THEN coi.quantity ELSE 0 END) as qty12Months
+          SUM(coi.delivered_quantity) as totalQuantity,
+          SUM(coi.delivered_quantity * coi.purchasePrice) as totalHT,
+          SUM(CASE WHEN co.createdAt >= NOW() - INTERVAL 2 MONTH THEN coi.delivered_quantity ELSE 0 END) as qty2Months,
+          SUM(CASE WHEN co.createdAt >= NOW() - INTERVAL 3 MONTH THEN coi.delivered_quantity ELSE 0 END) as qty3Months,
+          SUM(CASE WHEN co.createdAt >= NOW() - INTERVAL 6 MONTH THEN coi.delivered_quantity ELSE 0 END) as qty6Months,
+          SUM(CASE WHEN co.createdAt >= NOW() - INTERVAL 12 MONTH THEN coi.delivered_quantity ELSE 0 END) as qty12Months
         FROM contract_order_items coi
-        JOIN contract_orders co ON (coi.orderId = co.id AND co.status = 'termine')
+        JOIN contract_orders co ON (coi.orderId = co.id AND co.status != 'ANNULÉ')
         GROUP BY COALESCE(NULLIF(coi.refCfao, ''), coi.code)
       ) stats ON cat.productRef = stats.orderProductRef
       WHERE 1=1

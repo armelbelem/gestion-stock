@@ -63,7 +63,11 @@ export async function PUT(request, { params }) {
       connection = await db.getConnection();
       await connection.beginTransaction();
 
-      const finalStatus = status !== undefined ? status : current.status;
+      let finalStatus = status !== undefined ? status : current.status;
+      if (finalStatus === 'termine') finalStatus = 'CLÔTURÉ';
+      if (finalStatus === 'annule') finalStatus = 'ANNULÉ';
+      if (finalStatus === 'demande') finalStatus = 'BROUILLON';
+
       const finalNotes = notes !== undefined ? notes : current.notes;
       const finalAttachment = body.attachment !== undefined ? body.attachment : current.attachment;
       const finalDeliveryDate = deliveryDate !== undefined ? deliveryDate : current.delivery_date;
@@ -115,8 +119,8 @@ export async function PUT(request, { params }) {
         );
       }
 
-      // 2. Si le statut passe à 'termine', on enregistre la vente officiellement
-      if (status === 'termine' && current.status !== 'termine') {
+      // 2. Si le statut passe à 'CLÔTURÉ', on enregistre la vente officiellement
+      if (finalStatus === 'CLÔTURÉ' && current.status !== 'CLÔTURÉ') {
         const [orderRows] = await connection.query('SELECT * FROM contract_orders WHERE id = ?', [id]);
         const order = orderRows[0];
         const [items] = await connection.query('SELECT * FROM contract_order_items WHERE orderId = ?', [id]);
@@ -146,16 +150,26 @@ export async function PUT(request, { params }) {
             null, // dueDate
             `Vente Magasin Virtuel (Ref: ${id.substring(0,8)})`, 
             new Date().toISOString(),
-            'CFAO', 
+            0, 
             activeYearId
           ]
         );
 
         // Ajouter les articles à la vente
         for (const item of items) {
+          let realArticleId = null;
+          if (item.code || item.refCfao) {
+            const [artRows] = await connection.query(
+              'SELECT id FROM articles WHERE code = ? OR barcode = ? LIMIT 1',
+              [item.code || '', item.refCfao || '']
+            );
+            if (artRows.length > 0) {
+              realArticleId = artRows[0].id;
+            }
+          }
           await connection.query(
-            'INSERT INTO sale_items (id, saleId, articleId, quantity, unitPrice) VALUES (?, ?, ?, ?, ?)',
-            [uuidv4(), saleId, item.articleId, item.quantity, item.sellPrice]
+            'INSERT INTO sale_items (id, saleId, articleId, quantity, unitPrice, description) VALUES (?, ?, ?, ?, ?, ?)',
+            [uuidv4(), saleId, realArticleId, item.quantity, item.sellPrice, item.description]
           );
         }
       }
