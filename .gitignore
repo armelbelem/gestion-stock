@@ -24,6 +24,7 @@ yarn-error.log*
 
 # Base de donnees
 *.sql
+!gestion_stock_db.sql
 *.sqlite
 
 # Binaires et Systemes
