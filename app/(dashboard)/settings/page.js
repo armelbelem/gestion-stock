@@ -479,7 +479,7 @@ export default function SettingsPage() {
               </select>
             </div>
 
-            <div className="form-group" style={{ display: 'flex', alignItems: 'center', marginTop: '1rem', padding: '1rem', backgroundColor: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+            <div className="form-group" style={{ display: 'flex', alignItems: 'center', marginTop: '1rem', padding: '1rem', backgroundColor: 'var(--bg-light)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
               <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', margin: 0, width: '100%' }}>
                 <input 
                   type="checkbox" 
@@ -653,7 +653,7 @@ export default function SettingsPage() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   overflow: 'hidden',
-                  backgroundColor: '#f8fafc',
+                  backgroundColor: 'var(--bg-light)',
                   position: 'relative'
                 }}>
                   {settings.stampImage ? (
@@ -680,7 +680,7 @@ export default function SettingsPage() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   overflow: 'hidden',
-                  backgroundColor: '#f8fafc',
+                  backgroundColor: 'var(--bg-light)',
                   position: 'relative'
                 }}>
                   {settings.signatureImage ? (

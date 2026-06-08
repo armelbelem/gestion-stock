@@ -657,8 +657,8 @@ export default function SalesPage() {
                               </table>
                              </div>
                              {sale.notes && (
-                               <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: '#f8fafc', borderRadius: '8px', borderLeft: '4px solid #cbd5e1' }}>
-                                 <strong style={{ fontSize: '0.8rem', color: '#64748b', textTransform: 'uppercase' }}>Observations de la vente :</strong>
+                               <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: 'var(--bg-light)', borderRadius: '8px', borderLeft: '4px solid var(--border-color)' }}>
+                                 <strong style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Observations de la vente :</strong>
                                  <p style={{ margin: '4px 0 0 0', fontSize: '0.9rem', color: 'var(--text-main)' }}>{sale.notes}</p>
                                </div>
                              )}

@@ -1641,17 +1641,17 @@ export default function ExternalOrdersPage() {
                     const totalTTC = subtotalHT + tvaAmount;
 
                     return (
-                      <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '1rem 1.5rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', color: '#64748b', fontSize: '0.9rem' }}>
+                      <div style={{ background: 'var(--bg-light)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '1rem 1.5rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
                           <span>Sous-total HT :</span>
-                          <span style={{ fontWeight: 600, color: '#0f172a' }}>{formatPrice(subtotalHT)}</span>
+                          <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>{formatPrice(subtotalHT)}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', color: 'var(--primary)', fontSize: '0.9rem' }}>
                           <span>TVA (18.00%) :</span>
                           <span style={{ fontWeight: 600 }}>{formatPrice(tvaAmount)}</span>
                         </div>
-                        <div style={{ borderTop: '1px solid #e2e8f0', margin: '0.5rem 0', paddingTop: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontWeight: 700, color: '#0f172a' }}>TOTAL TTC :</span>
+                        <div style={{ borderTop: '1px solid var(--border-color)', margin: '0.5rem 0', paddingTop: '0.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>TOTAL TTC :</span>
                           <span style={{ fontWeight: 800, color: 'var(--primary)', fontSize: '1.25rem' }}>{formatPrice(totalTTC)} FCFA</span>
                         </div>
                       </div>

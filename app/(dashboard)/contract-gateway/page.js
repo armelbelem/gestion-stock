@@ -3273,7 +3273,7 @@ export default function ContractGatewayPage() {
         </div>
       ) : activeTab === 'catalogue' ? (
         selectedPartner.id === 'all' ? (
-          <div className="content-card" style={{ textAlign: 'center', padding: '4rem 2rem', background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)', borderRadius: '16px' }}>
+          <div className="content-card" style={{ textAlign: 'center', padding: '4rem 2rem', background: 'linear-gradient(135deg, var(--bg-light) 0%, var(--bg-color) 100%)', borderRadius: '16px' }}>
             <div style={{ maxWidth: '700px', margin: '0 auto' }}>
               <div style={{
                 width: '80px', height: '80px', backgroundColor: 'var(--primary-light)', color: 'var(--primary)',
@@ -3298,7 +3298,7 @@ export default function ContractGatewayPage() {
                     }}
                     style={{
                       padding: '2rem 1.5rem',
-                      backgroundColor: 'white',
+                      backgroundColor: 'var(--surface)',
                       border: '1px solid var(--border-color)',
                       borderRadius: '16px',
                       cursor: 'pointer',
@@ -3318,7 +3318,7 @@ export default function ContractGatewayPage() {
                     }}
                   >
                     <div style={{
-                      width: '40px', height: '40px', backgroundColor: '#f1f5f9', borderRadius: '10px',
+                      width: '40px', height: '40px', backgroundColor: 'var(--bg-light)', borderRadius: '10px',
                       display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem'
                     }}>
                       <Globe size={20} className="text-primary" />
@@ -3344,7 +3344,7 @@ export default function ContractGatewayPage() {
                 <button className="btn btn-secondary" onClick={handlePrintCatalog} title="Imprimer / PDF"><Printer size={18} /> PDF</button>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: '#f8fafc', padding: '0.5rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: 'var(--bg-light)', padding: '0.5rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                 <Globe size={16} className="text-muted" />
                 <select
                   className="form-control"
@@ -4306,13 +4306,13 @@ export default function ContractGatewayPage() {
             display: 'grid', 
             gridTemplateColumns: 'repeat(7, 1fr)', 
             gap: '1px', 
-            backgroundColor: '#e2e8f0',
-            border: '1px solid #e2e8f0',
+            backgroundColor: 'var(--border-color)',
+            border: '1px solid var(--border-color)',
             borderRadius: '12px',
             overflow: 'hidden'
           }}>
             {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map(day => (
-              <div key={day} style={{ backgroundColor: '#f8fafc', padding: '1rem', textAlign: 'center', fontWeight: 800, color: '#64748b', fontSize: '0.85rem' }}>{day}</div>
+              <div key={day} style={{ backgroundColor: 'var(--bg-light)', padding: '1rem', textAlign: 'center', fontWeight: 800, color: 'var(--text-muted)', fontSize: '0.85rem' }}>{day}</div>
             ))}
             
             {(() => {
@@ -4327,7 +4327,7 @@ export default function ContractGatewayPage() {
               const days = [];
               // Jours du mois précédent
               for (let i = 0; i < startOffset; i++) {
-                days.push(<div key={`prev-${i}`} style={{ backgroundColor: '#f1f5f9', minHeight: '120px' }}></div>);
+                days.push(<div key={`prev-${i}`} style={{ backgroundColor: 'var(--bg-color)', minHeight: '120px' }}></div>);
               }
 
               // Jours du mois actuel
@@ -4444,7 +4444,7 @@ export default function ContractGatewayPage() {
                     value={newOrder.clientId}
                     onChange={e => setNewOrder({ ...newOrder, clientId: e.target.value })}
                     disabled={!!selectedMine && !isEditing}
-                    style={{ backgroundColor: (!!selectedMine && !isEditing) ? '#f8fafc' : 'white', height: '38px', fontSize: '0.9rem' }}
+                    style={{ backgroundColor: (!!selectedMine && !isEditing) ? 'var(--bg-light)' : 'var(--surface)', height: '38px', fontSize: '0.9rem' }}
                   >
                     <option value="">Choisir la mine...</option>
                     {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
