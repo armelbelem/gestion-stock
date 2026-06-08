@@ -11,10 +11,14 @@ export function AuthProvider({ children }) {
   const [welcomeShownInThisSession, setWelcomeShownInThisSession] = useState(false);
 
   useEffect(() => {
-    const savedUser = sessionStorage.getItem('user');
-    // Le token est maintenant géré via un cookie HttpOnly sécurisé
+    // Lire depuis localStorage pour persister la session entre onglets
+    const savedUser = localStorage.getItem('user') || sessionStorage.getItem('user');
     if (savedUser) {
-      setUser(JSON.parse(savedUser));
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch (e) {
+        localStorage.removeItem('user');
+      }
     }
     const handleStatusChange = (e) => {
       setApiStatus(e.detail);
@@ -31,13 +35,44 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
+  // Renouvellement automatique du token toutes les 30 minutes si l'utilisateur est actif
+  useEffect(() => {
+    if (!user) return;
+
+    const refreshToken = async () => {
+      try {
+        const res = await fetch('/api/auth/refresh', { method: 'POST' });
+        if (res.ok) {
+          const data = await res.json();
+          // Mettre à jour les infos utilisateur en local si elles ont changé
+          if (data.user) {
+            localStorage.setItem('user', JSON.stringify(data.user));
+            setUser(data.user);
+          }
+        } else if (res.status === 401) {
+          // Token vraiment expiré → déconnexion propre
+          logout();
+        }
+      } catch (e) {
+        console.warn('[Token refresh silencieux échoué]', e);
+      }
+    };
+
+    // Refresh toutes les 30 minutes (1 800 000 ms)
+    const interval = setInterval(refreshToken, 30 * 60 * 1000);
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
   const login = (userData) => {
     setUser(userData.user);
-    sessionStorage.removeItem('welcomeShown'); // Ensure welcome shows on next dashboard visit
+    localStorage.setItem('user', JSON.stringify(userData.user));
+    sessionStorage.removeItem('welcomeShown');
   };
 
   const logout = () => {
     setUser(null);
+    localStorage.removeItem('user');
     sessionStorage.removeItem('user');
     sessionStorage.removeItem('welcomeShown');
     window.location.href = '/login';

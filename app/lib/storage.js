@@ -22,8 +22,12 @@ export const storage = {
         cache: 'no-store' // Force le navigateur à ne pas utiliser de cache
       });
       if (!response.ok) {
-        if (response.status === 401 || response.status === 403) {
-          window.location.href = '/login';
+        if (response.status === 401) {
+          // Session expirée ou invalide → déconnexion
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('user');
+            window.location.href = '/login';
+          }
           return [];
         }
         const text = await response.text();
@@ -32,7 +36,6 @@ export const storage = {
           const errorData = JSON.parse(text);
           if (errorData.error) errorMessage = errorData.error;
         } catch (e) {
-          // Si le texte n'est pas du JSON, on utilise le texte brut s'il est court
           if (text && text.length < 100) errorMessage = text;
         }
         throw new Error(errorMessage);
@@ -58,7 +61,10 @@ export const storage = {
       });
       if (!response.ok) {
         if (response.status === 401) {
-          window.location.href = '/login';
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('user');
+            window.location.href = '/login';
+          }
         }
         const text = await response.text();
         const errorData = text ? JSON.parse(text) : {};
@@ -85,7 +91,10 @@ export const storage = {
       });
       if (!response.ok) {
         if (response.status === 401) {
-          window.location.href = '/login';
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('user');
+            window.location.href = '/login';
+          }
         }
         const text = await response.text();
         const errorData = text ? JSON.parse(text) : {};
@@ -137,7 +146,10 @@ export const storage = {
       });
       if (!response.ok) {
         if (response.status === 401) {
-          window.location.href = '/login';
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('user');
+            window.location.href = '/login';
+          }
         }
         const text = await response.text();
         const errorData = text ? JSON.parse(text) : {};
@@ -165,7 +177,8 @@ export const storage = {
     }
     
     const data = await response.json();
-    sessionStorage.setItem('user', JSON.stringify(data.user));
+    // Stocker dans localStorage pour persister entre onglets
+    localStorage.setItem('user', JSON.stringify(data.user));
     return data;
   },
 
@@ -176,12 +189,15 @@ export const storage = {
       console.error('Logout error:', e);
     }
     sessionStorage.removeItem('user');
+    sessionStorage.removeItem('welcomeShown');
+    localStorage.removeItem('user');
     window.location.href = '/login';
   },
 
   getUser: () => {
     try {
-      const user = sessionStorage.getItem('user');
+      // Chercher d'abord dans localStorage (persistant), puis sessionStorage (compatibilité)
+      const user = localStorage.getItem('user') || sessionStorage.getItem('user');
       return user ? JSON.parse(user) : null;
     } catch (e) {
       return null;

@@ -73,18 +73,22 @@ export default function ClientLayout({ children }) {
 
   useEffect(() => {
     const checkStock = async () => {
-      const articles = await storage.get('articles');
-      const lowStock = articles.filter(a => a.currentStock <= a.minStock);
-      if (lowStock.length > 0 && lowStock.length !== lowStockCount) {
-        addToast(`Attention : ${lowStock.length} articles en stock critique !`, 'danger');
-      }
-      setLowStockCount(lowStock.length);
+      try {
+        const articles = await storage.get('articles');
+        const lowStock = articles.filter(a => a.currentStock <= a.minStock);
+        if (lowStock.length > 0 && lowStock.length !== lowStockCount) {
+          addToast(`Attention : ${lowStock.length} articles en stock critique !`, 'danger');
+        }
+        setLowStockCount(lowStock.length);
+      } catch (e) { /* silencieux */ }
     };
 
     checkStock();
-    const interval = setInterval(checkStock, 30000); 
+    // Vérification toutes les 2 minutes (120s) — stable, sans redémarrage à chaque page
+    const interval = setInterval(checkStock, 120000);
     return () => clearInterval(interval);
-  }, [pathname]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // [] = lance une seule fois au montage, pas à chaque changement de page
 
   useEffect(() => {
     const fetchData = async () => {
