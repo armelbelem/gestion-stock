@@ -62,19 +62,28 @@ export default function NewSalePage() {
       setClients(clientsData);
       setArticles(articlesData);
       setHasActiveYear(fyData.some(f => f.status === 'active'));
+
       if (settingsData) {
         setSettings(settingsData);
         if (settingsData.tvaRate !== undefined) setTvaRate(settingsData.tvaRate);
       }
-      
-      // Auto-sélection du client par défaut du magasin
+
+      // Auto-sélection et filtrage du client par défaut du magasin
       const selectedStoreId = localStorage.getItem('selectedStore') || currentUser?.storeId;
+      console.log('[DEBUG_CLIENT] selectedStoreId:', selectedStoreId);
       if (selectedStoreId && selectedStoreId !== 'all') {
         const currentStore = storesData.find(s => String(s.id) === String(selectedStoreId));
+        console.log('[DEBUG_CLIENT] currentStore:', currentStore);
         if (currentStore && currentStore.defaultClientId) {
+          console.log('[DEBUG_CLIENT] setting client ID to:', currentStore.defaultClientId);
           setSelectedClientId(currentStore.defaultClientId);
+          // Filtrer la liste pour ne montrer QUE le client par défaut s'il est défini
+          setClients(clientsData.filter(c => String(c.id) === String(currentStore.defaultClientId)));
+          return; // Sortir pour ne pas écraser setClients en dessous
         }
       }
+      
+      setClients(clientsData);
     } catch (err) {
       console.error("Error loading sales form data:", err);
     }
