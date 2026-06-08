@@ -2896,11 +2896,11 @@ export default function ContractGatewayPage() {
       </div>
 
       {/* --- GLOBAL FILTERS --- */}
-      <div className="content-card" style={{ marginBottom: '1.5rem', padding: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
-        <div className="filters" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', backgroundColor: '#f8fafc', padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+      <div className="content-card" style={{ marginBottom: '1.5rem', padding: '1rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem', alignItems: 'center' }}>
+        <div className="filters" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', backgroundColor: 'var(--bg-light)', padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Clock size={16} className="text-muted" />
-            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#64748b' }}>Période :</span>
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>Période :</span>
           </div>
           <input
             type="date"
@@ -2919,10 +2919,10 @@ export default function ContractGatewayPage() {
           />
         </div>
 
-        <div className="filters" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', backgroundColor: '#f8fafc', padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+        <div className="filters" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', backgroundColor: 'var(--bg-light)', padding: '0.5rem 1rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Truck size={16} className="text-muted" />
-            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#64748b' }}>Mine :</span>
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)' }}>Mine :</span>
           </div>
           <select
             className="form-control"
