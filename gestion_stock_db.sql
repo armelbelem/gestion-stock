@@ -5719,7 +5719,10 @@ CREATE TABLE IF NOT EXISTS `external_orders` (
 --
 
 INSERT INTO `external_orders` (`id`, `clientId`, `supplierId`, `description`, `quantity`, `purchasePrice`, `sellPrice`, `status`, `saleId`, `date`, `storeId`, `amountPaid`, `paymentType`, `fiscalYearId`, `metadata`, `delivery_date`) VALUES
-('1f55a9ca-6910-45d2-80d5-6db9dd6b3fa3', NULL, 'a402be17-e18a-4262-b6ab-49ca0dce39ee', NULL, NULL, NULL, NULL, 'en_attente', NULL, '2026-06-07 23:22:05', NULL, 0.00, 'complet', '4a76bd46-3d32-4869-86a8-47cca93660aa', '{\"isExempt\": false, \"customSite\": \"\", \"printNotes\": \"\", \"requestRef\": \"\", \"sectionTitle\": \"FOURNITURE DE PIECES DE RECHANGE\", \"customTvaRate\": \"18.00\", \"bcTitleOverride\": \"BON DE COMMANDE\", \"customDocNumber\": \"\", \"exemptionMention\": \"\", \"customSupervisorName\": \"Guy Roland TONDE\", \"supplierMyClientCode\": \"\", \"customSupervisorTitle\": \"SUPERVISEUR\", \"customRecipientDetails\": \"SOGEB\\nBP : 02BP5710 OUAH\\nTél : +226713599\\nRCCM : KDKD80220\\nIFU : SJSJ93\"}', '2026-06-16');
+('1f55a9ca-6910-45d2-80d5-6db9dd6b3fa3', NULL, 'a402be17-e18a-4262-b6ab-49ca0dce39ee', NULL, NULL, NULL, NULL, 'en_attente', NULL, '2026-06-07 23:22:05', NULL, 0.00, 'complet', '4a76bd46-3d32-4869-86a8-47cca93660aa', '{"isExempt": false, "customSite": "", "printNotes": "", "requestRef": "", "sectionTitle": "FOURNITURE DE PIECES DE RECHANGE", "customTvaRate": "18.00", "bcTitleOverride": "BON DE COMMANDE", "customDocNumber": "", "exemptionMention": "", "customSupervisorName": "Guy Roland TONDE", "supplierMyClientCode": "", "customSupervisorTitle": "SUPERVISEUR", "customRecipientDetails": "SOGEB\nBP : 02BP5710 OUAH\nTél : +226713599\nRCCM : KDKD80220\nIFU : SJSJ93"}', '2026-06-16'),
+('4be996cd-43cc-49ac-bef6-7c3552dcd901', NULL, NULL, 'Dummy order for delivery reference', NULL, NULL, NULL, 'livré', NULL, '2026-06-06 00:00:00', NULL, 0.00, 'complet', NULL, NULL, NULL),
+('b8aafa66-1c6b-4601-abd6-b26736a8c00e', NULL, NULL, 'Dummy order for delivery reference', NULL, NULL, NULL, 'livré', NULL, '2026-06-06 00:00:00', NULL, 0.00, 'complet', NULL, NULL, NULL),
+('892e250b-476c-45fd-a3ce-6fa631856c24', NULL, NULL, 'Dummy order for delivery reference', NULL, NULL, NULL, 'livré', NULL, '2026-06-06 00:00:00', NULL, 0.00, 'complet', NULL, NULL, NULL);
 
 -- --------------------------------------------------------
 
