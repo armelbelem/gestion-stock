@@ -13,6 +13,11 @@ export const logAction = async (userId, storeId, action, details = null) => {
 };
 
 export const getStoreConstraint = (user, queryStoreId) => {
+  // Si l'utilisateur a un accès global (storeId null = "Tous les magasins"), pas de filtre
+  if (user.storeId === null || user.storeId === undefined) {
+    if (!queryStoreId || queryStoreId === 'all') return null;
+    return queryStoreId;
+  }
   if (
     user.role === 'admin' || 
     user.role === 'gestionnaire' || 

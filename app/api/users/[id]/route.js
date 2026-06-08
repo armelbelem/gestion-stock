@@ -52,16 +52,18 @@ export async function PUT(request, { params }) {
 
   const { id: userId } = await params;
   const { username, password, role, storeId } = await request.json();
+  // storeId peut être null (= accès tous les magasins)
+  const resolvedStoreId = storeId || null;
 
   try {
     if (password) {
       const bcrypt = await import('bcryptjs');
       const hashedPassword = bcrypt.default.hashSync(password, 10);
       await db.query('UPDATE users SET username = ?, password = ?, role = ?, storeId = ? WHERE id = ?', 
-        [username, hashedPassword, role, storeId, userId]);
+        [username, hashedPassword, role, resolvedStoreId, userId]);
     } else {
       await db.query('UPDATE users SET username = ?, role = ?, storeId = ? WHERE id = ?', 
-        [username, role, storeId, userId]);
+        [username, role, resolvedStoreId, userId]);
     }
     
     await logAction(auth.user.id, auth.user.storeId, 'Modification utilisateur', { userId, username, role });

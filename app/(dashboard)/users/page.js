@@ -13,7 +13,7 @@ export default function UsersPage() {
   const [stores, setStores] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
-    username: '', password: '', role: 'vendeur', storeId: ''
+    username: '', password: '', role: 'vendeur', storeId: 'all'
   });
   const [editingId, setEditingId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -39,22 +39,23 @@ export default function UsersPage() {
     try {
       const data = await storage.get('stores');
       setStores(data);
-      if (data.length > 0) setFormData(prev => ({ ...prev, storeId: data[0].id }));
     } catch (err) { console.error(err); }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.username || (!editingId && !formData.password) || !formData.storeId) {
+    if (!formData.username || (!editingId && !formData.password)) {
       return showAlert('error', 'Erreur', "Champs requis manquants");
     }
+    // Convertir 'all' en null pour la BD (NULL = accès tous magasins, compatible avec la FK)
+    const dataToSend = { ...formData, storeId: formData.storeId === 'all' ? null : formData.storeId };
     setIsSubmitting(true);
     try {
       if (editingId) {
-        await storage.update('users', editingId, formData);
+        await storage.update('users', editingId, dataToSend);
         showAlert('success', 'Succès', "Utilisateur mis à jour !");
       } else {
-        await storage.create('users', formData);
+        await storage.create('users', dataToSend);
         showAlert('success', 'Succès', "Utilisateur créé !");
       }
       setIsModalOpen(false);
@@ -70,7 +71,7 @@ export default function UsersPage() {
       username: u.username,
       password: '', 
       role: u.role,
-      storeId: u.storeId
+      storeId: u.storeId === null || u.storeId === undefined ? 'all' : u.storeId
     });
     setIsModalOpen(true);
   };
@@ -95,7 +96,7 @@ export default function UsersPage() {
     <div className="page">
       <div className="page-header">
         <div><h1>Utilisateurs</h1><p>Gestion des accès et rôles</p></div>
-        <button className="btn btn-primary" onClick={() => { setEditingId(null); setFormData({username:'', password:'', role:'vendeur', storeId: stores[0]?.id || ''}); setIsModalOpen(true); }}><UserPlus size={18} /> Nouveau</button>
+        <button className="btn btn-primary" onClick={() => { setEditingId(null); setFormData({username:'', password:'', role:'vendeur', storeId: 'all'}); setIsModalOpen(true); }}><UserPlus size={18} /> Nouveau</button>
       </div>
 
       <div className="toolbar" style={{ marginBottom: '1.5rem' }}>
@@ -125,7 +126,12 @@ export default function UsersPage() {
                     </div>
                   </td>
                   <td><span className={`badge ${u.role === 'admin' ? 'badge-primary' : 'badge-success'}`}>{u.role}</span></td>
-                  <td className="text-muted">{u.storeName || '-'}</td>
+                  <td>
+                    {u.storeId === null || u.storeId === undefined
+                      ? <span className="badge badge-secondary" style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: 'white' }}>🌐 Tous les magasins</span>
+                      : <span className="text-muted">{u.storeName || '-'}</span>
+                    }
+                  </td>
                   <td style={{ display: 'flex', gap: '1rem' }}>
                     <button onClick={() => handleEdit(u)} className="text-primary" style={{ background: 'none', border: 'none' }} title="Modifier">
                       <Edit2 size={18} />
@@ -155,9 +161,13 @@ export default function UsersPage() {
                 <div className="form-group"><label className="form-label">Rôle</label><select className="form-control" value={formData.role} onChange={e => setFormData({...formData, role: e.target.value})}>
                   <option value="vendeur">Vendeur</option><option value="gestionnaire">Gestionnaire</option><option value="gestionnaire2">Gestionnaire 2</option><option value="admin">Admin</option><option value="observateur">Observateur</option>
                 </select></div>
-                <div className="form-group"><label className="form-label">Magasin</label><select className="form-control" required value={formData.storeId} onChange={e => setFormData({...formData, storeId: e.target.value})}>
-                  {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                </select></div>
+                <div className="form-group">
+                  <label className="form-label">Magasin</label>
+                  <select className="form-control" value={formData.storeId ?? 'all'} onChange={e => setFormData({...formData, storeId: e.target.value})}>
+                    <option value="all">🌐 Tous les magasins (accès global)</option>
+                    {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(false)}>Annuler</button>

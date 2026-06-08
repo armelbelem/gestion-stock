@@ -1262,6 +1262,10 @@ export default function ContractGatewayPage() {
   };
 
   const handleDeleteDelivery = (deliveryId, orderId) => {
+    if (user?.role === 'gestionnaire2' || user?.role === 'gestionnaire 2') {
+      showAlert('error', 'Action interdite', "Votre rôle ne vous permet pas de supprimer un Bon de Livraison.");
+      return;
+    }
     setAlertModal({
       open: true,
       type: 'confirm',
@@ -1970,6 +1974,10 @@ export default function ContractGatewayPage() {
   };
 
   const deleteOrder = (id) => {
+    if (user?.role === 'gestionnaire2' || user?.role === 'gestionnaire 2') {
+      showAlert('error', 'Action interdite', "Votre rôle ne vous permet pas de supprimer un dossier ou un Bon de Livraison.");
+      return;
+    }
     setAlertModal({
       open: true,
       type: 'confirm',
@@ -2003,6 +2011,10 @@ export default function ContractGatewayPage() {
 
   const updateOrderStatus = async (id, newStatus) => {
     const label = newStatus === 'CLÔTURÉ' || newStatus === 'termine' ? 'Clôturer' : newStatus === 'ANNULÉ' || newStatus === 'annule' ? 'Annuler' : 'Valider';
+    if ((newStatus === 'ANNULÉ' || newStatus === 'annule') && (user?.role === 'gestionnaire2' || user?.role === 'gestionnaire 2')) {
+      showAlert('error', 'Action interdite', "Votre rôle ne vous permet pas d'annuler un Bon de Livraison ou un dossier.");
+      return;
+    }
     
     if (newStatus === 'CLÔTURÉ' || newStatus === 'termine') {
       try {
@@ -3079,7 +3091,7 @@ export default function ContractGatewayPage() {
                             <button className="btn btn-secondary btn-sm" onClick={() => viewOrder(order.id)} title="Voir les détails"><Eye size={16} /></button>
                             {(order.status === 'BROUILLON' || order.status === 'demande') && user?.role !== 'observateur' && <button className="btn btn-secondary btn-sm" onClick={() => updateOrderStatus(order.id, 'VALIDÉ')} title="Valider le dossier"><ArrowRight size={16} /></button>}
                             {(order.status === 'VALIDÉ' || order.status === 'PARTIELLEMENT_LIVRÉ' || order.status === 'LIVRÉ' || order.status === 'facture_recue' || order.status === 'po_envoye') && user?.role !== 'observateur' && <button className="btn btn-success btn-sm" onClick={() => updateOrderStatus(order.id, 'CLÔTURÉ')} title="Clôturer le dossier"><CheckCircle2 size={16} /></button>}
-                            {order.status !== 'CLÔTURÉ' && order.status !== 'termine' && order.status !== 'ANNULÉ' && order.status !== 'annule' && user?.role !== 'observateur' && <button className="btn btn-danger-outline btn-sm" onClick={() => updateOrderStatus(order.id, 'ANNULÉ')} title="Annuler le dossier"><XCircle size={16} /></button>}
+                            {order.status !== 'CLÔTURÉ' && order.status !== 'termine' && order.status !== 'ANNULÉ' && order.status !== 'annule' && user?.role !== 'observateur' && user?.role !== 'gestionnaire2' && user?.role !== 'gestionnaire 2' && <button className="btn btn-danger-outline btn-sm" onClick={() => updateOrderStatus(order.id, 'ANNULÉ')} title="Annuler le dossier"><XCircle size={16} /></button>}
                             <button className="btn btn-secondary btn-sm" onClick={() => handlePrint(order.id)} title="Imprimer BC"><Printer size={16} /> BC</button>
                             <button className="btn btn-secondary btn-sm" title="Historique BC" onClick={() => loadBCHistory(order.id)}><History size={16} /></button>
                             {user?.role !== 'observateur' && (
@@ -3091,7 +3103,7 @@ export default function ContractGatewayPage() {
                               <Truck size={16} /> BL
                             </button>}
                             <button className="btn btn-secondary btn-sm" title="Historique BL" onClick={() => loadDeliveries(order.id)}><History size={16} /></button>
-                            {user?.role !== 'observateur' && <button className="btn btn-danger-outline btn-sm" onClick={() => deleteOrder(order.id)} title="Supprimer le dossier"><Trash2 size={16} /></button>}
+                            {user?.role !== 'observateur' && user?.role !== 'gestionnaire2' && user?.role !== 'gestionnaire 2' && <button className="btn btn-danger-outline btn-sm" onClick={() => deleteOrder(order.id)} title="Supprimer le dossier"><Trash2 size={16} /></button>}
                           </div>
                         </td>
                       </tr>
@@ -5103,9 +5115,11 @@ export default function ContractGatewayPage() {
                                   <Eye size={16} />
                                 </a>
                               )}
+                              {user?.role !== 'gestionnaire2' && user?.role !== 'gestionnaire 2' && (
                               <button className="btn btn-danger-outline btn-sm" onClick={() => handleDeleteDelivery(del.id, del.order_id)}>
                                 <Trash2 size={16} />
                               </button>
+                              )}
                             </div>
                           </td>
                         </tr>

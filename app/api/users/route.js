@@ -33,13 +33,15 @@ export async function POST(request) {
   }
 
   const { username, password, role, storeId } = await request.json();
+  // storeId peut être null (= accès tous les magasins)
+  const resolvedStoreId = storeId || null;
 
   try {
     const hashedPassword = bcrypt.hashSync(password, 10);
     const id = uuidv4();
     await db.query('INSERT INTO users (id, username, password, role, storeId) VALUES (?, ?, ?, ?, ?)', 
-      [id, username, hashedPassword, role, storeId]);
+      [id, username, hashedPassword, role, resolvedStoreId]);
     await logAction(auth.user.id, auth.user.storeId, 'Création utilisateur', { username, role });
-    return NextResponse.json({ id, username, role, storeId }, { status: 201 });
+    return NextResponse.json({ id, username, role, storeId: resolvedStoreId }, { status: 201 });
   } catch (err) { return NextResponse.json({ error: err.message }, { status: 500 }); }
 }
