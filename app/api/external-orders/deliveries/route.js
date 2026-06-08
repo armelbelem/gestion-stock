@@ -67,28 +67,14 @@ export async function POST(request) {
       }
     }
 
-    // 4. Generate sequential BL number using the shared document_sequences DAILY key
+    // 4. Format delivery tag/label with timestamp
     const today = new Date();
     const yyyy = today.getFullYear();
     const mm = String(today.getMonth() + 1).padStart(2, '0');
     const dd = String(today.getDate()).padStart(2, '0');
-    const dbDate = `${yyyy}-${mm}-${dd}`;
-    const formattedDate = `${dd}${mm}-${yyyy}`;
-    const dailyKey = `DAILY-BL-${dbDate}`;
-
-    await connection.query(`
-      INSERT INTO document_sequences (id, doc_type, doc_date, last_sequence)
-      VALUES (?, 'DAILY', ?, 1)
-      ON DUPLICATE KEY UPDATE last_sequence = last_sequence + 1
-    `, [dailyKey, dbDate]);
-
-    const [dailyRows] = await connection.query(
-      'SELECT last_sequence FROM document_sequences WHERE id = ?',
-      [dailyKey]
-    );
-    const sequence = dailyRows[0].last_sequence;
-    const paddedSequence = String(sequence).padStart(3, '0');
-    const blNumber = `BL-${paddedSequence}-${formattedDate}`;
+    const hours = String(today.getHours()).padStart(2, '0');
+    const minutes = String(today.getMinutes()).padStart(2, '0');
+    const blNumber = `Livraison du ${dd}/${mm}/${yyyy} à ${hours}:${minutes}`;
 
     // 5. Insert delivery record
     const deliveryId = uuidv4();

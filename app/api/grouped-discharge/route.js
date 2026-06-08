@@ -95,7 +95,7 @@ export async function POST(request) {
     if (!dischargeNumber) {
       const [seqRows] = await connection.query(
         'SELECT COUNT(*) as count FROM grouped_discharges WHERE client_id = ?',
-        [clientId]
+        [clientId === 'libre' ? null : clientId]
       );
       const seq = (seqRows[0]?.count || 0) + 1;
       const now = new Date();
@@ -132,7 +132,7 @@ export async function POST(request) {
       [
         dischargeId, 
         dischargeNumber, 
-        clientId, 
+        clientId === 'libre' ? null : clientId, 
         clientName, 
         partnerId || null, 
         partnerName || null, 
@@ -168,6 +168,10 @@ export async function DELETE(request) {
   const auth = authenticateToken(request);
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
+  if (auth.user.role === 'gestionnaire2' || auth.user.role === 'gestionnaire 2') {
+    return NextResponse.json({ error: 'Accès refusé : Rôle non autorisé à supprimer des décharges' }, { status: 403 });
+  }
+
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');
 
@@ -193,6 +197,10 @@ export async function DELETE(request) {
 export async function PUT(request) {
   const auth = authenticateToken(request);
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
+
+  if (auth.user.role === 'gestionnaire2' || auth.user.role === 'gestionnaire 2') {
+    return NextResponse.json({ error: 'Accès refusé : Rôle non autorisé à modifier ou annuler des décharges' }, { status: 403 });
+  }
 
   if (!hasPermission(auth.user, 'procurement', 'view') && !hasPermission(auth.user, 'stock', 'view_cost_price')) {
     return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });

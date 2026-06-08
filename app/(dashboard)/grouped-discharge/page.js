@@ -182,6 +182,48 @@ export default function GroupedDischargePage() {
   };
 
   const prepopulateForm = async () => {
+    if (selectedClientId === 'libre') {
+      let docNum = '';
+      try {
+        const res = await fetch(`/api/sequence?type=BL&preview=true&_t=${Date.now()}`);
+        if (res.ok) {
+          const data = await res.json();
+          docNum = data.documentNumber;
+          setPreviewDocNumber(docNum);
+        }
+      } catch (err) {
+        console.error("Error fetching sequence:", err);
+      }
+
+      const senderDetails = [
+        settings?.companyName || 'NS AUTO SARL',
+        settings?.address || 'Secteur 05, Parcelle C, Lot 1317 ter',
+        settings?.rccm ? `RCCM : ${settings.rccm}` : 'RCCM : BF BBD 2018 B 0372',
+        settings?.nif ? `IFU : ${settings.nif}` : 'IFU : 00102506 K',
+        settings?.bp || 'BP 1245 Bobo-dioulasso',
+        settings?.division || 'Division des Grandes Entreprises',
+        settings?.taxSystem || 'Réel Normal d\'Imposition'
+      ].filter(Boolean).join('\n');
+
+      setPrepData(prev => ({
+        ...prev,
+        blTitleOverride: 'BORDEREAU DE LIVRAISON',
+        sectionTitle: 'FOURNITURE DE PIECES DE RECHANGE',
+        requestRef: 'URGENT REQUEST',
+        customSenderDetails: senderDetails,
+        customRecipientDetails: '',
+        customDate: new Date().toISOString().split('T')[0],
+        customCity: settings?.city || 'Ouagadougou',
+        customSite: 'GEN',
+        customSupervisorName: settings?.blSupervisorName || 'Huges Christian SOW',
+        customSupervisorTitle: settings?.blSupervisorTitle || 'Responsable Logistique Adjoint',
+        customDocNumber: docNum,
+        printNotes: '',
+        items: []
+      }));
+      return;
+    }
+
     const client = clients.find(c => String(c.id) === String(selectedClientId));
     const clientName = client ? client.name : '';
     
@@ -282,6 +324,9 @@ export default function GroupedDischargePage() {
       try {
         const token = sessionStorage.getItem('token');
         let url = `/api/contract-catalog?search=${encodeURIComponent(value)}`;
+        if (selectedClientId && selectedClientId !== 'libre') {
+          url += `&clientId=${selectedClientId}`;
+        }
         if (selectedPartnerId && selectedPartnerId !== 'all') {
           url += `&partnerId=${selectedPartnerId}`;
         }
@@ -359,7 +404,11 @@ export default function GroupedDischargePage() {
     const deliveryItems = prepData.items.filter(it => (parseInt(it.quantity) || 0) > 0);
 
     const client = clients.find(c => String(c.id) === String(selectedClientId));
-    const clientName = client ? client.name : 'Client';
+    let clientName = client ? client.name : 'Client';
+    if (selectedClientId === 'libre') {
+      const firstLine = prepData.customRecipientDetails?.trim().split('\n')[0];
+      clientName = firstLine || 'BL Libre - Autre entreprise';
+    }
     
     const partner = partners.find(p => p.id === selectedPartnerId);
     const partnerName = partner ? partner.name : null;
@@ -551,6 +600,10 @@ export default function GroupedDischargePage() {
 
   // Cancel Grouped Discharge (updates status to 'annule')
   const handleCancelDischarge = (discharge) => {
+    if (user?.role === 'gestionnaire2' || user?.role === 'gestionnaire 2') {
+      showAlert('error', 'Action interdite', "Votre rôle ne vous permet pas d'annuler un Bon de Livraison.");
+      return;
+    }
     showConfirm(
       "Annuler le bordereau ?",
       `Êtes-vous sûr de vouloir annuler le bordereau ${discharge.discharge_number} ?`,
@@ -581,6 +634,10 @@ export default function GroupedDischargePage() {
 
   // Delete/Cancel Grouped Discharge (simply deletes the document record)
   const handleDeleteDischarge = (discharge) => {
+    if (user?.role === 'gestionnaire2' || user?.role === 'gestionnaire 2') {
+      showAlert('error', 'Action interdite', "Votre rôle ne vous permet pas de supprimer un Bon de Livraison.");
+      return;
+    }
     showConfirm(
       "Supprimer le bordereau ?",
       `Êtes-vous sûr de vouloir supprimer définitivement le bordereau ${discharge.discharge_number} de l'historique ?`,
@@ -1028,6 +1085,7 @@ export default function GroupedDischargePage() {
                 onChange={(e) => setSelectedClientId(e.target.value)}
               >
                 <option value="">Sélectionner une mine (Client)...</option>
+                <option value="libre" style={{ fontWeight: 'bold', color: '#b91c1c' }}>[ BL Libre - Autre entreprise ]</option>
                 {clients.map(client => (
                   <option key={client.id} value={client.id}>{client.name} {client.clientCode ? `(${client.clientCode})` : ''}</option>
                 ))}
@@ -1497,7 +1555,7 @@ export default function GroupedDischargePage() {
                               >
                                 <Printer size={16} />
                               </button>
-                              {user?.role !== 'observateur' && discharge.status !== 'annule' && (
+                              {user?.role !== 'observateur' && user?.role !== 'gestionnaire2' && user?.role !== 'gestionnaire 2' && discharge.status !== 'annule' && (
                                 <button 
                                   className="btn btn-danger-outline btn-sm"
                                   onClick={() => handleCancelDischarge(discharge)}
@@ -1506,7 +1564,7 @@ export default function GroupedDischargePage() {
                                   <Ban size={16} />
                                 </button>
                               )}
-                              {user?.role !== 'observateur' && (
+                              {user?.role !== 'observateur' && user?.role !== 'gestionnaire2' && user?.role !== 'gestionnaire 2' && (
                                 <button 
                                   className="btn btn-danger-outline btn-sm"
                                   onClick={() => handleDeleteDischarge(discharge)}

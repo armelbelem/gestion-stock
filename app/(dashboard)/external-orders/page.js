@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { storage } from '../../lib/storage';
-import { Plus, CheckCircle, XCircle, Clock, Trash2, Search, X, PackageOpen, ListPlus, Printer, Truck, AlertCircle, Download, FileText } from 'lucide-react';
+import { Plus, CheckCircle, XCircle, Clock, Trash2, Search, X, PackageOpen, ListPlus, Printer, Truck, AlertCircle, Download, FileText, Edit } from 'lucide-react';
 import AlertModal from '../../components/AlertModal';
 import { exportToExcel } from '../../utils/excelExport';
 import { useAuth } from '../../providers';
@@ -51,6 +51,7 @@ export default function ExternalOrdersPage() {
   const [isPrintingBL, setIsPrintingBL] = useState(false);
   const [printBLData, setPrintBLData] = useState(null);
   const [isBCPrintModalOpen, setIsBCPrintModalOpen] = useState(false);
+  const [editingOrder, setEditingOrder] = useState(null);
   const [formData, setFormData] = useState({ 
     clientId: null, supplierId: '', deliveryDate: '', items: [{ code: '', ref: '', description: '', quantity: 1, purchasePrice: '' }]
   });
@@ -155,7 +156,7 @@ export default function ExternalOrdersPage() {
             totalHTDelivered,
             totalHTRemaining,
             totalTTCDelivered,
-            statut: order.status === 'termine' ? 'Livré & Vendu' : (order.status === 'annule' ? 'Annulé' : 'En attente')
+            statut: order.status === 'termine' ? 'Livré & Clôturé' : (order.status === 'annule' ? 'Annulé' : 'En attente')
           });
         });
       }
@@ -207,6 +208,7 @@ export default function ExternalOrdersPage() {
   };
 
   const handleOpenModal = () => {
+    setEditingOrder(null);
     setFormData({
       clientId: null,
       supplierId: '',
@@ -270,6 +272,11 @@ export default function ExternalOrdersPage() {
 
   const handleRemoveItem = (index) => {
     if (formData.items.length <= 1) return;
+    const item = formData.items[index];
+    if (item.quantity_delivered > 0) {
+      showAlert('error', 'Action impossible', `L'article "${item.description}" a déjà fait l'objet de livraisons et ne peut pas être retiré.`);
+      return;
+    }
     const newItems = [...formData.items];
     newItems.splice(index, 1);
     setFormData({ ...formData, items: newItems });
@@ -278,7 +285,14 @@ export default function ExternalOrdersPage() {
   const handleItemChange = (index, field, value) => {
     const newItems = [...formData.items];
     if (field === 'quantity') {
-      newItems[index][field] = value === '' ? '' : (parseInt(value) || 0);
+      const val = value === '' ? '' : (parseInt(value) || 0);
+      const delivered = newItems[index].quantity_delivered || 0;
+      if (val !== '' && val < delivered) {
+        showAlert('warning', 'Quantité invalide', `La quantité ne peut pas être inférieure à la quantité déjà livrée (${delivered}).`);
+        newItems[index][field] = delivered;
+      } else {
+        newItems[index][field] = val;
+      }
     } else if (field === 'purchasePrice') {
       newItems[index][field] = value === '' ? '' : (parseFloat(value) || 0);
     } else {
@@ -334,27 +348,82 @@ export default function ExternalOrdersPage() {
     };
 
     showConfirm(
-      "Confirmer l'enregistrement",
+      editingOrder ? "Confirmer la modification" : "Confirmez-vous l'enregistrement de cette commande ?",
       "Confirmez-vous avoir bien saisi toutes les informations de cette commande ?",
       async () => {
         closeAlert();
         try {
-          await storage.create('external-orders', { 
-            clientId, 
-            supplierId, 
-            items, 
-            storeId: null,
-            metadata,
-            deliveryDate: deliveryDate || null
-          });
-          showAlert('success', 'Succès', "Commande spéciale créée avec succès dans le Magasin Global !");
+          if (editingOrder) {
+            const res = await fetch(`/api/external-orders/${editingOrder.id}`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+              },
+              body: JSON.stringify({
+                action: 'edit',
+                clientId,
+                supplierId,
+                items,
+                metadata,
+                deliveryDate: deliveryDate || null
+              })
+            });
+            const result = await res.json();
+            if (!res.ok) throw new Error(result.error);
+            showAlert('success', 'Succès', "Commande spéciale modifiée avec succès !");
+          } else {
+            await storage.create('external-orders', { 
+              clientId, 
+              supplierId, 
+              items, 
+              storeId: null,
+              metadata,
+              deliveryDate: deliveryDate || null
+            });
+            showAlert('success', 'Succès', "Commande spéciale créée avec succès dans le Magasin Global !");
+          }
           await loadData();
           setIsModalOpen(false);
+          setEditingOrder(null);
         } catch (error) {
-          showAlert('error', 'Erreur', error.message || "Erreur lors de la création");
+          showAlert('error', 'Erreur', error.message || "Erreur lors de l'enregistrement");
         }
       }
     );
+  };
+
+  const handleEditOrder = (order) => {
+    const meta = order.metadata ? (typeof order.metadata === 'string' ? JSON.parse(order.metadata) : order.metadata) : {};
+    setEditingOrder(order);
+    setFormData({
+      clientId: order.clientId,
+      supplierId: order.supplierId,
+      deliveryDate: order.delivery_date ? order.delivery_date.split('T')[0] : '',
+      bcTitleOverride: meta.bcTitleOverride || 'BON DE COMMANDE',
+      sectionTitle: meta.sectionTitle || 'FOURNITURE DE PIECES DE RECHANGE',
+      requestRef: meta.requestRef || '',
+      customRecipientDetails: meta.customRecipientDetails || '',
+      customSite: meta.customSite || '',
+      supplierMyClientCode: meta.supplierMyClientCode || '',
+      customSupervisorName: meta.customSupervisorName || settings?.supervisorName || 'Guy Roland TONDE',
+      customSupervisorTitle: meta.customSupervisorTitle || settings?.supervisorTitle || 'SUPERVISEUR',
+      customTvaRate: meta.customTvaRate !== undefined ? meta.customTvaRate : (settings?.tvaRate !== undefined ? settings.tvaRate : 18),
+      isExempt: meta.isExempt || false,
+      exemptionMention: meta.exemptionMention || '',
+      printNotes: meta.printNotes || '',
+      customDocNumber: meta.customDocNumber || '',
+      items: order.items.map(item => ({
+        id: item.id,
+        code: item.code || '',
+        ref: item.ref || '',
+        description: item.description,
+        quantity: item.quantity,
+        purchasePrice: item.purchasePrice,
+        quantity_delivered: item.quantity_delivered || 0
+      }))
+    });
+    setIsModalOpen(true);
   };
 
   const handleAction = (id, action) => {
@@ -690,7 +759,7 @@ export default function ExternalOrdersPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
 
-      showAlert('success', 'Succès', `Livraison validée ! BL généré : ${data.blNumber}`);
+      showAlert('success', 'Succès', 'Livraison enregistrée avec succès !');
       setIsDeliveryModalOpen(false);
       loadData();
     } catch (err) {
@@ -745,7 +814,7 @@ export default function ExternalOrdersPage() {
   const getStatusBadge = (status) => {
     switch(status) {
       case 'en_attente': return <span className="badge badge-warning"><Clock size={12} style={{marginRight:4}}/> En attente</span>;
-      case 'termine': return <span className="badge badge-success"><CheckCircle size={12} style={{marginRight:4}}/> Livré & Vendu</span>;
+      case 'termine': return <span className="badge badge-success"><CheckCircle size={12} style={{marginRight:4}}/> Livré & Clôturé</span>;
       case 'annule': return <span className="badge badge-danger"><XCircle size={12} style={{marginRight:4}}/> Annulé</span>;
       default: return <span className="badge">{status}</span>;
     }
@@ -1438,15 +1507,25 @@ export default function ExternalOrdersPage() {
                         {order.status === 'en_attente' || order.status === 'partiel' ? (
                           <div style={{ display: 'flex', gap: '0.5rem' }}>
                             {currentUser?.role !== 'observateur' && (
-                              <button className="btn btn-primary" title="Réceptionner / Livrer" onClick={() => handleOpenDeliveryModal(order)}>
-                                <Truck size={16} />
-                              </button>
+                              <>
+                                <button className="btn btn-primary" title="Réceptionner / Livrer" onClick={() => handleOpenDeliveryModal(order)}>
+                                  <Truck size={16} />
+                                </button>
+                                <button className="btn btn-secondary" title="Modifier la commande" onClick={() => handleEditOrder(order)}>
+                                  <Edit size={16} />
+                                </button>
+                              </>
                             )}
                             <button className="btn btn-secondary" title="Imprimer le bon de commande" onClick={() => handlePrint(order)}><Printer size={16} /></button>
                             {currentUser?.role !== 'observateur' && <button className="btn btn-warning" title="Annuler" onClick={() => handleAction(order.id, 'annuler')}><XCircle size={16} /></button>}
                           </div>
                         ) : (
                           <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            {order.status === 'termine' && (
+                              <button className="btn btn-secondary" title="Consulter les livraisons" onClick={() => handleOpenDeliveryModal(order)}>
+                                <Truck size={16} />
+                              </button>
+                            )}
                             <button className="btn btn-secondary" title="Imprimer le reçu" onClick={() => handlePrint(order)}><Printer size={16} /></button>
                             {currentUser?.role !== 'observateur' && <button className="btn btn-danger-outline" title="Supprimer l'historique" onClick={() => handleAction(order.id, 'delete')}><Trash2 size={16} /></button>}
                           </div>
@@ -1465,8 +1544,8 @@ export default function ExternalOrdersPage() {
         <div className="modal-overlay">
           <div className="modal-content" style={{maxWidth: '950px', width: '95%'}}>
             <div className="modal-header">
-              <h3>Nouvelle Commande Spéciale</h3>
-              <button className="modal-close" onClick={() => setIsModalOpen(false)}><X size={20} /></button>
+              <h3>{editingOrder ? "Modifier la Commande Spéciale" : "Nouvelle Commande Spéciale"}</h3>
+              <button className="modal-close" onClick={() => { setIsModalOpen(false); setEditingOrder(null); }}><X size={20} /></button>
             </div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
@@ -1672,7 +1751,7 @@ export default function ExternalOrdersPage() {
         <div className="modal-overlay">
           <div className="modal-content" style={{maxWidth: '900px', width: '95%'}}>
             <div className="modal-header">
-              <h3>Réceptionner & Livrer (Bon de Livraison)</h3>
+              <h3>Réceptionner & Enregistrer Livraison</h3>
               <button className="modal-close" onClick={() => setIsDeliveryModalOpen(false)}><X size={20} /></button>
             </div>
             
@@ -1721,14 +1800,18 @@ export default function ExternalOrdersPage() {
                   </div>
 
                   <div className="modal-footer" style={{ padding: '0', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
-                    <button type="button" className="btn btn-secondary" onClick={() => setIsDeliveryModalOpen(false)}>Annuler</button>
-                    <button type="submit" className="btn btn-primary">Valider la livraison & Générer BL</button>
+                    <button type="button" className="btn btn-secondary" onClick={() => setIsDeliveryModalOpen(false)}>
+                      {selectedOrderForDelivery.status === 'termine' ? 'Fermer' : 'Annuler'}
+                    </button>
+                    {selectedOrderForDelivery.status !== 'termine' && (
+                      <button type="submit" className="btn btn-primary">Valider la livraison</button>
+                    )}
                   </div>
                 </form>
               </div>
 
               <div style={{ borderLeft: '1px solid var(--border-color)', paddingLeft: '1.5rem' }}>
-                <h4 style={{ marginBottom: '1rem' }}>Historique des Bons de Livraison</h4>
+                <h4 style={{ marginBottom: '1rem' }}>Historique des Livraisons</h4>
                 {orderDeliveries.length === 0 ? (
                   <div style={{ padding: '2rem', textAlign: 'center', background: 'var(--bg-light)', borderRadius: '8px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
                     <Truck size={24} style={{ marginBottom: '0.5rem', opacity: 0.5 }} /><br/>
@@ -1753,9 +1836,6 @@ export default function ExternalOrdersPage() {
                               ))}
                             </div>
                           </div>
-                          <button className="btn btn-secondary btn-sm" title="Imprimer" onClick={() => handlePrintBL(delivery)}>
-                            <Printer size={14} />
-                          </button>
                         </div>
                       );
                     })}
