@@ -52,11 +52,12 @@ export default function NewSalePage() {
 
   const loadData = async () => {
     try {
-      const [clientsData, articlesData, fyData, settingsData] = await Promise.all([
+      const [clientsData, articlesData, fyData, settingsData, storesData] = await Promise.all([
         storage.get('clients'),
         storage.get('articles'),
         storage.get('fiscal-years'),
-        storage.get('settings')
+        storage.get('settings'),
+        storage.get('stores')
       ]);
       setClients(clientsData);
       setArticles(articlesData);
@@ -64,6 +65,15 @@ export default function NewSalePage() {
       if (settingsData) {
         setSettings(settingsData);
         if (settingsData.tvaRate !== undefined) setTvaRate(settingsData.tvaRate);
+      }
+      
+      // Auto-sélection du client par défaut du magasin
+      const selectedStoreId = localStorage.getItem('selectedStore') || currentUser?.storeId;
+      if (selectedStoreId && selectedStoreId !== 'all') {
+        const currentStore = storesData.find(s => String(s.id) === String(selectedStoreId));
+        if (currentStore && currentStore.defaultClientId) {
+          setSelectedClientId(currentStore.defaultClientId);
+        }
       }
     } catch (err) {
       console.error("Error loading sales form data:", err);

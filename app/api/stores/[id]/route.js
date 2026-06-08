@@ -7,10 +7,10 @@ export async function PUT(request, { params }) {
   const auth = authenticateToken(request);
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
   if (auth.user.role !== 'admin') return NextResponse.json({ error: 'Interdit' }, { status: 403 });
-  const { name, address } = await request.json();
+  const { name, address, defaultClientId } = await request.json();
   const { id } = await params;
   try {
-    await db.query('UPDATE stores SET name = ?, address = ? WHERE id = ?', [name, address, id]);
+    await db.query('UPDATE stores SET name = ?, address = ?, defaultClientId = ? WHERE id = ?', [name, address, defaultClientId || null, id]);
     await logAction(auth.user.id, id, 'Modification magasin', { name });
     return NextResponse.json({ success: true });
   } catch (err) { return NextResponse.json({ error: err.message }, { status: 500 }); }

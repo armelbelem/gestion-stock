@@ -8,22 +8,28 @@ import AlertModal from '../../components/AlertModal';
 export default function StoresPage() {
   const [stores, setStores] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState({ id: '', name: '', address: '' });
+  const [clients, setClients] = useState([]);
+  const [formData, setFormData] = useState({ id: '', name: '', address: '', defaultClientId: '' });
   const [alertModal, setAlertModal] = useState({ open: false, type: 'info', title: '', message: '', onConfirm: null });
 
   useEffect(() => {
-    loadStores();
+    loadStoresAndClients();
   }, []);
 
-  const loadStores = async () => {
+  const loadStoresAndClients = async () => {
     try {
-      const data = await storage.get('stores');
-      setStores(data);
+      // Force storeId=all to get all clients regardless of current user's constraint
+      const [storesData, clientsData] = await Promise.all([
+        storage.get('stores'),
+        storage.get('clients?storeId=all')
+      ]);
+      setStores(storesData);
+      setClients(clientsData);
     } catch (err) { console.error(err); }
   };
 
   const handleOpenModal = (store = null) => {
-    setFormData(store ? store : { id: '', name: '', address: '' });
+    setFormData(store ? { ...store, defaultClientId: store.defaultClientId || '' } : { id: '', name: '', address: '', defaultClientId: '' });
     setIsModalOpen(true);
   };
 
@@ -36,7 +42,7 @@ export default function StoresPage() {
         await storage.create('stores', formData);
       }
       setIsModalOpen(false);
-      loadStores();
+      loadStoresAndClients();
       setAlertModal({ open: true, type: 'success', title: 'Succès', message: 'Magasin enregistré !' });
     } catch (err) {
       setAlertModal({ open: true, type: 'error', title: 'Erreur', message: err.message });
@@ -52,7 +58,7 @@ export default function StoresPage() {
       onConfirm: async () => {
         try {
           await storage.remove('stores', id);
-          loadStores();
+          loadStoresAndClients();
           setAlertModal({ open: true, type: 'success', title: 'Supprimé', message: 'Magasin retiré.' });
         } catch (err) {
           setAlertModal({ open: true, type: 'error', title: 'Erreur', message: err.message });
@@ -83,6 +89,11 @@ export default function StoresPage() {
               <div className="text-muted" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem' }}>
                 <MapPin size={14} /> {store.address || 'Sans adresse'}
               </div>
+              {store.defaultClientName && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', color: 'var(--primary)', marginTop: '4px' }}>
+                  <strong>Client :</strong> {store.defaultClientName}
+                </div>
+              )}
             </div>
           </div>
         ))}
@@ -96,6 +107,13 @@ export default function StoresPage() {
               <div className="modal-body">
                 <div className="form-group"><label className="form-label">Nom</label><input className="form-control" required value={formData.name || ''} onChange={e => setFormData({...formData, name: e.target.value})} /></div>
                 <div className="form-group"><label className="form-label">Adresse</label><textarea className="form-control" value={formData.address || ''} onChange={e => setFormData({...formData, address: e.target.value})} /></div>
+                <div className="form-group">
+                  <label className="form-label">Client par défaut</label>
+                  <select className="form-control" value={formData.defaultClientId || ''} onChange={e => setFormData({...formData, defaultClientId: e.target.value})}>
+                    <option value="">-- Aucun (Assignation manuelle) --</option>
+                    {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
               </div>
               <div className="modal-footer"><button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(false)}>Annuler</button><button type="submit" className="btn btn-primary">Enregistrer</button></div>
             </form>
