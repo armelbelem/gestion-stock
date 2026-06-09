@@ -41,13 +41,13 @@ export async function GET(request) {
     }
 
     if (startDate) {
-      conditions.push('s.date >= ?');
-      params.push(`${startDate} 00:00:00`);
+      conditions.push('DATE(s.date) >= ?');
+      params.push(startDate);
     }
 
     if (endDate) {
-      conditions.push('s.date <= ?');
-      params.push(`${endDate} 23:59:59`);
+      conditions.push('DATE(s.date) <= ?');
+      params.push(endDate);
     }
 
     if (search) {

@@ -123,6 +123,15 @@ export async function POST(request) {
       throw new Error('Veuillez spécifier au moins un article avec une quantité positive.');
     }
 
+    let finalDate = new Date();
+    if (customDate) {
+      const parsed = new Date(customDate);
+      if (!isNaN(parsed.getTime())) {
+        parsed.setHours(finalDate.getHours(), finalDate.getMinutes(), finalDate.getSeconds());
+        finalDate = parsed;
+      }
+    }
+
     // 2. Insérer la décharge groupée libre en base
     await connection.query(
       `INSERT INTO grouped_discharges (
@@ -140,7 +149,7 @@ export async function POST(request) {
         JSON.stringify(parsedItems), 
         notes || null, 
         auth.user.id,
-        customDate ? new Date(customDate) : new Date()
+        finalDate
       ]
     );
 
@@ -252,6 +261,16 @@ export async function PUT(request) {
 
       const finalDocNumber = customDocNumber || rows[0].discharge_number;
 
+      let finalDate = new Date(rows[0].created_at);
+      if (customDate) {
+        const parsed = new Date(customDate);
+        if (!isNaN(parsed.getTime())) {
+          const now = new Date();
+          parsed.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
+          finalDate = parsed;
+        }
+      }
+
       await db.query(
         `UPDATE grouped_discharges SET 
           client_id = ?, client_name = ?, partner_id = ?, partner_name = ?, 
@@ -264,7 +283,7 @@ export async function PUT(request) {
           partnerName || null,
           JSON.stringify(parsedItems),
           notes || null,
-          customDate ? new Date(customDate) : new Date(rows[0].created_at),
+          finalDate,
           finalDocNumber,
           id
         ]

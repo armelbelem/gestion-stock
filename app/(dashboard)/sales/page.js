@@ -314,6 +314,57 @@ export default function SalesPage() {
     showAlert('success', 'Succès', "Exportation Excel réussie !");
   };
 
+  const handleExportItemExcel = async () => {
+    showAlert('info', 'Exportation', 'Préparation du bilan des articles en cours...');
+    const allData = await fetchAllForExport();
+
+    // Regrouper les articles
+    const itemMap = new Map();
+    allData.forEach(sale => {
+      if (sale.status === 'annulée') return; // Ignorer les ventes annulées
+      
+      sale.items?.forEach(item => {
+        // Clé unique basée sur le code ou le nom de l'article si pas de code
+        const key = item.articleCode || item.articleBarcode || item.articleName;
+        
+        if (itemMap.has(key)) {
+          const existing = itemMap.get(key);
+          existing.quantity += Number(item.quantity);
+        } else {
+          itemMap.set(key, {
+            code: item.articleCode || '',
+            barcode: item.articleBarcode || '',
+            name: item.articleName || '',
+            quantity: Number(item.quantity)
+          });
+        }
+      });
+    });
+
+    const dataToExport = Array.from(itemMap.values()).sort((a, b) => b.quantity - a.quantity);
+
+    const headers = [
+      { key: 'code', label: 'Code Article' },
+      { key: 'barcode', label: 'Référence / Code Barre' },
+      { key: 'name', label: 'Désignation' },
+      { key: 'quantity', label: 'Quantité Vendue' }
+    ];
+
+    closeAlert();
+    exportToExcel(
+      dataToExport,
+      headers,
+      `bilan_articles_vendus_${dateRange.start || 'toutes'}_${dateRange.end || 'toutes'}`,
+      {
+        title: "BILAN DES ARTICLES VENDUS",
+        companyName: settings?.companyName || "NS AUTO",
+        period: `${dateRange.start || 'Début'} au ${dateRange.end || 'Fin'}`,
+        summary: []
+      }
+    );
+    showAlert('success', 'Succès', "Exportation du bilan articles réussie !");
+  };
+
   const handlePrintReport = () => {
     setIsReporting(true);
     setTimeout(() => {
@@ -523,12 +574,16 @@ export default function SalesPage() {
 
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button className="btn btn-secondary btn-sm" onClick={() => setQuickRange('today')}>Aujourd'hui</button>
+            <button className="btn btn-secondary btn-sm" onClick={() => setQuickRange('yesterday')}>Hier</button>
             <button className="btn btn-secondary btn-sm" onClick={() => setQuickRange('week')}>7 j</button>
             <button className="btn btn-secondary btn-sm" onClick={() => setQuickRange('month')}>Mois</button>
             <button className="btn btn-secondary" title="Réinitialiser" onClick={() => setDateRange({start: '', end: ''})}><XCircle size={16} /></button>
           </div>
 
           <div style={{ display: 'flex', gap: '0.5rem', marginLeft: 'auto' }}>
+            <button className="btn btn-secondary" onClick={handleExportItemExcel} title="Exporter le Bilan des Articles (Excel)" style={{ backgroundColor: '#f0fdf4', color: '#166534', borderColor: '#bbf7d0' }}>
+              <Download size={18} /> Bilan Articles
+            </button>
             <button className="btn btn-secondary" onClick={handleExportExcel} title="Exporter Excel">
               <Download size={18} /> Excel
             </button>
