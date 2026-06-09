@@ -1,4 +1,4 @@
-﻿SET FOREIGN_KEY_CHECKS=0;
+SET FOREIGN_KEY_CHECKS=0;
 -- phpMyAdmin SQL Dump
 -- version 5.2.2
 -- https://www.phpmyadmin.net/
@@ -5804,7 +5804,7 @@ DROP TABLE IF EXISTS `grouped_discharges`;
 CREATE TABLE IF NOT EXISTS `grouped_discharges` (
   `id` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
   `discharge_number` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `client_id` int DEFAULT NULL,
+  `client_id` varchar(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `client_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `partner_id` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `partner_name` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
