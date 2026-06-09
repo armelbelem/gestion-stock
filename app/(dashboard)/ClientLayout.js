@@ -90,6 +90,42 @@ export default function ClientLayout({ children }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // [] = lance une seule fois au montage, pas à chaque changement de page
 
+  // Déconnexion automatique après 30 minutes d'inactivité
+  useEffect(() => {
+    if (!user) return;
+    
+    let inactivityTimer;
+    const INACTIVITY_LIMIT = 30 * 60 * 1000; // 30 minutes
+
+    const resetTimer = () => {
+      clearTimeout(inactivityTimer);
+      inactivityTimer = setTimeout(() => {
+        console.log('Déconnexion automatique par inactivité');
+        logout();
+      }, INACTIVITY_LIMIT);
+    };
+
+    resetTimer();
+
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+    
+    let isThrottled = false;
+    const handleActivity = () => {
+      if (!isThrottled) {
+        resetTimer();
+        isThrottled = true;
+        setTimeout(() => { isThrottled = false; }, 1000);
+      }
+    };
+
+    events.forEach(event => document.addEventListener(event, handleActivity, { passive: true }));
+
+    return () => {
+      clearTimeout(inactivityTimer);
+      events.forEach(event => document.removeEventListener(event, handleActivity));
+    };
+  }, [user, logout]);
+
   useEffect(() => {
     const fetchData = async () => {
       try {

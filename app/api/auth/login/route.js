@@ -35,7 +35,7 @@ export async function POST(request) {
       role: user.role,
       storeId: user.storeId,
       permissions: typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions
-    }, FINAL_JWT_SECRET, { expiresIn: '24h' });
+    }, FINAL_JWT_SECRET, { expiresIn: '8h' });
     
     await logAction(user.id, user.storeId, 'Connexion', { ip: 'API-NextJS' });
 
@@ -57,7 +57,6 @@ export async function POST(request) {
       httpOnly: true,
       secure: isSecure,
       sameSite: 'lax',
-      maxAge: 60 * 60 * 24, // 1 jour
       path: '/',
     });
 

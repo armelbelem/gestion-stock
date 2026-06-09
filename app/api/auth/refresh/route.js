@@ -40,7 +40,7 @@ export async function POST(request) {
       role: user.role,
       storeId: user.storeId,
       permissions: typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions
-    }, FINAL_JWT_SECRET, { expiresIn: '24h' });
+    }, FINAL_JWT_SECRET, { expiresIn: '8h' });
 
     const isSecure = request.nextUrl.protocol === 'https:' || request.headers.get('x-forwarded-proto') === 'https';
 
@@ -59,7 +59,6 @@ export async function POST(request) {
       httpOnly: true,
       secure: isSecure,
       sameSite: 'lax',
-      maxAge: 60 * 60 * 24, // 24h
       path: '/',
     });
 
