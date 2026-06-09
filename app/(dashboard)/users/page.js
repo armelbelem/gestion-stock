@@ -12,6 +12,7 @@ export default function UsersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [stores, setStores] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [accessError, setAccessError] = useState(null);
   const [formData, setFormData] = useState({
     username: '', password: '', role: 'vendeur', storeId: 'all'
   });
@@ -30,9 +31,12 @@ export default function UsersPage() {
 
   const loadUsers = async () => {
     try {
+      setAccessError(null);
       const data = await storage.get('users');
       setUsers(data);
-    } catch (err) { console.error(err); }
+    } catch (err) { 
+      setAccessError(err.message);
+    }
   };
 
   const loadStores = async () => {
@@ -113,38 +117,45 @@ export default function UsersPage() {
       </div>
 
       <div className="content-card">
-        <div className="table-wrapper">
-          <table>
-            <thead><tr><th>Utilisateur</th><th>Rôle</th><th>Magasin</th><th>Actions</th></tr></thead>
-            <tbody>
-              {filteredUsers.map(u => (
-                <tr key={u.id}>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <div className="avatar" style={{ width: '32px', height: '32px', backgroundColor: u.role === 'admin' ? 'var(--primary)' : 'var(--success)' }}>{u.username[0].toUpperCase()}</div>
-                      <strong>{u.username}</strong> {u.id === currentUser?.id && <span className="badge badge-secondary">Moi</span>}
-                    </div>
-                  </td>
-                  <td><span className={`badge ${u.role === 'admin' ? 'badge-primary' : 'badge-success'}`}>{u.role}</span></td>
-                  <td>
-                    {u.storeId === null || u.storeId === undefined
-                      ? <span className="badge badge-secondary" style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: 'white' }}>🌐 Tous les magasins</span>
-                      : <span className="text-muted">{u.storeName || '-'}</span>
-                    }
-                  </td>
-                  <td style={{ display: 'flex', gap: '1rem' }}>
-                    <button onClick={() => handleEdit(u)} className="text-primary" style={{ background: 'none', border: 'none' }} title="Modifier">
-                      <Edit2 size={18} />
-                    </button>
-                    <button onClick={() => handleDelete(u.id)} disabled={u.id === currentUser?.id} className="text-danger" style={{ background: 'none', border: 'none' }} title="Supprimer">
-                      <Trash2 size={18} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        {accessError ? (
+          <div style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--danger)' }}>
+            <h2>Accès Refusé</h2>
+            <p>{accessError}</p>
+          </div>
+        ) : (
+          <div className="table-wrapper">
+            <table>
+              <thead><tr><th>Utilisateur</th><th>Rôle</th><th>Magasin</th><th>Actions</th></tr></thead>
+              <tbody>
+                {filteredUsers.map(u => (
+                  <tr key={u.id}>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div className="avatar" style={{ width: '32px', height: '32px', backgroundColor: u.role === 'admin' ? 'var(--primary)' : 'var(--success)' }}>{u.username[0].toUpperCase()}</div>
+                        <strong>{u.username}</strong> {u.id === currentUser?.id && <span className="badge badge-secondary">Moi</span>}
+                      </div>
+                    </td>
+                    <td><span className={`badge ${u.role === 'admin' ? 'badge-primary' : 'badge-success'}`}>{u.role}</span></td>
+                    <td>
+                      {u.storeId === null || u.storeId === undefined
+                        ? <span className="badge badge-secondary" style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', color: 'white' }}>🌐 Tous les magasins</span>
+                        : <span className="text-muted">{u.storeName || '-'}</span>
+                      }
+                    </td>
+                    <td style={{ display: 'flex', gap: '1rem' }}>
+                      <button onClick={() => handleEdit(u)} className="text-primary" style={{ background: 'none', border: 'none' }} title="Modifier">
+                        <Edit2 size={18} />
+                      </button>
+                      <button onClick={() => handleDelete(u.id)} disabled={u.id === currentUser?.id} className="text-danger" style={{ background: 'none', border: 'none' }} title="Supprimer">
+                        <Trash2 size={18} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {isModalOpen && (

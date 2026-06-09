@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   FileText, Truck, Search, Calendar, Eye, Trash2, Printer, 
-  ChevronLeft, ChevronRight, X, Info, CheckCircle, Package, Plus, Ban
+  ChevronLeft, ChevronRight, X, Info, CheckCircle, Package, Plus, Ban, Edit
 } from 'lucide-react';
 import { storage } from '../../lib/storage';
 import { useAuth } from '../../providers';
@@ -29,6 +29,7 @@ export default function GroupedDischargePage() {
   const [selectedClientId, setSelectedClientId] = useState('');
   const [selectedPartnerId, setSelectedPartnerId] = useState('all');
   const [previewDocNumber, setPreviewDocNumber] = useState('');
+  const [editingDischargeId, setEditingDischargeId] = useState(null);
   
   // Catalog search states
   const [catalogSearch, setCatalogSearch] = useState('');
@@ -108,11 +109,13 @@ export default function GroupedDischargePage() {
   // Prepopulate form when client or partner selection changes
   useEffect(() => {
     if (activeTab === 'create' && selectedClientId) {
-      prepopulateForm();
+      if (!editingDischargeId) {
+        prepopulateForm();
+      }
     } else {
       resetPrepForm();
     }
-  }, [selectedClientId, selectedPartnerId, activeTab, settings]);
+  }, [selectedClientId, selectedPartnerId, activeTab, settings, editingDischargeId]);
 
   // Load history when filters, search query or tab changes (debounced)
   useEffect(() => {
@@ -152,6 +155,7 @@ export default function GroupedDischargePage() {
   };
 
   const resetPrepForm = () => {
+    setEditingDischargeId(null);
     setPrepData({
       blTitleOverride: '',
       sectionTitle: 'FOURNITURE DE PIECES DE RECHANGE',
@@ -459,13 +463,16 @@ export default function GroupedDischargePage() {
           };
           const itemsToSend = [...deliveryItems, metadataItem];
 
+          const isUpdate = !!editingDischargeId;
           const res = await fetch('/api/grouped-discharge', {
-            method: 'POST',
+            method: isUpdate ? 'PUT' : 'POST',
             headers: {
               'Content-Type': 'application/json',
               'Authorization': token ? `Bearer ${token}` : ''
             },
             body: JSON.stringify({
+              id: editingDischargeId,
+              action: isUpdate ? 'update' : undefined,
               clientId: selectedClientId,
               clientName,
               partnerId: selectedPartnerId === 'all' ? null : selectedPartnerId,
@@ -672,6 +679,48 @@ export default function GroupedDischargePage() {
     setIsViewModalOpen(true);
   };
 
+  const handleEditDischarge = (discharge) => {
+    setEditingDischargeId(discharge.id);
+    setSelectedClientId(discharge.client_id || 'libre');
+    setSelectedPartnerId(discharge.partner_id || 'all');
+    
+    const metadata = discharge.items?.find(it => it.isMetadata) || {};
+    const deliveryItems = (discharge.items?.filter(it => !it.isMetadata) || []).map((it, idx) => ({
+      ...it,
+      id: it.id || `edit-item-${Date.now()}-${idx}`
+    }));
+
+    setPrepData({
+      blTitleOverride: metadata.blTitleOverride || '',
+      sectionTitle: metadata.sectionTitle || 'FOURNITURE DE PIECES DE RECHANGE',
+      requestRef: metadata.requestRef || '',
+      customSenderDetails: metadata.customSenderDetails || '',
+      customRecipientDetails: metadata.customRecipientDetails || '',
+      customDate: metadata.customDate || new Date(discharge.created_at).toISOString().split('T')[0],
+      customCity: metadata.customCity || settings?.city || 'Ouagadougou',
+      customSite: metadata.customSite || '',
+      customSupervisorName: metadata.customSupervisorName || settings?.blSupervisorName || '',
+      customSupervisorTitle: metadata.customSupervisorTitle || settings?.blSupervisorTitle || '',
+      customDocNumber: discharge.discharge_number || '',
+      printNotes: metadata.printNotes || discharge.notes || '',
+      blColNo: metadata.blColNo || 'N°',
+      blColSite: metadata.blColSite || 'Site',
+      blColDesc: metadata.blColDesc || 'Article',
+      blColCode: metadata.blColCode || 'Code',
+      blColRef: metadata.blColRef || 'Réf',
+      blColQty: metadata.blColQty || 'Quantité',
+      hideBlColNo: metadata.hideBlColNo || false,
+      hideBlColSite: metadata.hideBlColSite || false,
+      hideBlColDesc: metadata.hideBlColDesc || false,
+      hideBlColCode: metadata.hideBlColCode || false,
+      hideBlColRef: metadata.hideBlColRef || false,
+      hideBlColQty: metadata.hideBlColQty || false,
+      items: deliveryItems
+    });
+    
+    setActiveTab('create');
+  };
+
   // Add a completely free text item row
   const handleAddFreeItem = () => {
     const newItem = {
@@ -734,18 +783,20 @@ export default function GroupedDischargePage() {
 
     return (
       <div className="receipt-print-only" style={{
-        display: 'block', backgroundColor: 'white', width: '21cm', minHeight: '29.7cm', padding: '0', position: 'relative', fontFamily: '"Times New Roman", Times, serif'
+        display: 'block', backgroundColor: 'white', width: '21cm', minHeight: '29.7cm', padding: '0', position: 'relative', fontFamily: '"Times New Roman", Times, serif', margin: '0 auto'
       }}>
         <style dangerouslySetInnerHTML={{
           __html: `
-          @page { margin: 0 !important; }
+          @page { size: A4 portrait; margin: 0 !important; }
           @media print {
-            .receipt-print-only { width: 21cm !important; min-height: 29.7cm !important; padding: 0 !important; margin: 0 !important; position: relative !important; top: -60px !important; }
+            body { margin: 0 !important; padding: 0 !important; }
+            .receipt-print-only { width: 100% !important; min-height: 100% !important; padding: 0 !important; margin: 0 auto !important; position: relative !important; top: 0 !important; left: 0 !important; right: 0 !important; }
             .receipt-print-only table { border-collapse: collapse !important; width: 100% !important; }
             .receipt-print-only th, .receipt-print-only td { border: 1.5pt solid black !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            .receipt-print-only td.master-td { border: none !important; padding: 0 !important; }
             .gray-bg { background-color: #d1d5db !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             .red-footer { 
-              position: fixed !important; bottom: 0 !important; left: 0 !important; right: 0 !important; width: 21cm !important; 
+              position: fixed !important; bottom: 0 !important; left: 0 !important; right: 0 !important; width: 100% !important; 
               background-color: #b91c1c !important; color: white !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
               z-index: 999 !important;
             }
@@ -753,7 +804,14 @@ export default function GroupedDischargePage() {
           .gray-bg { background-color: #d1d5db !important; }
         `}} />
 
-        <div style={{ padding: '0px 40px 20px 40px' }}>
+          <table style={{ width: '100%', border: 'none', borderCollapse: 'collapse' }}>
+            <tfoot style={{ display: 'table-footer-group' }}>
+              <tr><td className="master-td" style={{ border: 'none', height: '110px', padding: '0' }}></td></tr>
+            </tfoot>
+            <tbody style={{ display: 'table-row-group' }}>
+              <tr>
+                <td className="master-td" style={{ border: 'none', padding: '0' }}>
+                  <div style={{ padding: '0px 40px 20px 40px' }}>
           <div style={{ display: 'flex', alignItems: 'flex-end', marginBottom: '32px' }}>
             {(selectedPartner?.logo || settings?.logo) && (
               <img
@@ -766,7 +824,7 @@ export default function GroupedDischargePage() {
           </div>
 
           <div style={{
-            border: '1.5pt solid #000', padding: '10px', textAlign: 'center', marginBottom: '15px',
+            border: '1.5pt solid #000', padding: '10px', textAlign: 'center', marginBottom: '40px',
             backgroundColor: '#d1d5db',
             WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'
           }}>
@@ -908,7 +966,11 @@ export default function GroupedDischargePage() {
               </div>
             </div>
           </div>
-        </div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
 
         <div className="red-footer" style={{
           height: '95px', backgroundColor: '#b91c1c', color: '#fff', fontSize: '9px', textAlign: 'center', lineHeight: '1.4',
@@ -1278,7 +1340,7 @@ export default function GroupedDischargePage() {
                         <input 
                           type="text" 
                           className="form-control form-control-sm" 
-                          style={{ border: 'none', boxShadow: 'none', background: 'transparent', padding: '0', width: '100%', fontSize: '0.85rem', color: 'var(--text-color)', fontWeight: '600' }} 
+                          style={{ border: '1px solid var(--glass-border)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.05)', background: 'var(--card-bg)', padding: '2px 6px', borderRadius: '4px', width: '100%', fontSize: '0.85rem', color: 'var(--text-color)', fontWeight: '600', transition: 'border-color 0.2s' }}
                           value={prepData[c.col]} 
                           onChange={e => setPrepData({ ...prepData, [c.col]: e.target.value })} 
                           placeholder={c.label} 
@@ -1548,6 +1610,15 @@ export default function GroupedDischargePage() {
                               >
                                 <Eye size={16} />
                               </button>
+                              {user?.role !== 'observateur' && discharge.status !== 'annule' && (
+                                <button 
+                                  className="btn btn-secondary btn-sm"
+                                  onClick={() => handleEditDischarge(discharge)}
+                                  title="Modifier le BL"
+                                >
+                                  <Edit size={16} />
+                                </button>
+                              )}
                               <button 
                                 className="btn btn-secondary btn-sm"
                                 onClick={() => handlePrintDischarge(discharge)}

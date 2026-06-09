@@ -51,6 +51,7 @@ export default function ExternalOrdersPage() {
   const [isPrintingBL, setIsPrintingBL] = useState(false);
   const [printBLData, setPrintBLData] = useState(null);
   const [isBCPrintModalOpen, setIsBCPrintModalOpen] = useState(false);
+  const [viewOrderDetails, setViewOrderDetails] = useState(null);
   const [editingOrder, setEditingOrder] = useState(null);
   const [formData, setFormData] = useState({ 
     clientId: null, supplierId: '', deliveryDate: '', items: [{ code: '', ref: '', description: '', quantity: 1, purchasePrice: '' }]
@@ -897,18 +898,22 @@ export default function ExternalOrdersPage() {
         }}>
           <style dangerouslySetInnerHTML={{
             __html: `
-            @page { margin: 0 !important; }
+            @page { size: A4 portrait; margin: 0 !important; }
             @media print {
+              body { margin: 0 !important; padding: 0 !important; }
               .receipt-print-only { 
-                width: 21cm !important; 
-                min-height: 29.7cm !important; 
+                width: 100% !important; 
+                min-height: 100% !important; 
                 padding: 0 !important; 
-                margin: 0 !important; 
+                margin: 0 auto !important; 
                 position: relative !important;
-                top: -60px !important;
+                top: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
               }
               .receipt-print-only table { border-collapse: collapse !important; width: 100% !important; }
               .receipt-print-only th, .receipt-print-only td { border: 1.5pt solid black !important; -webkit-print-color-adjust: exact !important; }
+              .receipt-print-only td.master-td { border: none !important; padding: 0 !important; }
               .receipt-print-only .no-border td { border: none !important; }
               .receipt-print-only .header-info td { border: 1.5pt solid black !important; }
               .red-footer { 
@@ -916,8 +921,7 @@ export default function ExternalOrdersPage() {
                 bottom: 0 !important; 
                 left: 0 !important; 
                 right: 0 !important; 
-                width: 21cm !important;
-                margin: 0 auto !important;
+                width: 100% !important;
                 background-color: #b91c1c !important;
                 color: white !important;
                 -webkit-print-color-adjust: exact !important;
@@ -929,7 +933,14 @@ export default function ExternalOrdersPage() {
             }
           `}} />
 
-          <div style={{ padding: '0px 40px 20px 40px' }}>
+          <table style={{ width: '100%', border: 'none', borderCollapse: 'collapse' }}>
+            <tfoot style={{ display: 'table-footer-group' }}>
+              <tr><td className="master-td" style={{ border: 'none', height: '100px', padding: '0' }}></td></tr>
+            </tfoot>
+            <tbody style={{ display: 'table-row-group' }}>
+              <tr>
+                <td className="master-td" style={{ border: 'none', padding: '0' }}>
+                  <div style={{ padding: '0px 40px 20px 40px' }}>
             <div style={{ display: 'flex', alignItems: 'flex-end', marginBottom: '32px' }}>
               {settings?.logo && (
                 <img
@@ -941,9 +952,9 @@ export default function ExternalOrdersPage() {
               <div style={{ flex: 1, height: '2.5pt', backgroundColor: '#b91c1c', marginBottom: '13px', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}></div>
             </div>
 
-            <div style={{ border: '1.5pt solid #000', padding: '10px', textAlign: 'center', marginBottom: '15px', backgroundColor: '#f3f4f6' }}>
+            <div style={{ border: '1.5pt solid #000', padding: '10px', textAlign: 'center', marginBottom: '40px', backgroundColor: '#f3f4f6', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
               <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', letterSpacing: '0.5px' }}>
-                {printData.bcTitleOverride || 'BON DE COMMANDE'} : &nbsp;&nbsp;
+                <span style={{ textDecoration: 'underline' }}>{printData.bcTitleOverride || 'BON DE COMMANDE'} :</span> &nbsp;&nbsp;
                 {printData.customDocNumber}
               </h2>
             </div>
@@ -1093,7 +1104,12 @@ export default function ExternalOrdersPage() {
                 </div>
               </div>
             </div>
-          </div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
 
           <div className="red-footer" style={{
             height: '80px',
@@ -1459,21 +1475,17 @@ export default function ExternalOrdersPage() {
                         <div style={{fontWeight:600}}>{order.supplierName || '-'}</div>
                       </td>
                       <td>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                          {order.items && order.items.map(item => (
-                            <div key={item.id} style={{ display: 'flex', flexDirection: 'column', fontSize: '0.9rem', padding: '4px 0', borderBottom: '1px dashed var(--border-color)' }}>
-                              <div style={{fontWeight:500}}>{item.description}</div>
-                              <div style={{fontSize:'0.75rem', color:'var(--text-muted)'}}>
-                                Code: {item.code || '-'} | Réf: {item.ref || item.refCfao || '-'}
-                              </div>
-                              <div style={{fontSize:'0.75rem', color:'var(--text-muted)'}}>
-                                Commandé: {item.quantity} | Livré: {item.quantity_delivered || 0} | Restant: {Math.max(0, item.quantity - (item.quantity_delivered || 0))}
-                              </div>
-                              <div style={{fontSize:'0.75rem', color:'var(--text-muted)'}}>
-                                Prix: {formatPrice(item.purchasePrice)} FCFA
-                              </div>
-                            </div>
-                          ))}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', alignItems: 'flex-start' }}>
+                          <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>
+                            {order.items ? order.items.length : 0} article(s)
+                          </span>
+                          <button 
+                            className="btn btn-sm btn-outline-primary" 
+                            style={{ padding: '4px 8px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                            onClick={() => setViewOrderDetails(order)}
+                          >
+                            <PackageOpen size={14} /> Voir détails
+                          </button>
                         </div>
                       </td>
                       <td>
@@ -2081,6 +2093,59 @@ export default function ExternalOrdersPage() {
               <button className="btn btn-primary" onClick={handleExecutePrintBC}>
                 <Printer size={18} /> Lancer l'impression
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal View Details */}
+      {viewOrderDetails && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '800px', width: '90%' }}>
+            <div className="modal-header">
+              <h3>Détails des articles commandés</h3>
+              <button className="modal-close" onClick={() => setViewOrderDetails(null)}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="modal-body custom-scrollbar" style={{ maxHeight: '60vh', overflowY: 'auto', padding: '1.5rem' }}>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Article</th>
+                    <th>Code / Réf</th>
+                    <th style={{ textAlign: 'center' }}>Quantité</th>
+                    <th style={{ textAlign: 'right' }}>Prix U. HT</th>
+                    <th style={{ textAlign: 'right' }}>Total HT</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {viewOrderDetails.items?.length > 0 ? (
+                    viewOrderDetails.items.map((item, idx) => (
+                      <tr key={idx}>
+                        <td style={{ fontWeight: 500 }}>{item.description}</td>
+                        <td>
+                          <div style={{ fontSize: '0.85rem' }}>Code: {item.code || '-'}</div>
+                          <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Réf: {item.ref || item.refCfao || '-'}</div>
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <div>Cmd: <strong>{item.quantity}</strong></div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--success)' }}>Livré: {item.quantity_delivered || 0}</div>
+                        </td>
+                        <td style={{ textAlign: 'right' }}>{formatPrice(item.purchasePrice)} FCFA</td>
+                        <td style={{ textAlign: 'right', fontWeight: 600 }}>{formatPrice((item.quantity * item.purchasePrice) || 0)} FCFA</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan="5" style={{ textAlign: 'center', padding: '2rem' }}>Aucun article trouvé.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setViewOrderDetails(null)}>Fermer</button>
             </div>
           </div>
         </div>

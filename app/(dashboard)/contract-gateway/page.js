@@ -2238,18 +2238,22 @@ export default function ContractGatewayPage() {
         {/* CSS FORCÉ POUR L'IMPRESSION */}
         <style dangerouslySetInnerHTML={{
           __html: `
-          @page { margin: 0 !important; }
+          @page { size: A4 portrait; margin: 0 !important; }
           @media print {
+            body { margin: 0 !important; padding: 0 !important; }
             .receipt-print-only { 
-              width: 21cm !important; 
-              min-height: 29.7cm !important; 
+              width: 100% !important; 
+              min-height: 100% !important; 
               padding: 0 !important; 
-              margin: 0 !important; 
+              margin: 0 auto !important; 
               position: relative !important;
-              top: -60px !important;
+              top: 0 !important;
+              left: 0 !important;
+              right: 0 !important;
             }
             .receipt-print-only table { border-collapse: collapse !important; width: 100% !important; }
             .receipt-print-only th, .receipt-print-only td { border: 1.5pt solid black !important; -webkit-print-color-adjust: exact !important; }
+            .receipt-print-only td.master-td { border: none !important; padding: 0 !important; }
             .receipt-print-only .no-border td { border: none !important; }
             .receipt-print-only .header-info td { border: 1.5pt solid black !important; }
             .red-footer { 
@@ -2257,8 +2261,7 @@ export default function ContractGatewayPage() {
               bottom: 0 !important; 
               left: 0 !important; 
               right: 0 !important; 
-              width: 21cm !important;
-              margin: 0 auto !important;
+              width: 100% !important;
               background-color: #b91c1c !important;
               color: white !important;
               -webkit-print-color-adjust: exact !important;
@@ -2271,7 +2274,14 @@ export default function ContractGatewayPage() {
           }
         `}} />
 
-        <div style={{ padding: '0px 40px 20px 40px' }}>
+        <table style={{ width: '100%', border: 'none', borderCollapse: 'collapse' }}>
+          <tfoot style={{ display: 'table-footer-group' }}>
+            <tr><td className="master-td" style={{ border: 'none', height: '100px', padding: '0' }}></td></tr>
+          </tfoot>
+          <tbody style={{ display: 'table-row-group' }}>
+            <tr>
+              <td className="master-td" style={{ border: 'none', padding: '0' }}>
+                <div style={{ padding: '0px 40px 20px 40px' }}>
           {/* Header Rebrand - Perfect Alignment */}
           <div style={{ display: 'flex', alignItems: 'flex-end', marginBottom: '32px' }}>
             {settings?.logo && (
@@ -2284,9 +2294,9 @@ export default function ContractGatewayPage() {
             <div style={{ flex: 1, height: '2.5pt', backgroundColor: '#b91c1c', marginBottom: '13px', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}></div>
           </div>
 
-          <div style={{ border: '1.5pt solid #000', padding: '10px', textAlign: 'center', marginBottom: '15px', backgroundColor: '#f3f4f6' }}>
+          <div style={{ border: '1.5pt solid #000', padding: '10px', textAlign: 'center', marginBottom: '40px', backgroundColor: '#f3f4f6', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
             <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', letterSpacing: '0.5px' }}>
-              {printData.bcTitleOverride || settings?.bcTitlePrefix || 'BON DE COMMANDE'} : &nbsp;&nbsp;
+              <span style={{ textDecoration: 'underline' }}>{printData.bcTitleOverride || settings?.bcTitlePrefix || 'BON DE COMMANDE'} :</span> &nbsp;&nbsp;
               {printData.customDocNumber || (() => {
                 const d = new Date(printData.customDate || Date.now());
                 const jjmm = `${String(d.getDate()).padStart(2, '0')}${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -2505,10 +2515,15 @@ export default function ContractGatewayPage() {
                       {printData.customSupervisorTitle || settings?.supervisorTitle || 'Superviseur Général'}
                     </p>
                   </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
 
         {/* Professional Footer - Forcé avec CSS Print */}
         <div className="red-footer" style={{
@@ -2542,7 +2557,6 @@ export default function ContractGatewayPage() {
           </div>
         </div>
       </div>
-    </div>
     );
   }
 
@@ -2557,20 +2571,29 @@ export default function ContractGatewayPage() {
       }}>
         <style dangerouslySetInnerHTML={{
           __html: `
-          @page { margin: 0 !important; }
+          @page { size: A4 portrait; margin: 0 !important; }
           @media print {
-            .receipt-print-only { width: 21cm !important; min-height: 29.7cm !important; padding: 0 !important; margin: 0 !important; position: relative !important; top: -60px !important; }
+            body { margin: 0 !important; padding: 0 !important; }
+            .receipt-print-only { width: 100% !important; min-height: 100% !important; padding: 0 !important; margin: 0 auto !important; position: relative !important; top: 0 !important; left: 0 !important; right: 0 !important; }
             .receipt-print-only table { border-collapse: collapse !important; width: 100% !important; }
             .receipt-print-only th, .receipt-print-only td { border: 1.5pt solid black !important; -webkit-print-color-adjust: exact !important; }
+            .receipt-print-only td.master-td { border: none !important; padding: 0 !important; }
             .red-footer { 
-              position: fixed !important; bottom: 0 !important; left: 0 !important; right: 0 !important; width: 21cm !important; 
+              position: fixed !important; bottom: 0 !important; left: 0 !important; right: 0 !important; width: 100% !important; 
               background-color: #b91c1c !important; color: white !important; -webkit-print-color-adjust: exact !important;
               z-index: 999 !important;
             }
           }
         `}} />
 
-        <div style={{ padding: '0px 40px 20px 40px' }}>
+        <table style={{ width: '100%', border: 'none', borderCollapse: 'collapse' }}>
+          <tfoot style={{ display: 'table-footer-group' }}>
+            <tr><td className="master-td" style={{ border: 'none', height: '100px', padding: '0' }}></td></tr>
+          </tfoot>
+          <tbody style={{ display: 'table-row-group' }}>
+            <tr>
+              <td className="master-td" style={{ border: 'none', padding: '0' }}>
+                <div style={{ padding: '0px 40px 20px 40px' }}>
           <div style={{ display: 'flex', alignItems: 'flex-end', marginBottom: '32px' }}>
             {(selectedPartner?.logo || settings?.logo) && (
               <img
@@ -2583,7 +2606,7 @@ export default function ContractGatewayPage() {
           </div>
 
           <div style={{
-            border: '1.5pt solid #000', padding: '10px', textAlign: 'center', marginBottom: '15px',
+            border: '1.5pt solid #000', padding: '10px', textAlign: 'center', marginBottom: '40px',
             backgroundColor: '#d1d5db',
             WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact'
           }}>
@@ -2803,7 +2826,11 @@ export default function ContractGatewayPage() {
               </div>
             </div>
           </div>
-        </div>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
 
         <div className="red-footer" style={{
           height: '80px', backgroundColor: '#b91c1c', color: '#fff', fontSize: '10px', textAlign: 'center', lineHeight: '1.4',
@@ -5407,7 +5434,7 @@ export default function ContractGatewayPage() {
               </div>
 
               <button className="btn btn-secondary btn-sm" style={{ marginTop: '1rem' }} onClick={() => {
-                const newItems = [...printData.items, { code: '', description: '', refCfao: '', quantity: 1, purchasePrice: 0 }];
+                const newItems = [...printData.items, { code: '', description: '', refCfao: '', quantity: '', purchasePrice: '' }];
                 setPrintData({ ...printData, items: newItems });
               }}>
                 <Plus size={14} /> Ajouter une ligne

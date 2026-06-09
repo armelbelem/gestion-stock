@@ -193,7 +193,7 @@ export async function DELETE(request) {
   }
 }
 
-// PUT: Mettre à jour une décharge groupée (ex: annuler)
+// PUT: Mettre à jour une décharge groupée (ex: annuler ou modifier)
 export async function PUT(request) {
   const auth = authenticateToken(request);
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -207,8 +207,15 @@ export async function PUT(request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const id = searchParams.get('id');
-  const action = searchParams.get('action');
+  let id = searchParams.get('id');
+  let action = searchParams.get('action');
+
+  let body = null;
+  try {
+    body = await request.json();
+    if (!id && body.id) id = body.id;
+    if (!action && body.action) action = body.action;
+  } catch (e) {}
 
   if (!id) return NextResponse.json({ error: 'ID requis' }, { status: 400 });
 
@@ -222,6 +229,49 @@ export async function PUT(request) {
       await db.query("UPDATE grouped_discharges SET status = 'annule' WHERE id = ?", [id]);
       await logAction(auth.user.id, auth.user.storeId, 'Annulation Décharge Libre (BEG)', { dischargeId: id });
       return NextResponse.json({ success: true });
+    }
+
+    if (action === 'update') {
+      const { 
+        clientId, clientName, partnerId, partnerName, items, notes, customDate, customDocNumber 
+      } = body;
+      
+      const parsedItems = items.map(it => {
+        if (it.isMetadata) return it;
+        return {
+          code: it.code,
+          description: it.description,
+          refCfao: it.refCfao,
+          quantity: parseInt(it.quantity) || 0
+        };
+      }).filter(it => it.quantity > 0 || it.isMetadata);
+
+      if (parsedItems.filter(it => !it.isMetadata).length === 0) {
+        throw new Error('Veuillez spécifier au moins un article avec une quantité positive.');
+      }
+
+      const finalDocNumber = customDocNumber || rows[0].discharge_number;
+
+      await db.query(
+        `UPDATE grouped_discharges SET 
+          client_id = ?, client_name = ?, partner_id = ?, partner_name = ?, 
+          items = ?, notes = ?, created_at = ?, discharge_number = ?
+         WHERE id = ?`,
+        [
+          clientId === 'libre' ? null : clientId,
+          clientName,
+          partnerId || null,
+          partnerName || null,
+          JSON.stringify(parsedItems),
+          notes || null,
+          customDate ? new Date(customDate) : new Date(rows[0].created_at),
+          finalDocNumber,
+          id
+        ]
+      );
+
+      await logAction(auth.user.id, auth.user.storeId, 'Modification Décharge Libre (BEG)', { dischargeId: id, newNumber: finalDocNumber });
+      return NextResponse.json({ success: true, dischargeNumber: finalDocNumber });
     }
 
     return NextResponse.json({ error: 'Action non reconnue' }, { status: 400 });

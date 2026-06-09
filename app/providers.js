@@ -11,14 +11,16 @@ export function AuthProvider({ children }) {
   const [welcomeShownInThisSession, setWelcomeShownInThisSession] = useState(false);
 
   useEffect(() => {
-    // Lire depuis localStorage pour persister la session entre onglets
-    const savedUser = localStorage.getItem('user') || sessionStorage.getItem('user');
+    // Utiliser uniquement sessionStorage pour que la session expire à la fermeture du navigateur
+    const savedUser = sessionStorage.getItem('user');
     if (savedUser) {
       try {
         setUser(JSON.parse(savedUser));
       } catch (e) {
-        localStorage.removeItem('user');
+        sessionStorage.removeItem('user');
       }
+    } else {
+      localStorage.removeItem('user'); // Nettoyage de l'ancien mécanisme
     }
     const handleStatusChange = (e) => {
       setApiStatus(e.detail);
@@ -46,7 +48,7 @@ export function AuthProvider({ children }) {
           const data = await res.json();
           // Mettre à jour les infos utilisateur en local si elles ont changé
           if (data.user) {
-            localStorage.setItem('user', JSON.stringify(data.user));
+            sessionStorage.setItem('user', JSON.stringify(data.user));
             setUser(data.user);
           }
         } else if (res.status === 401) {
@@ -66,7 +68,8 @@ export function AuthProvider({ children }) {
 
   const login = (userData) => {
     setUser(userData.user);
-    localStorage.setItem('user', JSON.stringify(userData.user));
+    sessionStorage.setItem('user', JSON.stringify(userData.user));
+    localStorage.removeItem('user'); // Nettoyage ancien mécanisme
     sessionStorage.removeItem('welcomeShown');
   };
 

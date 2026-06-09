@@ -21,6 +21,8 @@ export default function ClientReportPage() {
   const [settings, setSettings] = useState(null);
   const [partners, setPartners] = useState([]);
   const [alertModal, setAlertModal] = useState({ open: false, type: 'info', title: '', message: '', onConfirm: null });
+  const [printHistory, setPrintHistory] = useState([]);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const pathname = usePathname();
 
   const formatPrice = (val) => {
@@ -45,7 +47,27 @@ export default function ClientReportPage() {
       setPartners(p || []);
     };
     loadPartners();
+
+    const loadHistory = async () => {
+      try {
+        const h = await storage.get('print-history-bilan');
+        if (h && Array.isArray(h)) {
+          const mapped = h.map(item => ({
+            id: item.id,
+            date: item.created_at,
+            clientId: item.client_id,
+            clientName: item.client_name,
+            period: item.period,
+            totalAmount: item.total_amount,
+            printData: typeof item.print_data === 'string' ? JSON.parse(item.print_data) : item.print_data
+          }));
+          setPrintHistory(mapped);
+        }
+      } catch(e) { console.error('Error loading history:', e); }
+    };
+    loadHistory();
   }, []);
+
 
   const loadSettings = async () => {
     try {
@@ -150,13 +172,46 @@ export default function ClientReportPage() {
     });
   };
 
-  const executePrint = () => {
+    const executePrint = async () => {
     setIsPrintModalOpen(false);
+    
+    try {
+      const historyRecord = {
+        id: Date.now().toString(),
+        clientId: selectedClientId,
+        clientName: selectedClient?.name,
+        period: printData.periodText,
+        totalAmount: printData.summary.totalAmount,
+        printData: printData
+      };
+      
+      const res = await storage.create('print-history-bilan', historyRecord);
+      if (res.success) {
+        const newHistoryRecord = { ...historyRecord, date: new Date().toISOString() };
+        setPrintHistory(prev => [newHistoryRecord, ...prev]);
+      }
+    } catch(e) {
+      console.error('Failed to save history to DB:', e);
+    }
+
     setIsPrinting(true);
     setTimeout(() => {
       window.print();
       setIsPrinting(false);
     }, 500);
+  };
+
+  const deletePrintHistory = async (id) => {
+    if (!window.confirm("Voulez-vous vraiment supprimer cet historique ?")) return;
+    try {
+      await fetch(`/api/print-history-bilan/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${sessionStorage.getItem('token')}` }
+      });
+      setPrintHistory(prev => prev.filter(h => h.id !== id));
+    } catch (e) {
+      console.error('Error deleting history', e);
+    }
   };
 
   const handleExport = () => {
@@ -620,6 +675,9 @@ export default function ClientReportPage() {
               <button className="btn btn-secondary" onClick={handlePrintClick}>
                 <Printer size={18} /> Imprimer / PDF
               </button>
+              <button className="btn btn-secondary" onClick={() => setIsHistoryModalOpen(true)}>
+                <Clock size={18} /> Historique Impressions
+              </button>
               <button className="btn btn-success" onClick={handleSettle} disabled={loading}>
                 <Coins size={18} /> Régler la période
               </button>
@@ -848,6 +906,75 @@ export default function ClientReportPage() {
               <button className="btn btn-primary" onClick={executePrint} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <Printer size={18} /> Lancer l'impression
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      
+
+      {/* MODAL HISTORIQUE IMPRESSIONS */}
+      {isHistoryModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '850px', width: '90%' }}>
+            <div className="modal-header">
+              <h3>Historique des impressions de bilan</h3>
+              <button className="modal-close" onClick={() => setIsHistoryModalOpen(false)}><X size={20} /></button>
+            </div>
+            <div className="modal-body custom-scrollbar" style={{ padding: '1.5rem', maxHeight: '70vh', overflowY: 'auto' }}>
+              {printHistory.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                  Aucun historique d'impression n'a été trouvé.
+                </div>
+              ) : (
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Date d'impression</th>
+                      <th>Client</th>
+                      <th>Période couverte</th>
+                      <th style={{ textAlign: 'right' }}>Montant Total</th>
+                      <th style={{ width: '160px' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {printHistory.map(historyItem => (
+                      <tr key={historyItem.id}>
+                        <td>{new Date(historyItem.date).toLocaleString()}</td>
+                        <td style={{ fontWeight: 600 }}>{historyItem.clientName}</td>
+                        <td>{historyItem.period}</td>
+                        <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{formatPrice(historyItem.totalAmount)} FCFA</td>
+                        <td>
+                          <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button 
+                              className="btn btn-sm btn-outline-primary"
+                              style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+                              onClick={() => {
+                                if (historyItem.clientId) {
+                                  setSelectedClientId(historyItem.clientId);
+                                }
+                                setPrintData(historyItem.printData);
+                                setIsHistoryModalOpen(false);
+                                setIsPrintModalOpen(true);
+                              }}
+                            >
+                              <Printer size={14} /> Éditer
+                            </button>
+                            <button 
+                              className="btn btn-sm"
+                              style={{ color: '#ef4444', border: '1px solid #ef4444', backgroundColor: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                              onClick={() => deletePrintHistory(historyItem.id)}
+                              title="Supprimer"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
         </div>

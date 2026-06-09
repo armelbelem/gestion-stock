@@ -177,8 +177,9 @@ export const storage = {
     }
     
     const data = await response.json();
-    // Stocker dans localStorage pour persister entre onglets
-    localStorage.setItem('user', JSON.stringify(data.user));
+    // Stocker dans sessionStorage pour expiration à la fermeture du navigateur
+    sessionStorage.setItem('user', JSON.stringify(data.user));
+    localStorage.removeItem('user'); // Nettoyage ancien mécanisme
     return data;
   },
 
@@ -196,8 +197,8 @@ export const storage = {
 
   getUser: () => {
     try {
-      // Chercher d'abord dans localStorage (persistant), puis sessionStorage (compatibilité)
-      const user = localStorage.getItem('user') || sessionStorage.getItem('user');
+      // Utiliser uniquement sessionStorage pour la sécurité de session
+      const user = sessionStorage.getItem('user');
       return user ? JSON.parse(user) : null;
     } catch (e) {
       return null;
