@@ -126,7 +126,6 @@ export async function POST(request) {
     const [settingsRows] = await connection.query('SELECT tvaRate FROM settings LIMIT 1');
     const tvaRate = Number(settingsRows[0]?.tvaRate || 18);
 
-    // 2. Insérer les articles et sommer les totaux
     for (const item of items) {
       const purchasePrice = parseFloat(item.purchasePrice) || 0;
       const sellingPrice = parseFloat(item.sellingPrice) || 0;
@@ -134,6 +133,23 @@ export async function POST(request) {
 
       totalHT += (sellingPrice * qty);
       totalMargin += ((sellingPrice - purchasePrice) * qty);
+    }
+
+    const tva = totalHT * (tvaRate / 100);
+    const totalTTC = totalHT + tva;
+
+    // 2. Insérer d'abord la vente principale (parent)
+    const saleDate = date ? new Date(date) : new Date();
+    await connection.query(
+      'INSERT INTO special_sales (id, clientName, date, notes, storeId, totalHT, tva, totalTTC, margin, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [id, clientName, saleDate, notes || null, storeId, totalHT, tva, totalTTC, totalMargin, 'termine']
+    );
+
+    // 3. Insérer ensuite les articles (enfants)
+    for (const item of items) {
+      const purchasePrice = parseFloat(item.purchasePrice) || 0;
+      const sellingPrice = parseFloat(item.sellingPrice) || 0;
+      const qty = parseInt(item.quantity) || 1;
 
       const itemId = uuidv4();
       await connection.query(
@@ -141,16 +157,6 @@ export async function POST(request) {
         [itemId, id, item.ref || null, item.description, qty, purchasePrice, sellingPrice]
       );
     }
-
-    const tva = totalHT * (tvaRate / 100);
-    const totalTTC = totalHT + tva;
-
-    // 3. Insérer la vente principale
-    const saleDate = date ? new Date(date) : new Date();
-    await connection.query(
-      'INSERT INTO special_sales (id, clientName, date, notes, storeId, totalHT, tva, totalTTC, margin, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [id, clientName, saleDate, notes || null, storeId, totalHT, tva, totalTTC, totalMargin, 'termine']
-    );
 
     await connection.commit();
 
