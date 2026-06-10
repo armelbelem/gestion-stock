@@ -27,6 +27,97 @@ export default function SpecialSalesPage() {
   const [selectedSale, setSelectedSale] = useState(null);
   const [editingSale, setEditingSale] = useState(null);
   
+  const [isPrintPrepModalOpen, setIsPrintPrepModalOpen] = useState(false);
+  const [printFormData, setPrintFormData] = useState({
+    title: 'FACTURE DE VENTE SPÉCIALE',
+    sectionTitle: 'FOURNITURE DE PIECES DE RECHANGE',
+    reference: '',
+    senderDetails: '',
+    recipientDetails: '',
+    date: '',
+    city: '',
+    siteCode: '',
+    clientCode: '',
+    supervisorName: '',
+    supervisorTitle: '',
+    hasTva: true,
+    tvaRate: 18,
+    docNumber: '',
+    notes: '',
+    hideColNo: false,
+    hideColSite: false,
+    hideColDesc: false,
+    hideColCode: false,
+    hideColRef: false,
+    hideColQty: false,
+    hideColPrice: false,
+    hideColTotal: false,
+    colNoLabel: 'N°',
+    colSiteLabel: 'Site',
+    colDescLabel: 'Désignation / Article',
+    colCodeLabel: 'Code',
+    colRefLabel: 'Référence',
+    colQtyLabel: 'Qté',
+    colPriceLabel: 'Prix HTVA F. CFA',
+    colTotalLabel: 'Total HTVA F. CFA',
+    items: []
+  });
+
+  const numberToWords = (n) => {
+    const units = ['', 'un', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf'];
+    const tens = ['', 'dix', 'vingt', 'trente', 'quarante', 'cinquante', 'soixante', 'soixante-dix', 'quatre-vingt', 'quatre-vingt-dix'];
+
+    if (n === 0) return 'zéro';
+
+    const convert = (num) => {
+      if (num < 10) return units[num];
+      if (num < 20) {
+        if (num === 10) return 'dix';
+        if (num === 11) return 'onze';
+        if (num === 12) return 'douze';
+        if (num === 13) return 'treize';
+        if (num === 14) return 'quatorze';
+        if (num === 15) return 'quinze';
+        if (num === 16) return 'seize';
+        return 'dix-' + units[num % 10];
+      }
+      if (num < 100) {
+        const t = Math.floor(num / 10);
+        const u = num % 10;
+        if (u === 0) return tens[t];
+        if (u === 1 && t < 8) return tens[t] + ' et un';
+        if (t === 7 || t === 9) return tens[t - 1] + '-' + convert(u + 10);
+        return tens[t] + '-' + units[u];
+      }
+      if (num < 1000) {
+        const c = Math.floor(num / 100);
+        const r = num % 100;
+        let s = (c === 1 ? '' : units[c] + ' ') + 'cent';
+        if (r === 0) return s + (c > 1 ? 's' : '');
+        return s + ' ' + convert(r);
+      }
+      if (num < 1000000) {
+        const m = Math.floor(num / 1000);
+        const r = num % 1000;
+        let s = (m === 1 ? '' : convert(m) + ' ') + 'mille';
+        if (r === 0) return s;
+        return s + ' ' + convert(r);
+      }
+      if (num < 1000000000) {
+        const mill = Math.floor(num / 1000000);
+        const r = num % 1000000;
+        let s = convert(mill) + ' million';
+        if (mill > 1) s += 's';
+        if (r === 0) return s;
+        return s + ' ' + convert(r);
+      }
+      return num.toLocaleString();
+    };
+
+    const res = convert(n);
+    return res.charAt(0).toUpperCase() + res.slice(1);
+  };
+  
   const [formData, setFormData] = useState({ 
     clientName: '', 
     notes: '', 
@@ -362,9 +453,52 @@ export default function SpecialSalesPage() {
 
   const handlePrint = (sale) => {
     setSelectedSale(sale);
-    setTimeout(() => {
-      window.print();
-    }, 300);
+    const dateStr = sale.date ? sale.date.split('T')[0] : new Date().toISOString().split('T')[0];
+    
+    setPrintFormData({
+      title: 'FACTURE DE VENTE SPÉCIALE',
+      sectionTitle: 'FOURNITURE DE PIECES DE RECHANGE',
+      reference: '',
+      senderDetails: [
+        settings?.companyName || 'NS AUTO SARL',
+        settings?.address || 'Secteur 05, Parcelle C, Lot 1317 ter',
+        settings?.rccm ? `RCCM : ${settings.rccm}` : 'RCCM : BF BBD 2018 B 0372',
+        settings?.nif ? `IFU : ${settings.nif}` : 'IFU : 00102506 K',
+        settings?.bp || 'BP 1245 Bobo-dioulasso',
+        settings?.division || 'Division des Grandes Entreprises',
+        settings?.taxSystem || 'Réel Normal d\'Imposition'
+      ].filter(Boolean).join('\n'),
+      recipientDetails: sale.clientName || '',
+      date: dateStr,
+      city: settings?.city || 'Ouagadougou',
+      siteCode: '',
+      clientCode: '',
+      supervisorName: settings?.supervisorName || 'Guy Roland TONDE',
+      supervisorTitle: settings?.supervisorTitle || 'SUPERVISEUR',
+      hasTva: true,
+      tvaRate: settings?.tvaRate !== undefined ? settings.tvaRate : 18,
+      docNumber: `VSE-${sale.id.substring(0, 8).toUpperCase()}`,
+      notes: sale.notes || '',
+      hideColNo: false,
+      hideColSite: false,
+      hideColDesc: false,
+      hideColCode: false,
+      hideColRef: false,
+      hideColQty: false,
+      hideColPrice: false,
+      hideColTotal: false,
+      colNoLabel: 'N°',
+      colSiteLabel: 'Site',
+      colDescLabel: 'Désignation / Article',
+      colCodeLabel: 'Code',
+      colRefLabel: 'Référence',
+      colQtyLabel: 'Qté',
+      colPriceLabel: 'Prix HTVA F. CFA',
+      colTotalLabel: 'Total HTVA F. CFA',
+      items: sale.items ? sale.items.map(it => ({ ...it })) : []
+    });
+    
+    setIsPrintPrepModalOpen(true);
   };
 
   const handleViewDetails = (sale) => {
@@ -808,101 +942,442 @@ export default function SpecialSalesPage() {
         </div>
       )}
 
+      {/* PRINT PREPARATION MODAL */}
+      {isPrintPrepModalOpen && (
+        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="modal-container" style={{ backgroundColor: 'var(--surface)', borderRadius: '12px', width: '95%', maxWidth: '950px', maxHeight: '90vh', overflowY: 'auto', border: '1px solid var(--border)', padding: '24px' }}>
+            <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border)', paddingBottom: '12px', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Préparation Impression Vente Spéciale</h3>
+              <button style={{ background: 'none', border: 'none', cursor: 'pointer' }} onClick={() => setIsPrintPrepModalOpen(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+              <div>
+                <label className="form-label" style={{ fontWeight: 600 }}>Titre de la Facture</label>
+                <input 
+                  type="text" 
+                  className="form-control"
+                  value={printFormData.title}
+                  onChange={(e) => setPrintFormData(prev => ({ ...prev, title: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="form-label" style={{ fontWeight: 600 }}>Titre de Section (Dans le tableau)</label>
+                <input 
+                  type="text" 
+                  className="form-control"
+                  value={printFormData.sectionTitle}
+                  onChange={(e) => setPrintFormData(prev => ({ ...prev, sectionTitle: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '15px' }}>
+              <label className="form-label" style={{ fontWeight: 600 }}>Référence / Objet (Zone Libre)</label>
+              <textarea 
+                className="form-control"
+                style={{ height: '50px', resize: 'vertical' }}
+                value={printFormData.reference}
+                onChange={(e) => setPrintFormData(prev => ({ ...prev, reference: e.target.value }))}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+              <div>
+                <label className="form-label" style={{ fontWeight: 600 }}>Détails de l'Expéditeur (Bloc de gauche)</label>
+                <textarea 
+                  className="form-control"
+                  style={{ height: '120px', resize: 'vertical' }}
+                  value={printFormData.senderDetails}
+                  onChange={(e) => setPrintFormData(prev => ({ ...prev, senderDetails: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="form-label" style={{ fontWeight: 600 }}>Détails du Destinataire (Bloc de droite)</label>
+                <textarea 
+                  className="form-control"
+                  style={{ height: '120px', resize: 'vertical' }}
+                  value={printFormData.recipientDetails}
+                  onChange={(e) => setPrintFormData(prev => ({ ...prev, recipientDetails: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+              <div>
+                <label className="form-label" style={{ fontWeight: 600 }}>Date</label>
+                <input 
+                  type="date" 
+                  className="form-control"
+                  value={printFormData.date}
+                  onChange={(e) => setPrintFormData(prev => ({ ...prev, date: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="form-label" style={{ fontWeight: 600 }}>Lieu (Ville)</label>
+                <input 
+                  type="text" 
+                  className="form-control"
+                  value={printFormData.city}
+                  onChange={(e) => setPrintFormData(prev => ({ ...prev, city: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="form-label" style={{ fontWeight: 600 }}>Code Site</label>
+                <input 
+                  type="text" 
+                  className="form-control"
+                  placeholder="Ex: HOUN"
+                  value={printFormData.siteCode}
+                  onChange={(e) => setPrintFormData(prev => ({ ...prev, siteCode: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="form-label" style={{ fontWeight: 600 }}>Notre Code Client</label>
+                <input 
+                  type="text" 
+                  className="form-control"
+                  placeholder="Ex: CLC 03977"
+                  value={printFormData.clientCode}
+                  onChange={(e) => setPrintFormData(prev => ({ ...prev, clientCode: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '15px', marginBottom: '15px' }}>
+              <div>
+                <label className="form-label" style={{ fontWeight: 600 }}>Signataire (Nom)</label>
+                <input 
+                  type="text" 
+                  className="form-control"
+                  value={printFormData.supervisorName}
+                  onChange={(e) => setPrintFormData(prev => ({ ...prev, supervisorName: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="form-label" style={{ fontWeight: 600 }}>Titre</label>
+                <input 
+                  type="text" 
+                  className="form-control"
+                  value={printFormData.supervisorTitle}
+                  onChange={(e) => setPrintFormData(prev => ({ ...prev, supervisorTitle: e.target.value }))}
+                />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingTop: '28px' }}>
+                <input 
+                  type="checkbox" 
+                  id="hasTva"
+                  checked={printFormData.hasTva}
+                  onChange={(e) => setPrintFormData(prev => ({ ...prev, hasTva: e.target.checked }))}
+                />
+                <label htmlFor="hasTva" style={{ fontWeight: 600, cursor: 'pointer' }}>SOUMIS TVA</label>
+              </div>
+              <div>
+                <label className="form-label" style={{ fontWeight: 600 }}>TVA %</label>
+                <input 
+                  type="number" 
+                  className="form-control"
+                  disabled={!printFormData.hasTva}
+                  value={printFormData.tvaRate}
+                  onChange={(e) => setPrintFormData(prev => ({ ...prev, tvaRate: parseFloat(e.target.value) || 0 }))}
+                />
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '15px' }}>
+              <label className="form-label" style={{ fontWeight: 600 }}>Numéro de Document (Manuel) *</label>
+              <input 
+                type="text" 
+                className="form-control"
+                value={printFormData.docNumber}
+                onChange={(e) => setPrintFormData(prev => ({ ...prev, docNumber: e.target.value }))}
+                required
+              />
+            </div>
+
+            <div style={{ marginBottom: '15px' }}>
+              <label className="form-label" style={{ fontWeight: 600 }}>Notes / Conditions Particulières</label>
+              <textarea 
+                className="form-control"
+                placeholder="Ex: Validité de l'offre 30 jours, livraison sous 48h..."
+                style={{ height: '60px', resize: 'vertical' }}
+                value={printFormData.notes}
+                onChange={(e) => setPrintFormData(prev => ({ ...prev, notes: e.target.value }))}
+              />
+            </div>
+
+            {/* Column Label Settings */}
+            <div style={{ border: '1px solid var(--border)', borderRadius: '8px', padding: '15px', marginBottom: '20px', backgroundColor: 'rgba(0,0,0,0.01)' }}>
+              <h5 style={{ fontWeight: 700, marginBottom: '10px', fontSize: '0.85rem' }}>Libellés des colonnes (Facture)</h5>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input type="checkbox" checked={!printFormData.hideColNo} onChange={(e) => setPrintFormData(p => ({ ...p, hideColNo: !e.target.checked }))} />
+                  <input type="text" className="form-control" style={{ padding: '4px' }} value={printFormData.colNoLabel} onChange={(e) => setPrintFormData(p => ({ ...p, colNoLabel: e.target.value }))} />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input type="checkbox" checked={!printFormData.hideColSite} onChange={(e) => setPrintFormData(p => ({ ...p, hideColSite: !e.target.checked }))} />
+                  <input type="text" className="form-control" style={{ padding: '4px' }} value={printFormData.colSiteLabel} onChange={(e) => setPrintFormData(p => ({ ...p, colSiteLabel: e.target.value }))} />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input type="checkbox" checked={!printFormData.hideColDesc} onChange={(e) => setPrintFormData(p => ({ ...p, hideColDesc: !e.target.checked }))} />
+                  <input type="text" className="form-control" style={{ padding: '4px' }} value={printFormData.colDescLabel} onChange={(e) => setPrintFormData(p => ({ ...p, colDescLabel: e.target.value }))} />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input type="checkbox" checked={!printFormData.hideColCode} onChange={(e) => setPrintFormData(p => ({ ...p, hideColCode: !e.target.checked }))} />
+                  <input type="text" className="form-control" style={{ padding: '4px' }} value={printFormData.colCodeLabel} onChange={(e) => setPrintFormData(p => ({ ...p, colCodeLabel: e.target.value }))} />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input type="checkbox" checked={!printFormData.hideColRef} onChange={(e) => setPrintFormData(p => ({ ...p, hideColRef: !e.target.checked }))} />
+                  <input type="text" className="form-control" style={{ padding: '4px' }} value={printFormData.colRefLabel} onChange={(e) => setPrintFormData(p => ({ ...p, colRefLabel: e.target.value }))} />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input type="checkbox" checked={!printFormData.hideColQty} onChange={(e) => setPrintFormData(p => ({ ...p, hideColQty: !e.target.checked }))} />
+                  <input type="text" className="form-control" style={{ padding: '4px' }} value={printFormData.colQtyLabel} onChange={(e) => setPrintFormData(p => ({ ...p, colQtyLabel: e.target.value }))} />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input type="checkbox" checked={!printFormData.hideColPrice} onChange={(e) => setPrintFormData(p => ({ ...p, hideColPrice: !e.target.checked }))} />
+                  <input type="text" className="form-control" style={{ padding: '4px' }} value={printFormData.colPriceLabel} onChange={(e) => setPrintFormData(p => ({ ...p, colPriceLabel: e.target.value }))} />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input type="checkbox" checked={!printFormData.hideColTotal} onChange={(e) => setPrintFormData(p => ({ ...p, hideColTotal: !e.target.checked }))} />
+                  <input type="text" className="form-control" style={{ padding: '4px' }} value={printFormData.colTotalLabel} onChange={(e) => setPrintFormData(p => ({ ...p, colTotalLabel: e.target.value }))} />
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: '1px solid var(--border)', paddingTop: '16px' }}>
+              <button type="button" className="btn btn-secondary" onClick={() => setIsPrintPrepModalOpen(false)}>
+                Annuler
+              </button>
+              <button type="button" className="btn btn-primary" onClick={() => { setIsPrintPrepModalOpen(false); window.print(); }}>
+                Lancer l'impression
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* PRINT TEMPLATE (Only visible to window.print()) */}
       {selectedSale && (
-        <div className="print-section print-only" style={{ padding: '40px', color: 'black', backgroundColor: 'white', fontFamily: 'Arial, sans-serif' }}>
-          {/* Logo & Header */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderBottom: '3px solid #b91c1c', paddingBottom: '15px', marginBottom: '30px' }}>
-            {settings?.logo && (
-              <img src={settings.logo} alt="Logo" style={{ maxHeight: '70px' }} />
-            )}
-            <div style={{ textAlign: 'right' }}>
-              <h2 style={{ margin: 0, color: '#b91c1c', fontWeight: 'bold', fontSize: '20px' }}>{settings?.companyName || 'NS AUTO'}</h2>
-              <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#666' }}>{settings?.address}</p>
-            </div>
-          </div>
-
-          {/* Document Title / Info */}
-          <div style={{ border: '2px solid black', padding: '12px', textAlign: 'center', marginBottom: '30px', backgroundColor: '#f3f4f6' }}>
-            <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold' }}>FACTURE DE VENTE SPÉCIALE</h3>
-            <p style={{ margin: '5px 0 0 0', fontSize: '13px' }}>N° VSE-{selectedSale.id.substring(0, 8).toUpperCase()}</p>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '40px', marginBottom: '30px' }}>
-            <div>
-              <p style={{ margin: '0 0 5px 0', fontSize: '12px', color: '#666', fontWeight: 'bold' }}>ÉMETTEUR</p>
-              <p style={{ margin: '0 0 2px 0', fontWeight: 'bold' }}>{settings?.companyName}</p>
-              <p style={{ margin: '0 0 2px 0', fontSize: '13px' }}>RCCM : {settings?.rccm}</p>
-              <p style={{ margin: '0 0 2px 0', fontSize: '13px' }}>IFU : {settings?.nif}</p>
-              <p style={{ margin: '0 0 2px 0', fontSize: '13px' }}>BP : {settings?.bp}</p>
-            </div>
-            <div>
-              <p style={{ margin: '0 0 5px 0', fontSize: '12px', color: '#666', fontWeight: 'bold' }}>CLIENT</p>
-              <p style={{ margin: 0, fontWeight: 'bold', fontSize: '15px' }}>{selectedSale.clientName}</p>
-              <p style={{ margin: '15px 0 0 0', fontSize: '13px' }}>
-                Date : <strong>{new Date(selectedSale.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}</strong>
-              </p>
-            </div>
-          </div>
-
-          {/* Items Table */}
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '30px' }}>
-            <thead>
-              <tr style={{ backgroundColor: '#f3f4f6' }}>
-                <th style={{ border: '1px solid black', padding: '10px', textAlign: 'left', width: '40px' }}>N°</th>
-                <th style={{ border: '1px solid black', padding: '10px', textAlign: 'left', width: '100px' }}>Référence</th>
-                <th style={{ border: '1px solid black', padding: '10px', textAlign: 'left' }}>Désignation</th>
-                <th style={{ border: '1px solid black', padding: '10px', textAlign: 'center', width: '60px' }}>Qté</th>
-                <th style={{ border: '1px solid black', padding: '10px', textAlign: 'right', width: '120px' }}>Prix Unitaire</th>
-                <th style={{ border: '1px solid black', padding: '10px', textAlign: 'right', width: '130px' }}>Total HT</th>
-              </tr>
-            </thead>
-            <tbody>
-              {selectedSale.items.map((item, idx) => (
-                <tr key={idx}>
-                  <td style={{ border: '1px solid black', padding: '10px', textAlign: 'center' }}>{idx + 1}</td>
-                  <td style={{ border: '1px solid black', padding: '10px' }}>{item.ref || '-'}</td>
-                  <td style={{ border: '1px solid black', padding: '10px', fontWeight: 'bold' }}>{item.description}</td>
-                  <td style={{ border: '1px solid black', padding: '10px', textAlign: 'center' }}>{item.quantity}</td>
-                  <td style={{ border: '1px solid black', padding: '10px', textAlign: 'right' }}>{formatPrice(item.sellingPrice)}</td>
-                  <td style={{ border: '1px solid black', padding: '10px', textAlign: 'right', fontWeight: 'bold' }}>{formatPrice(item.quantity * item.sellingPrice)}</td>
-                </tr>
-              ))}
-              <tr>
-                <td colSpan="5" style={{ border: '1px solid black', padding: '8px 10px', textAlign: 'right', fontWeight: 'bold' }}>Montant HTVA</td>
-                <td style={{ border: '1px solid black', padding: '8px 10px', textAlign: 'right', fontWeight: 'bold' }}>{formatPrice(selectedSale.totalHT)}</td>
-              </tr>
-              <tr>
-                <td colSpan="5" style={{ border: '1px solid black', padding: '8px 10px', textAlign: 'right', fontWeight: 'bold' }}>Montant TVA ({settings?.tvaRate || 18}%)</td>
-                <td style={{ border: '1px solid black', padding: '8px 10px', textAlign: 'right', fontWeight: 'bold' }}>{formatPrice(selectedSale.tva)}</td>
-              </tr>
-              <tr style={{ backgroundColor: '#e5e7eb' }}>
-                <td colSpan="5" style={{ border: '1px solid black', padding: '10px', textAlign: 'right', fontWeight: 'bold', fontSize: '14px' }}>TOTAL NET A PAYER</td>
-                <td style={{ border: '1px solid black', padding: '10px', textAlign: 'right', fontWeight: 'bold', fontSize: '14px', color: '#b91c1c' }}>{formatPrice(selectedSale.totalTTC)} FCFA</td>
-              </tr>
-            </tbody>
-          </table>
-
-          {selectedSale.notes && (
-            <div style={{ marginTop: '20px', border: '1px solid #ddd', padding: '12px', borderRadius: '4px', backgroundColor: '#fafafa' }}>
-              <p style={{ margin: '0 0 5px 0', fontSize: '11px', fontWeight: 'bold', color: '#666' }}>OBSERVATIONS :</p>
-              <p style={{ margin: 0, fontSize: '13px', whiteSpace: 'pre-wrap' }}>{selectedSale.notes}</p>
-            </div>
-          )}
-
-          {/* Signature / Stamp */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '40px' }}>
-            <div style={{ width: '200px', textAlign: 'center' }}>
-              <p style={{ fontSize: '12px', fontStyle: 'italic', margin: '0 0 10px 0' }}>Le Client</p>
-              <div style={{ height: '80px', borderBottom: '1px dashed #ccc' }}></div>
-            </div>
-            <div style={{ minWidth: '220px', textAlign: 'right' }}>
-              <p style={{ fontSize: '12px', fontStyle: 'italic', margin: '0 0 10px 0' }}>Fait à {settings?.city || 'Ouagadougou'}, le {new Date(selectedSale.date).toLocaleDateString()}</p>
-              {settings?.signatureImage && (
-                <img src={settings.signatureImage} alt="Signature" style={{ maxHeight: '60px', objectFit: 'contain' }} />
+        <div className="receipt-print-only" style={{ padding: '1cm 0', color: 'black', backgroundColor: 'white', fontFamily: 'Arial, sans-serif' }}>
+          <div style={{ padding: '0px 40px 20px 40px' }}>
+            {/* Top Logo & Line */}
+            <div style={{ display: 'flex', alignItems: 'flex-end', marginBottom: '24px' }}>
+              {settings?.logo && (
+                <img
+                  src={settings?.logo}
+                  alt="Logo"
+                  style={{ maxHeight: '110px', marginRight: '2px', position: 'relative', top: '34px' }}
+                />
               )}
-              <p style={{ fontWeight: 'bold', textDecoration: 'underline', marginTop: '10px' }}>{settings?.supervisorName}</p>
+              <div style={{ flex: 1, height: '2.5pt', backgroundColor: '#b91c1c', marginBottom: '13px' }}></div>
             </div>
+
+            {/* Document Title Header */}
+            <div style={{ border: '1.5pt solid #000', padding: '10px', textAlign: 'center', marginBottom: '35px', backgroundColor: '#f3f4f6' }}>
+              <h2 style={{ margin: 0, fontSize: '17px', fontWeight: 'bold', letterSpacing: '0.5px' }}>
+                <span style={{ textDecoration: 'underline' }}>{printFormData.title} :</span> &nbsp;&nbsp;
+                {printFormData.docNumber}
+              </h2>
+            </div>
+
+            {/* Header info (Sender / Recipient) */}
+            <table className="header-info" style={{ width: '100%', borderCollapse: 'collapse', border: '1.5pt solid black', marginBottom: '0' }}>
+              <tbody>
+                <tr>
+                  <td style={{ width: '50%', verticalAlign: 'top', padding: '10px', borderRight: '1.5pt solid black', borderBottom: '1.5pt solid black' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 'bold', lineHeight: '1.4' }}>
+                      <p style={{ margin: '0 0 6px 0' }}><strong>{settings?.companyName}</strong>{printFormData.clientCode ? ` / Code client : ${printFormData.clientCode}` : ''}</p>
+                      {(printFormData.senderDetails || '').split('\n').map((line, idx) => (
+                        idx > 0 && <p key={idx} style={{ margin: '0 0 2px 0' }}>{line}</p>
+                      ))}
+                    </div>
+                  </td>
+                  <td style={{ width: '50%', verticalAlign: 'top', padding: '10px', borderBottom: '1.5pt solid black' }}>
+                    <div style={{ fontSize: '11px', fontWeight: 'bold', lineHeight: '1.4' }}>
+                      {(printFormData.recipientDetails || '').split('\n').map((line, idx) => (
+                        <p key={idx} style={{ margin: idx === 0 ? '0 0 6px 0' : '0 0 2px 0' }}>{idx === 0 ? <strong>{line}</strong> : line}</p>
+                      ))}
+                    </div>
+                  </td>
+                </tr>
+                {printFormData.reference && (
+                  <tr>
+                    <td colSpan="2" style={{ textAlign: 'center', backgroundColor: '#e5e7eb', padding: '8px', fontWeight: 'bold', fontSize: '11px', borderTop: '1.5pt solid black' }}>
+                      {printFormData.reference}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+
+            {/* Items Table */}
+            <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
+              <thead>
+                <tr>
+                  {!printFormData.hideColNo && <th rowSpan="3" style={{ border: '1.5pt solid black', padding: '6px', textAlign: 'center', fontSize: '10px', fontWeight: 'bold', backgroundColor: '#e5e7eb', width: '30px' }}>{printFormData.colNoLabel}</th>}
+                  {((!printFormData.hideColCode) || (!printFormData.hideColSite) || (!printFormData.hideColDesc) || (!printFormData.hideColRef)) && (
+                    <th colSpan={[!printFormData.hideColCode, !printFormData.hideColSite, !printFormData.hideColDesc, !printFormData.hideColRef].filter(Boolean).length} style={{ border: '1.5pt solid black', padding: '4px', textAlign: 'center', fontSize: '9px', fontWeight: 'bold', backgroundColor: '#e5e7eb', letterSpacing: '1px' }}>DESIGNATION</th>
+                  )}
+                  {!printFormData.hideColQty && <th style={{ border: '1.5pt solid black', padding: '6px', textAlign: 'center', fontSize: '10px', fontWeight: 'bold', backgroundColor: '#e5e7eb', width: '50px' }}>{printFormData.colQtyLabel}</th>}
+                  {!printFormData.hideColPrice && <th style={{ border: '1.5pt solid black', padding: '6px', textAlign: 'center', fontSize: '10px', fontWeight: 'bold', backgroundColor: '#e5e7eb', width: '90px' }}>{printFormData.colPriceLabel}</th>}
+                  {!printFormData.hideColTotal && <th style={{ border: '1.5pt solid black', padding: '6px', textAlign: 'center', fontSize: '10px', fontWeight: 'bold', backgroundColor: '#e5e7eb', width: '100px' }}>{printFormData.colTotalLabel}</th>}
+                </tr>
+                <tr>
+                  {((!printFormData.hideColCode) || (!printFormData.hideColSite) || (!printFormData.hideColDesc) || (!printFormData.hideColRef)) && (
+                    <th colSpan={[!printFormData.hideColCode, !printFormData.hideColSite, !printFormData.hideColDesc, !printFormData.hideColRef].filter(Boolean).length} style={{ border: '1.5pt solid black', textAlign: 'left', fontWeight: 'bold', fontSize: '9px', padding: '5px 8px', backgroundColor: '#fff' }}>
+                      {printFormData.sectionTitle}
+                    </th>
+                  )}
+                  {!printFormData.hideColQty && <th style={{ border: '1.5pt solid black', backgroundColor: '#fff' }}></th>}
+                  {!printFormData.hideColPrice && <th style={{ border: '1.5pt solid black', backgroundColor: '#fff' }}></th>}
+                  {!printFormData.hideColTotal && <th style={{ border: '1.5pt solid black', backgroundColor: '#fff' }}></th>}
+                </tr>
+                <tr>
+                  {!printFormData.hideColCode && <th style={{ border: '1.5pt solid black', padding: '4px', fontSize: '9px', fontWeight: 'bold', backgroundColor: '#e5e7eb', textAlign: 'center', width: '80px' }}>{printFormData.colCodeLabel}</th>}
+                  {!printFormData.hideColSite && <th style={{ border: '1.5pt solid black', padding: '4px', fontSize: '9px', fontWeight: 'bold', backgroundColor: '#e5e7eb', textAlign: 'center', width: '60px' }}>{printFormData.colSiteLabel}</th>}
+                  {!printFormData.hideColDesc && <th style={{ border: '1.5pt solid black', padding: '4px 8px', fontSize: '9px', fontWeight: 'bold', backgroundColor: '#e5e7eb', textAlign: 'left' }}>{printFormData.colDescLabel}</th>}
+                  {!printFormData.hideColRef && <th style={{ border: '1.5pt solid black', padding: '4px', fontSize: '9px', fontWeight: 'bold', backgroundColor: '#e5e7eb', textAlign: 'center', width: '90px' }}>{printFormData.colRefLabel}</th>}
+                  {!printFormData.hideColQty && <th style={{ border: '1.5pt solid black', backgroundColor: '#e5e7eb' }}></th>}
+                  {!printFormData.hideColPrice && <th style={{ border: '1.5pt solid black', backgroundColor: '#e5e7eb' }}></th>}
+                  {!printFormData.hideColTotal && <th style={{ border: '1.5pt solid black', backgroundColor: '#e5e7eb' }}></th>}
+                </tr>
+              </thead>
+              <tbody>
+                {printFormData.items.map((item, i) => {
+                  const printTotalHT = printFormData.items.reduce((acc, curr) => acc + (curr.quantity * curr.sellingPrice), 0);
+                  const printTvaAmount = printFormData.hasTva ? (printTotalHT * (printFormData.tvaRate / 100)) : 0;
+                  const printTotalTTC = printTotalHT + printTvaAmount;
+
+                  const showCodeSub = !printFormData.hideColCode;
+                  const showSiteSub = !printFormData.hideColSite;
+                  const showDescSub = !printFormData.hideColDesc;
+                  const showRefSub = !printFormData.hideColRef;
+                  const numDesignationCols = [showCodeSub, showSiteSub, showDescSub, showRefSub].filter(Boolean).length;
+
+                  const showNoCol = !printFormData.hideColNo;
+                  const showQtyCol = !printFormData.hideColQty;
+                  const showPriceCol = !printFormData.hideColPrice;
+                  const showTotalCol = !printFormData.hideColTotal;
+
+                  const totalColsBeforeTotal = [showNoCol, numDesignationCols > 0, showQtyCol, showPriceCol].filter(Boolean).length;
+
+                  return (
+                    <tr key={i}>
+                      {showNoCol && <td style={{ border: '1.5pt solid black', padding: '6px', textAlign: 'center', fontSize: '10px' }}>{i + 1}</td>}
+                      {showCodeSub && <td style={{ border: '1.5pt solid black', padding: '6px', textAlign: 'center', fontSize: '10px' }}>{item.code || '-'}</td>}
+                      {showSiteSub && <td style={{ border: '1.5pt solid black', padding: '6px', textAlign: 'center', fontSize: '10px' }}>{printFormData.siteCode || ''}</td>}
+                      {showDescSub && <td style={{ border: '1.5pt solid black', padding: '6px 8px', fontWeight: 'bold', fontSize: '10px' }}>{item.description}</td>}
+                      {showRefSub && <td style={{ border: '1.5pt solid black', padding: '6px', textAlign: 'center', fontSize: '10px' }}>{item.ref || '-'}</td>}
+                      {showQtyCol && <td style={{ border: '1.5pt solid black', padding: '6px', textAlign: 'center', fontSize: '10px' }}>{item.quantity}</td>}
+                      {showPriceCol && <td style={{ border: '1.5pt solid black', padding: '6px', textAlign: 'right', fontSize: '10px' }}>{formatPrice(item.sellingPrice)}</td>}
+                      {showTotalCol && <td style={{ border: '1.5pt solid black', padding: '6px', textAlign: 'right', fontWeight: 'bold', fontSize: '10px' }}>{formatPrice(item.quantity * item.sellingPrice)}</td>}
+                    </tr>
+                  );
+                })}
+
+                {(() => {
+                  const printTotalHT = printFormData.items.reduce((acc, curr) => acc + (curr.quantity * curr.sellingPrice), 0);
+                  const printTvaAmount = printFormData.hasTva ? (printTotalHT * (printFormData.tvaRate / 100)) : 0;
+                  const printTotalTTC = printTotalHT + printTvaAmount;
+
+                  const showCodeSub = !printFormData.hideColCode;
+                  const showSiteSub = !printFormData.hideColSite;
+                  const showDescSub = !printFormData.hideColDesc;
+                  const showRefSub = !printFormData.hideColRef;
+                  const numDesignationCols = [showCodeSub, showSiteSub, showDescSub, showRefSub].filter(Boolean).length;
+
+                  const showNoCol = !printFormData.hideColNo;
+                  const showQtyCol = !printFormData.hideColQty;
+                  const showPriceCol = !printFormData.hideColPrice;
+                  const showTotalCol = !printFormData.hideColTotal;
+
+                  const totalColsBeforeTotal = [showNoCol, numDesignationCols > 0, showQtyCol, showPriceCol].filter(Boolean).length;
+
+                  return (
+                    <>
+                      <tr>
+                        <td colSpan={totalColsBeforeTotal} style={{ border: '1.5pt solid black', textAlign: 'right', fontWeight: 'bold', padding: '4px 8px', fontSize: '9px' }}>MONTANT HTVA</td>
+                        {showTotalCol && <td style={{ border: '1.5pt solid black', textAlign: 'right', fontWeight: 'bold', padding: '4px 8px', fontSize: '9px' }}>{formatPrice(printTotalHT)}</td>}
+                      </tr>
+                      <tr>
+                        <td colSpan={totalColsBeforeTotal} style={{ border: '1.5pt solid black', textAlign: 'right', fontWeight: 'bold', padding: '4px 8px', fontSize: '9px' }}>MONTANT TVA {printFormData.hasTva ? printFormData.tvaRate : 0}%</td>
+                        {showTotalCol && <td style={{ border: '1.5pt solid black', textAlign: 'right', fontWeight: 'bold', padding: '4px 8px', fontSize: '9px' }}>{formatPrice(printTvaAmount)}</td>}
+                      </tr>
+                      <tr style={{ backgroundColor: '#d1d5db' }}>
+                        <td colSpan={totalColsBeforeTotal} style={{ border: '1.5pt solid black', textAlign: 'right', fontWeight: 'bold', padding: '5px 8px', fontSize: '9.5px' }}>TOTAL NET A PAYER</td>
+                        {showTotalCol && <td style={{ border: '1.5pt solid black', textAlign: 'right', fontWeight: 'bold', padding: '5px 8px', fontSize: '9.5px' }}>{formatPrice(printTotalTTC)}</td>}
+                      </tr>
+                    </>
+                  );
+                })()}
+              </tbody>
+            </table>
+
+            {/* Note box */}
+            {printFormData.notes && (
+              <div style={{ marginTop: '15px', padding: '10px', border: '1pt solid #eee', backgroundColor: '#fafafa', borderRadius: '4px' }}>
+                <p style={{ margin: 0, fontSize: '11px', fontWeight: 'bold', color: '#666', textTransform: 'uppercase', marginBottom: '4px' }}>Notes / Conditions Particulières :</p>
+                <p style={{ margin: 0, fontSize: '12px', whiteSpace: 'pre-wrap', color: '#333' }}>{printFormData.notes}</p>
+              </div>
+            )}
+
+            {/* Stop sum text */}
+            <div style={{ marginTop: '20px' }}>
+              <div style={{ fontSize: '11px' }}>
+                <p style={{ margin: '0 0 5px 0' }}>Arrêtée la présente facture à la somme de :</p>
+                <p style={{ margin: 0, fontWeight: 'bold', fontSize: '12px', marginLeft: '40px' }}>
+                  {(() => {
+                    const printTotalHT = printFormData.items.reduce((acc, curr) => acc + (curr.quantity * curr.sellingPrice), 0);
+                    const printTvaAmount = printFormData.hasTva ? (printTotalHT * (printFormData.tvaRate / 100)) : 0;
+                    const printTotalTTC = printTotalHT + printTvaAmount;
+                    return `${numberToWords(Math.trunc(printTotalTTC))} ( ${formatPrice(printTotalTTC).toLocaleString()} Francs CFA TTC )`;
+                  })()}
+                </p>
+              </div>
+
+              {/* Signatures */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '25px' }}>
+                <div style={{ textAlign: 'center', width: '220px' }}>
+                  <p style={{ fontSize: '11px', fontStyle: 'italic', margin: '0 0 10px 0' }}>Le Client</p>
+                  <div style={{ height: '80px' }}></div>
+                </div>
+
+                <div style={{ textAlign: 'right', minWidth: '250px' }}>
+                  <p style={{ fontStyle: 'italic', fontSize: '11px', marginBottom: '5px' }}>Fait à {printFormData.city} le {new Date(printFormData.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
+
+                  <div style={{ position: 'relative', marginTop: '10px', height: '100px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                    {settings?.signatureImage && (
+                      <img
+                        src={settings.signatureImage}
+                        alt="Signature"
+                        style={{ maxHeight: '80px', maxWidth: '200px', objectFit: 'contain', marginBottom: '-20px', zIndex: 1 }}
+                      />
+                    )}
+                    <div style={{ marginTop: settings?.signatureImage ? '0' : '50px', zIndex: 2 }}>
+                      <p style={{ fontWeight: 'bold', textDecoration: 'underline', fontSize: '13px', margin: 0 }}>
+                        {printFormData.supervisorName}
+                      </p>
+                      <p style={{ margin: 0, fontSize: '11px' }}>
+                        {printFormData.supervisorTitle}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Red footer bar */}
+          <div className="red-footer" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, width: '100%', backgroundColor: '#b91c1c', color: 'white', zIndex: 9999, borderTop: '1pt solid #b91c1c', padding: '10px 0' }}>
+            <p style={{ margin: 0, fontSize: '9px', textAlign: 'center', fontWeight: 'bold', color: 'white' }}>
+              {settings?.companyName || 'NS-AUTO'} - RCCM N° {settings?.rccm} - IFU N° {settings?.nif} - Direction des Moyennes Entreprises
+            </p>
+            <p style={{ margin: '2px 0 0 0', fontSize: '8px', textAlign: 'center', color: 'white' }}>
+              Adresse : {settings?.address} - Tél : {settings?.phone} - Email : {settings?.email || 'commercial@nsautobf.com'}
+            </p>
           </div>
         </div>
       )}
