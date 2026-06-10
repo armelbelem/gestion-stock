@@ -66,7 +66,7 @@ export default function SpecialSalesPage() {
         storage.get('fiscal-years'),
         storage.get('settings')
       ]);
-      setSales(sData || []);
+      setSales(sData?.data || []);
       setSettings(stData);
       setHasActiveYear(fyData.some(f => f.status === 'active'));
     } catch (err) {
