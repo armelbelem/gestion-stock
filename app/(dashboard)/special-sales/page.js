@@ -746,9 +746,11 @@ export default function SpecialSalesPage() {
                 <tr style={{ borderBottom: '1px solid var(--border)' }}>
                   <th style={{ padding: '8px', textAlign: 'left' }}>Réf</th>
                   <th style={{ padding: '8px', textAlign: 'left' }}>Désignation</th>
-                  <th style={{ padding: '8px', width: '80px', textAlign: 'center' }}>Qté</th>
-                  <th style={{ padding: '8px', width: '120px', textAlign: 'right' }}>P. Vente</th>
-                  <th style={{ padding: '8px', width: '120px', textAlign: 'right' }}>Total HT</th>
+                  <th style={{ padding: '8px', width: '60px', textAlign: 'center' }}>Qté</th>
+                  <th style={{ padding: '8px', width: '100px', textAlign: 'right' }}>P. Achat</th>
+                  <th style={{ padding: '8px', width: '100px', textAlign: 'right' }}>P. Vente</th>
+                  <th style={{ padding: '8px', width: '100px', textAlign: 'right' }}>Marge</th>
+                  <th style={{ padding: '8px', width: '110px', textAlign: 'right' }}>Total HT</th>
                 </tr>
               </thead>
               <tbody>
@@ -757,7 +759,11 @@ export default function SpecialSalesPage() {
                     <td style={{ padding: '8px' }}>{item.ref || '-'}</td>
                     <td style={{ padding: '8px', fontWeight: 600 }}>{item.description}</td>
                     <td style={{ padding: '8px', textAlign: 'center' }}>{item.quantity}</td>
+                    <td style={{ padding: '8px', textAlign: 'right' }}>{formatPrice(item.purchasePrice)}</td>
                     <td style={{ padding: '8px', textAlign: 'right' }}>{formatPrice(item.sellingPrice)}</td>
+                    <td style={{ padding: '8px', textAlign: 'right', color: 'var(--success)', fontWeight: 500 }}>
+                      {formatPrice((item.sellingPrice - item.purchasePrice) * item.quantity)}
+                    </td>
                     <td style={{ padding: '8px', textAlign: 'right', fontWeight: 700 }}>{formatPrice(item.quantity * item.sellingPrice)}</td>
                   </tr>
                 ))}
