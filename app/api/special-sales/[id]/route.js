@@ -1,0 +1,126 @@
+import { NextResponse } from 'next/server';
+import db from '../../../lib/db';
+import { authenticateToken } from '../../../lib/auth';
+import { logAction } from '../../../lib/actions';
+import { v4 as uuidv4 } from 'uuid';
+
+// PUT: Modifier ou annuler une vente spéciale
+export async function PUT(request, { params }) {
+  const auth = authenticateToken(request);
+  if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
+
+  const { id } = params;
+  const body = await request.json();
+  const { action } = body;
+
+  const connection = await db.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    // Vérifier l'existence de la vente
+    const [sales] = await connection.query('SELECT * FROM special_sales WHERE id = ?', [id]);
+    if (sales.length === 0) {
+      return NextResponse.json({ error: 'Vente introuvable' }, { status: 404 });
+    }
+    const sale = sales[0];
+
+    if (action === 'annuler') {
+      await connection.query('UPDATE special_sales SET status = ? WHERE id = ?', ['annule', id]);
+      await connection.commit();
+      await logAction(auth.user.id, auth.user.storeId, 'Annulation vente spéciale', { id, clientName: sale.clientName });
+      return NextResponse.json({ success: true });
+    }
+
+    if (action === 'edit') {
+      const { clientName, items, notes, date } = body;
+
+      if (!clientName) return NextResponse.json({ error: 'Le nom du client est requis' }, { status: 400 });
+      if (!items || items.length === 0) return NextResponse.json({ error: 'Au moins un produit est requis' }, { status: 400 });
+
+      // 1. Supprimer les anciens articles
+      await connection.query('DELETE FROM special_sale_items WHERE specialSaleId = ?', [id]);
+
+      // 2. Insérer les nouveaux articles et calculer les montants
+      let totalHT = 0;
+      let totalMargin = 0;
+
+      // Récupérer le taux de TVA actuel des paramètres
+      const [settingsRows] = await connection.query('SELECT tvaRate FROM settings LIMIT 1');
+      const tvaRate = Number(settingsRows[0]?.tvaRate || 18);
+
+      for (const item of items) {
+        const purchasePrice = parseFloat(item.purchasePrice) || 0;
+        const sellingPrice = parseFloat(item.sellingPrice) || 0;
+        const qty = parseInt(item.quantity) || 1;
+
+        totalHT += (sellingPrice * qty);
+        totalMargin += ((sellingPrice - purchasePrice) * qty);
+
+        const itemId = uuidv4();
+        await connection.query(
+          'INSERT INTO special_sale_items (id, specialSaleId, ref, description, quantity, purchasePrice, sellingPrice) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [itemId, id, item.ref || null, item.description, qty, purchasePrice, sellingPrice]
+        );
+      }
+
+      const tva = totalHT * (tvaRate / 100);
+      const totalTTC = totalHT + tva;
+
+      // 3. Mettre à jour l'en-tête
+      const saleDate = date ? new Date(date) : new Date(sale.date);
+      await connection.query(
+        'UPDATE special_sales SET clientName = ?, date = ?, notes = ?, totalHT = ?, tva = ?, totalTTC = ?, margin = ? WHERE id = ?',
+        [clientName, saleDate, notes || null, totalHT, tva, totalTTC, totalMargin, id]
+      );
+
+      await connection.commit();
+      await logAction(auth.user.id, auth.user.storeId, 'Modification vente spéciale', { id, clientName, totalTTC });
+      return NextResponse.json({ success: true });
+    }
+
+    return NextResponse.json({ error: 'Action non reconnue' }, { status: 400 });
+  } catch (err) {
+    await connection.rollback();
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  } finally {
+    connection.release();
+  }
+}
+
+// DELETE: Supprimer une vente spéciale
+export async function DELETE(request, { params }) {
+  const auth = authenticateToken(request);
+  if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
+
+  // Seul un admin ou un gestionnaire peut supprimer
+  if (auth.user.role === 'vendeur' || auth.user.role === 'observateur') {
+    return NextResponse.json({ error: 'Accès interdit pour ce rôle' }, { status: 403 });
+  }
+
+  const { id } = params;
+  const connection = await db.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    const [sales] = await connection.query('SELECT * FROM special_sales WHERE id = ?', [id]);
+    if (sales.length === 0) {
+      return NextResponse.json({ error: 'Vente introuvable' }, { status: 404 });
+    }
+    const sale = sales[0];
+
+    // Supprimer les articles de la vente spéciale (normalement fait par ON DELETE CASCADE mais on sécurise)
+    await connection.query('DELETE FROM special_sale_items WHERE specialSaleId = ?', [id]);
+    await connection.query('DELETE FROM special_sales WHERE id = ?', [id]);
+
+    await connection.commit();
+
+    await logAction(auth.user.id, auth.user.storeId, 'Suppression vente spéciale', { id, clientName: sale.clientName });
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    await connection.rollback();
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  } finally {
+    connection.release();
+  }
+}

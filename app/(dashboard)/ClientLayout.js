@@ -29,6 +29,7 @@ const routePermissions = [
   { path: '/reports', category: 'finances', action: 'view' },
   { path: '/reporting-vendeurs', category: 'finances', action: 'view' },
   { path: '/intelligence', category: 'finances', action: 'view' },
+  { path: '/special-sales', category: 'finances', action: 'view' },
   { path: '/archives', category: 'admin', action: 'settings' },
   { path: '/exercices', category: 'admin', action: 'settings' },
   { path: '/stores', category: 'admin', action: 'settings' },
@@ -286,6 +287,7 @@ export default function ClientLayout({ children }) {
           {hasPermission(user, 'finances', 'view') && (
             <>
               {/* <NavItem href="/finances" icon={Coins} label="Finances" /> */}
+              <NavItem href="/special-sales" icon={Coins} label="Ventes Spéciales" />
               <NavItem href="/payments" icon={Wallet} label="Règlements" />
               <NavItem href="/reports" icon={BarChart3} label="Rapports" />
               <NavItem href="/reporting-vendeurs" icon={TrendingUp} label="Perf. Vendeurs" />
