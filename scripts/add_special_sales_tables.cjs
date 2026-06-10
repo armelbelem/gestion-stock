@@ -1,10 +1,33 @@
 const mysql = require('mysql2/promise');
+const fs = require('fs');
+const path = require('path');
+
+function loadEnvFile(fileName) {
+  const envPath = path.join(__dirname, '..', fileName);
+  if (fs.existsSync(envPath)) {
+    const envConfig = fs.readFileSync(envPath, 'utf-8');
+    envConfig.split('\n').forEach(line => {
+      const trimmed = line.trim();
+      if (trimmed.startsWith('#') || !trimmed.includes('=')) return;
+      const parts = trimmed.split('=');
+      const key = parts[0].trim();
+      let value = parts.slice(1).join('=').trim();
+      if (value.startsWith('"') && value.endsWith('"')) value = value.slice(1, -1);
+      if (value.startsWith("'") && value.endsWith("'")) value = value.slice(1, -1);
+      process.env[key] = value;
+    });
+  }
+}
+
+// Charger les variables d'environnement locales
+loadEnvFile('.env');
+loadEnvFile('.env.local');
 
 async function migrate() {
   const dbConfig = process.env.DATABASE_URL || {
     host: process.env.MYSQLHOST || process.env.DB_HOST || 'localhost',
-    user: process.env.MYSQLUSER || process.env.DB_USER || 'root',
-    password: process.env.MYSQLPASSWORD || process.env.DB_PASSWORD || '',
+    user: process.env.MYSQLUSER || process.env.DB_USER || 'admin',
+    password: process.env.MYSQLPASSWORD || process.env.DB_PASSWORD || 'admin',
     database: process.env.MYSQLDATABASE || process.env.DB_NAME || 'gestion_stock_db',
     port: parseInt(process.env.MYSQLPORT || process.env.DB_PORT) || 3306,
   };

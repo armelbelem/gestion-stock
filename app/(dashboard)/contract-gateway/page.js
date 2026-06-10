@@ -2471,10 +2471,10 @@ export default function ContractGatewayPage() {
             </p>
           </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-end', gap: '40px', marginTop: '20px' }}>
               {/* Cachet Area */}
-              <div style={{ textAlign: 'center', width: '220px' }}>
-                {(selectedPartner?.stamp_image || settings?.stampImage) && (
+              {(selectedPartner?.stamp_image || settings?.stampImage) && (
+                <div style={{ textAlign: 'center', width: '180px', marginBottom: '10px' }}>
                   <div style={{
                     width: '150px',
                     height: '110px',
@@ -2484,8 +2484,8 @@ export default function ContractGatewayPage() {
                   }}>
                     <img src={selectedPartner?.stamp_image || settings.stampImage} alt="Cachet" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
               {/* Signature Area */}
               <div style={{ textAlign: 'right', minWidth: '250px' }}>
@@ -2515,9 +2515,9 @@ export default function ContractGatewayPage() {
                       {printData.customSupervisorTitle || settings?.supervisorTitle || 'Superviseur Général'}
                     </p>
                   </div>
-                  </div>
                 </div>
               </div>
+            </div>
             </div>
           </div>
       </td>
