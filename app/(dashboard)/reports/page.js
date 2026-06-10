@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { storage } from '../../lib/storage';
-import { BarChart3, Download, TrendingUp, TrendingDown, Package, Coins, User, Printer, Clock, FileText, ArrowUp, ArrowDown } from 'lucide-react';
+import { BarChart3, Download, TrendingUp, TrendingDown, Package, Coins, User, Printer, Clock, FileText, ArrowUp, ArrowDown, FileSpreadsheet } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { exportToExcel } from '../../utils/excelExport';
@@ -269,6 +269,9 @@ export default function ReportsPage() {
         </Link>
         <Link href="/reports/dead-stock" className={`nav-item ${pathname === '/reports/dead-stock' ? 'active' : ''}`} style={{ borderRadius: '0', padding: '0.75rem 1.5rem', marginBottom: '-1px' }}>
           <Clock size={18} /> Articles Dormants
+        </Link>
+        <Link href="/reports/stock-valuation" className={`nav-item ${pathname === '/reports/stock-valuation' ? 'active' : ''}`} style={{ borderRadius: '0', padding: '0.75rem 1.5rem', marginBottom: '-1px' }}>
+          <FileSpreadsheet size={18} /> Valorisation de Stock
         </Link>
       </div>
 

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { storage } from '../../../lib/storage';
-import { BarChart3, Download, Search, Calendar, Package, ArrowUpRight, ArrowDownRight, History, Coins, TrendingUp, Clock } from 'lucide-react';
+import { BarChart3, Download, Search, Calendar, Package, ArrowUpRight, ArrowDownRight, History, Coins, TrendingUp, Clock, FileSpreadsheet } from 'lucide-react';
 import { exportToExcel } from '../../../utils/excelExport';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -99,6 +99,9 @@ export default function StockReportsPage() {
         </Link>
         <Link href="/reports/dead-stock" className="nav-item" style={{ borderRadius: '0', padding: '0.75rem 1.5rem', marginBottom: '-1px' }}>
           <Clock size={18} /> Articles Dormants
+        </Link>
+        <Link href="/reports/stock-valuation" className="nav-item" style={{ borderRadius: '0', padding: '0.75rem 1.5rem', marginBottom: '-1px' }}>
+          <FileSpreadsheet size={18} /> Valorisation de Stock
         </Link>
       </div>
 
