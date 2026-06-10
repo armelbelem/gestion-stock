@@ -55,9 +55,18 @@ export async function GET(request) {
 
       if (search) {
         const cleanSearch = search.replace(/^#/, ''); // Remove leading #
-        baseQuery += ` AND (LPAD(co.orderNumber, 3, '0') LIKE ? OR c.name LIKE ?) `;
+        baseQuery += ` AND (
+          LPAD(co.orderNumber, 3, '0') LIKE ? 
+          OR c.name LIKE ? 
+          OR co.id IN (
+            SELECT orderId FROM contract_order_items 
+            WHERE code LIKE ? 
+               OR refCfao LIKE ? 
+               OR articleId IN (SELECT id FROM articles WHERE barcode LIKE ?)
+          )
+        ) `;
         const searchPat = `%${cleanSearch}%`;
-        params.push(searchPat, searchPat);
+        params.push(searchPat, searchPat, searchPat, searchPat, searchPat);
       }
 
       // 1. Get global stats for pagination and dashboard

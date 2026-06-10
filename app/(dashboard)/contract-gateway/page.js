@@ -3059,7 +3059,7 @@ export default function ContractGatewayPage() {
                 <input
                   type="text"
                   className="form-control"
-                  placeholder="Rechercher par N° dossier ou Client..."
+                  placeholder="Rechercher par N° dossier, Client, Code/Réf..."
                   style={{ paddingLeft: '32px' }}
                   value={orderSearch}
                   onChange={(e) => setOrderSearch(e.target.value)}

@@ -237,7 +237,7 @@ export default function DashboardPage() {
         {/* Stock Value Card */}
         <div className="stat-card stat-card-premium bg-gradient-orange">
           <div className="stat-icon-bg"><Coins size={48} /></div>
-          <div className="stat-label">Valeur du Stock</div>
+          <div className="stat-label">Valeur vente stock/ CA potentiel</div>
           <div className="stat-value">
             {formatPrice(stats.totalStockValue)} 
             <span style={{ fontSize: '1rem', marginLeft: '8px', opacity: 0.9 }}>FCFA</span>
@@ -246,7 +246,7 @@ export default function DashboardPage() {
             <div className="card-progress-bar" style={{ width: '45%' }}></div>
           </div>
           <div className="card-trend">
-             <span style={{ opacity: 0.9, fontWeight: 500 }}>Patrimoine Actuel</span>
+             <span style={{ opacity: 0.9, fontWeight: 500 }}>Patrimoine potentiel</span>
           </div>
         </div>
 

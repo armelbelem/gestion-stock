@@ -277,9 +277,9 @@ export default function ClientLayout({ children }) {
             <>
               {(user?.role !== 'gestionnaire2' && user?.role !== 'gestionnaire 2') && <NavItem href="/fournisseurs" icon={Truck} label="Fournisseurs" />}
               {(user?.role !== 'gestionnaire2' && user?.role !== 'gestionnaire 2') && <NavItem href="/external-orders" icon={PackageOpen} label="Commandes Spéciales" />}
-              {(user?.role !== 'gestionnaire2' && user?.role !== 'gestionnaire 2') && <NavItem href="/contract-gateway" icon={Globe} label="Achats Partenaires" />}
+              {(user?.role !== 'gestionnaire2' && user?.role !== 'gestionnaire 2') && <NavItem href="/contract-gateway" icon={Globe} label="Achats et Bon de Commande" />}
               {(user?.role !== 'gestionnaire2' && user?.role !== 'gestionnaire 2') && <NavItem href="/documents-bl-bc" icon={FileText} label="Centralisation BL/BC" />}
-              <NavItem href="/grouped-discharge" icon={PackageCheck} label="Décharge Groupée" />
+              <NavItem href="/grouped-discharge" icon={PackageCheck} label="Bon de Livraison" />
             </>
           )}
 
