@@ -1,13 +1,15 @@
 const mysql = require('mysql2/promise');
 
 async function migrate() {
-  const connection = await mysql.createConnection({
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'gestion_stock_db',
-    port: parseInt(process.env.DB_PORT) || 3306,
-  });
+  const dbConfig = process.env.DATABASE_URL || {
+    host: process.env.MYSQLHOST || process.env.DB_HOST || 'localhost',
+    user: process.env.MYSQLUSER || process.env.DB_USER || 'root',
+    password: process.env.MYSQLPASSWORD || process.env.DB_PASSWORD || '',
+    database: process.env.MYSQLDATABASE || process.env.DB_NAME || 'gestion_stock_db',
+    port: parseInt(process.env.MYSQLPORT || process.env.DB_PORT) || 3306,
+  };
+
+  const connection = await mysql.createConnection(dbConfig);
 
   console.log('🔌 Connecté à la base de données.');
 
