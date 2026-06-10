@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Présentation – Modules Gestion de Stock</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --primary-light: #a5b4fc;
+      --secondary: #0ea5e9;
+      --accent: #10b981;
+      --bg: #0f172a;
+      --bg2: #1e293b;
+      --bg3: #334155;
+      --surface: #1e293b;
+      --surface2: #273549;
+      --text: #f1f5f9;
+      --text2: #94a3b8;
+      --text3: #64748b;
+      --border: rgba(100,116,139,0.25);
+      --glass: rgba(30,41,59,0.8);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+
+    /* SIDEBAR */
+    .sidebar {
+      position: fixed; top: 0; left: 0; width: 64px; height: 100vh;
+      background: var(--bg2); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; align-items: center;
+      padding: 1rem 0; gap: 0.15rem; z-index: 100;
+      transition: width 0.3s cubic-bezier(0.4,0,0.2,1); overflow: hidden;
+    }
+    .sidebar:hover { width: 230px; }
+    .sidebar-logo {
+      width: 40px; height: 40px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      border-radius: 10px; display: flex; align-items: center; justify-content: center;
+      font-size: 1.2rem; margin-bottom: 0.75rem; flex-shrink: 0;
+    }
+    .sidebar-divider { width: 80%; height: 1px; background: var(--border); margin: 0.4rem 0; flex-shrink: 0; }
+    .sidebar-group-label {
+      width: 100%; padding: 0.3rem 0.85rem; font-size: 0.62rem; font-weight: 800;
+      color: var(--text3); text-transform: uppercase; letter-spacing: 0.1em;
+      white-space: nowrap; overflow: hidden; opacity: 0; transition: opacity 0.2s 0.1s;
+    }
+    .sidebar:hover .sidebar-group-label { opacity: 1; }
+    .nav-item {
+      width: 100%; display: flex; align-items: center; gap: 0.8rem;
+      padding: 0.55rem 1rem; cursor: pointer; border-left: 3px solid transparent;
+      transition: all 0.2s; text-decoration: none; color: var(--text2);
+      white-space: nowrap; overflow: hidden;
+    }
+    .nav-item:hover, .nav-item.active { background: rgba(99,102,241,0.1); color: var(--primary-light); border-left-color: var(--primary); }
+    .nav-icon { font-size: 1.1rem; flex-shrink: 0; width: 22px; text-align: center; }
+    .nav-label { font-size: 0.78rem; font-weight: 600; opacity: 0; transition: opacity 0.2s 0.1s; }
+    .sidebar:hover .nav-label { opacity: 1; }
+
+    /* MAIN */
+    .main { margin-left: 64px; min-height: 100vh; }
+
+    /* HERO */
+    .hero {
+      position: relative; min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; padding: 4rem 2rem; overflow: hidden;
+    }
+    .hero-bg {
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(99,102,241,0.25) 0%, transparent 70%),
+                  radial-gradient(ellipse 50% 40% at 80% 80%, rgba(14,165,233,0.15) 0%, transparent 60%);
+    }
+    .hero-grid {
+      position: absolute; inset: 0;
+      background-image: linear-gradient(rgba(100,116,139,0.07) 1px, transparent 1px), linear-gradient(90deg, rgba(100,116,139,0.07) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+    .hero-content { position: relative; z-index: 1; max-width: 950px; }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.35);
+      color: var(--primary-light); padding: 0.4rem 1.2rem; border-radius: 999px;
+      font-size: 0.78rem; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 1.5rem;
+    }
+    .hero-title {
+      font-size: clamp(2.2rem, 5vw, 4rem); font-weight: 900; line-height: 1.1; margin-bottom: 1.2rem;
+      background: linear-gradient(135deg, #fff 0%, #c7d2fe 50%, #7dd3fc 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .hero-subtitle { font-size: 1.05rem; color: var(--text2); max-width: 680px; margin: 0 auto 2.5rem; line-height: 1.7; }
+    .modules-pills { display: flex; gap: 0.6rem; flex-wrap: wrap; justify-content: center; }
+    .mpill {
+      display: flex; align-items: center; gap: 0.5rem;
+      background: var(--glass); backdrop-filter: blur(12px);
+      border: 1px solid var(--border); padding: 0.45rem 1rem;
+      border-radius: 999px; font-size: 0.78rem; font-weight: 600; color: var(--text);
+      cursor: pointer; transition: all 0.2s; text-decoration: none;
+    }
+    .mpill:hover { background: rgba(99,102,241,0.2); border-color: var(--primary); transform: translateY(-2px); }
+    .hero-scroll {
+      position: absolute; bottom: 2rem; left: 50%; transform: translateX(-50%);
+      color: var(--text3); font-size: 0.72rem; animation: bounce 2s infinite;
+    }
+    @keyframes bounce { 0%,100%{transform:translateX(-50%) translateY(0)} 50%{transform:translateX(-50%) translateY(8px)} }
+
+    /* SECTION */
+    .section { padding: 4rem 3rem; max-width: 1150px; margin: 0 auto; }
+    .section-header { display: flex; align-items: flex-start; gap: 1.25rem; margin-bottom: 2.5rem; }
+    .section-icon-box { width: 58px; height: 58px; flex-shrink: 0; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; }
+    .section-meta { flex: 1; }
+    .section-num { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text3); margin-bottom: 0.3rem; }
+    .section-title { font-size: 1.7rem; font-weight: 800; color: var(--text); margin-bottom: 0.4rem; }
+    .section-desc { font-size: 0.9rem; color: var(--text2); line-height: 1.6; }
+    .divider { height: 1px; background: linear-gradient(90deg, transparent, var(--border), transparent); margin: 0 3rem; }
+
+    /* CARDS */
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1.25rem; margin-top: 1.75rem; }
+    .card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+      padding: 1.5rem; transition: all 0.3s; position: relative; overflow: hidden;
+    }
+    .card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+    .card:hover { transform: translateY(-3px); border-color: rgba(99,102,241,0.4); box-shadow: 0 15px 35px rgba(0,0,0,0.3); }
+    .card-icon { font-size: 1.6rem; margin-bottom: 0.75rem; }
+    .card-title { font-size: 0.95rem; font-weight: 700; color: var(--text); margin-bottom: 0.4rem; }
+    .card-body { font-size: 0.82rem; color: var(--text2); line-height: 1.55; }
+
+    /* THEMES */
+    .t-purple .section-icon-box { background: rgba(99,102,241,0.15); color: #818cf8; }
+    .t-purple .card::before { background: linear-gradient(90deg,#6366f1,#818cf8); }
+    .t-blue .section-icon-box { background: rgba(14,165,233,0.15); color: #38bdf8; }
+    .t-blue .card::before { background: linear-gradient(90deg,#0ea5e9,#38bdf8); }
+    .t-green .section-icon-box { background: rgba(16,185,129,0.15); color: #34d399; }
+    .t-green .card::before { background: linear-gradient(90deg,#10b981,#34d399); }
+    .t-amber .section-icon-box { background: rgba(245,158,11,0.15); color: #fbbf24; }
+    .t-amber .card::before { background: linear-gradient(90deg,#f59e0b,#fbbf24); }
+    .t-red .section-icon-box { background: rgba(239,68,68,0.15); color: #f87171; }
+    .t-red .card::before { background: linear-gradient(90deg,#ef4444,#f87171); }
+    .t-teal .section-icon-box { background: rgba(20,184,166,0.15); color: #2dd4bf; }
+    .t-teal .card::before { background: linear-gradient(90deg,#14b8a6,#2dd4bf); }
+    .t-pink .section-icon-box { background: rgba(236,72,153,0.15); color: #f472b6; }
+    .t-pink .card::before { background: linear-gradient(90deg,#ec4899,#f472b6); }
+    .t-orange .section-icon-box { background: rgba(249,115,22,0.15); color: #fb923c; }
+    .t-orange .card::before { background: linear-gradient(90deg,#f97316,#fb923c); }
+    .t-slate .section-icon-box { background: rgba(100,116,139,0.15); color: #94a3b8; }
+    .t-slate .card::before { background: linear-gradient(90deg,#475569,#94a3b8); }
+    .t-cyan .section-icon-box { background: rgba(6,182,212,0.15); color: #22d3ee; }
+    .t-cyan .card::before { background: linear-gradient(90deg,#06b6d4,#22d3ee); }
+    .t-lime .section-icon-box { background: rgba(132,204,22,0.15); color: #a3e635; }
+    .t-lime .card::before { background: linear-gradient(90deg,#84cc16,#a3e635); }
+    .t-rose .section-icon-box { background: rgba(244,63,94,0.15); color: #fb7185; }
+    .t-rose .card::before { background: linear-gradient(90deg,#f43f5e,#fb7185); }
+    .t-violet .section-icon-box { background: rgba(139,92,246,0.15); color: #a78bfa; }
+    .t-violet .card::before { background: linear-gradient(90deg,#8b5cf6,#a78bfa); }
+    .t-sky .section-icon-box { background: rgba(56,189,248,0.15); color: #7dd3fc; }
+    .t-sky .card::before { background: linear-gradient(90deg,#38bdf8,#7dd3fc); }
+    .t-emerald .section-icon-box { background: rgba(52,211,153,0.15); color: #6ee7b7; }
+    .t-emerald .card::before { background: linear-gradient(90deg,#34d399,#6ee7b7); }
+    .t-fuchsia .section-icon-box { background: rgba(232,121,249,0.15); color: #f0abfc; }
+    .t-fuchsia .card::before { background: linear-gradient(90deg,#e879f9,#f0abfc); }
+
+    /* FEATURES */
+    .feature-row { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5rem; align-items: start; margin-top: 2rem; }
+    @media(max-width:768px){.feature-row{grid-template-columns:1fr;}}
+    .feature-list { list-style: none; display: flex; flex-direction: column; gap: 0.75rem; }
+    .feature-item {
+      display: flex; gap: 0.8rem; align-items: flex-start;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 0.9rem 1rem; transition: all 0.2s;
+    }
+    .feature-item:hover { border-color: rgba(99,102,241,0.35); background: var(--surface2); }
+    .fdot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+    .ftext { font-size: 0.82rem; color: var(--text2); line-height: 1.5; }
+    .ftext strong { color: var(--text); font-weight: 600; }
+
+    /* FLOW */
+    .flow {
+      display: flex; align-items: center; flex-wrap: wrap;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+      padding: 1.25rem; margin-top: 1.75rem;
+    }
+    .flow-step { flex: 1; min-width: 110px; text-align: center; padding: 0.75rem 0.5rem; }
+    .flow-icon { font-size: 1.7rem; display: block; margin-bottom: 0.4rem; }
+    .flow-label { font-size: 0.72rem; font-weight: 700; color: var(--text); }
+    .flow-sub { font-size: 0.65rem; color: var(--text3); margin-top: 0.15rem; }
+    .flow-arrow { font-size: 1.1rem; color: var(--text3); flex-shrink: 0; padding: 0 0.2rem; }
+
+    /* STATS */
+    .stats-strip {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 1px; background: var(--border); border: 1px solid var(--border);
+      border-radius: 14px; overflow: hidden; margin-top: 2rem;
+    }
+    .stat-item { background: var(--surface); padding: 1.25rem; text-align: center; }
+    .stat-value {
+      font-size: 1.9rem; font-weight: 900;
+      background: linear-gradient(135deg, var(--primary-light), var(--secondary));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      display: block; line-height: 1; margin-bottom: 0.25rem;
+    }
+    .stat-label { font-size: 0.7rem; color: var(--text3); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    /* BADGES */
+    .badge {
+      display: inline-flex; align-items: center; gap: 0.3rem;
+      padding: 0.2rem 0.65rem; border-radius: 999px;
+      font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .bp { background:rgba(99,102,241,0.15);color:#a5b4fc;border:1px solid rgba(99,102,241,0.3); }
+    .bg { background:rgba(16,185,129,0.15);color:#6ee7b7;border:1px solid rgba(16,185,129,0.3); }
+    .bb { background:rgba(14,165,233,0.15);color:#7dd3fc;border:1px solid rgba(14,165,233,0.3); }
+    .ba { background:rgba(245,158,11,0.15);color:#fcd34d;border:1px solid rgba(245,158,11,0.3); }
+    .br { background:rgba(239,68,68,0.15);color:#fca5a5;border:1px solid rgba(239,68,68,0.3); }
+
+    /* TABLE */
+    .dtable { width:100%;border-collapse:collapse;margin-top:1.25rem; }
+    .dtable th { background:var(--bg3);color:var(--text2);font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;padding:0.65rem 0.9rem;text-align:left;border-bottom:1px solid var(--border); }
+    .dtable td { padding:0.75rem 0.9rem;border-bottom:1px solid var(--border);font-size:0.82rem;color:var(--text2); }
+    .dtable tr:hover td { background:var(--surface2);color:var(--text); }
+    .dtable .hl { color:var(--text);font-weight:600; }
+
+    /* ROLES TABLE */
+    .role-grid { display:grid;grid-template-columns:1fr repeat(4,auto);gap:0;border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-top:1.25rem; }
+    .rh { background:var(--bg3);padding:0.65rem 0.9rem;font-size:0.68rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.07em;border-bottom:1px solid var(--border); }
+    .rc { background:var(--surface);padding:0.75rem 0.9rem;font-size:0.78rem;color:var(--text2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:center; }
+    .rc.an { justify-content:flex-start;font-weight:600;color:var(--text); }
+    .rc:hover { background:var(--surface2); }
+    .ck { color:#34d399;font-size:1rem; }
+    .cx { color:#6b7280;font-size:1rem; }
+
+    /* PERM MATRIX */
+    .perm-box { background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.5rem;margin-top:1.5rem; }
+    .perm-title { font-size:0.8rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:1rem; }
+    .perm-row { display:flex;align-items:center;gap:0.75rem;padding:0.5rem 0;border-bottom:1px solid var(--border); }
+    .perm-row:last-child { border-bottom:none; }
+    .perm-module { flex:1;font-size:0.82rem;font-weight:600;color:var(--text); }
+    .perm-who { font-size:0.75rem;color:var(--text2); }
+
+    /* ANIMATIONS */
+    .fade-in { opacity:0;transform:translateY(18px);transition:opacity 0.6s ease,transform 0.6s ease; }
+    .fade-in.visible { opacity:1;transform:translateY(0); }
+
+    /* SUMMARY */
+    .summary-section { background:var(--surface);border-top:1px solid var(--border);padding:4rem 3rem; }
+    .summary-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1.25rem;max-width:1150px;margin:2rem auto 0; }
+    .scard {
+      background:var(--bg);border:1px solid var(--border);border-radius:14px;
+      padding:1.5rem;text-align:center;transition:all 0.2s;cursor:default;
+    }
+    .scard:hover { border-color:rgba(99,102,241,0.4);transform:translateY(-3px); }
+    .scard-icon { font-size:2rem;margin-bottom:0.75rem; }
+    .scard-title { font-size:0.9rem;font-weight:700;color:var(--text);margin-bottom:0.3rem; }
+    .scard-desc { font-size:0.74rem;color:var(--text3);line-height:1.5; }
+
+    /* SCROLLBAR */
+    ::-webkit-scrollbar{width:5px;} ::-webkit-scrollbar-track{background:var(--bg);} ::-webkit-scrollbar-thumb{background:var(--bg3);border-radius:3px;}
+  </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sidebar-logo">📦</div>
+  <!-- Accueil -->
+  <a class="nav-item active" href="#hero"><span class="nav-icon">🏠</span><span class="nav-label">Accueil</span></a>
+  <a class="nav-item" href="#tableau-de-bord"><span class="nav-icon">📊</span><span class="nav-label">Tableau de Bord</span></a>
+  <!-- Stock -->
+  <div class="sidebar-group-label">Stock</div>
+  <a class="nav-item" href="#articles"><span class="nav-icon">📦</span><span class="nav-label">Articles</span></a>
+  <a class="nav-item" href="#mouvements"><span class="nav-icon">↔️</span><span class="nav-label">Mouvements</span></a>
+  <a class="nav-item" href="#transferts"><span class="nav-icon">🔄</span><span class="nav-label">Transferts</span></a>
+  <!-- Achats -->
+  <div class="sidebar-divider"></div>
+  <div class="sidebar-group-label">Achats</div>
+  <a class="nav-item" href="#fournisseurs"><span class="nav-icon">🚚</span><span class="nav-label">Fournisseurs</span></a>
+  <a class="nav-item" href="#commandes-speciales"><span class="nav-icon">⚡</span><span class="nav-label">Cmd. Spéciales</span></a>
+  <a class="nav-item" href="#contrat-passerelle"><span class="nav-icon">🌐</span><span class="nav-label">Achats et Bon de Commande</span></a>
+  <a class="nav-item" href="#centralisation-bl-bc"><span class="nav-icon">📋</span><span class="nav-label">Centralis. BL &amp; BC</span></a>
+  <a class="nav-item" href="#decharge-groupe"><span class="nav-icon">📄</span><span class="nav-label">Bordereau de Livraison</span></a>
+  <!-- Finances -->
+  <div class="sidebar-divider"></div>
+  <div class="sidebar-group-label">Finances</div>
+  <a class="nav-item" href="#ventes"><span class="nav-icon">🛒</span><span class="nav-label">Ventes</span></a>
+  <a class="nav-item" href="#performance-vendeur"><span class="nav-icon">📊</span><span class="nav-label">Perf. Vendeurs</span></a>
+  <a class="nav-item" href="#intelligence"><span class="nav-icon">🧠</span><span class="nav-label">Intelligence</span></a>
+  <!-- Admin -->
+  <div class="sidebar-divider"></div>
+  <div class="sidebar-group-label">Administration</div>
+  <a class="nav-item" href="#clients"><span class="nav-icon">👥</span><span class="nav-label">Clients</span></a>
+  <a class="nav-item" href="#magasins"><span class="nav-icon">🏪</span><span class="nav-label">Magasins</span></a>
+  <a class="nav-item" href="#exercices"><span class="nav-icon">📅</span><span class="nav-label">Exercices</span></a>
+  <a class="nav-item" href="#archives"><span class="nav-icon">🗃️</span><span class="nav-label">Archives</span></a>
+  <a class="nav-item" href="#parametres"><span class="nav-icon">⚙️</span><span class="nav-label">Paramètres</span></a>
+  <a class="nav-item" href="#utilisateurs"><span class="nav-icon">👤</span><span class="nav-label">Utilisateurs</span></a>
+  <a class="nav-item" href="#journal"><span class="nav-icon">🛡️</span><span class="nav-label">Journal d'Activité</span></a>
+  <div class="sidebar-divider"></div>
+  <a class="nav-item" href="#synthese"><span class="nav-icon">✅</span><span class="nav-label">Synthèse</span></a>
+</nav>
+
+<main class="main">
+
+  <!-- HERO -->
+  <section class="hero" id="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-grid"></div>
+    <div class="hero-content">
+      <div class="hero-badge">📦 Système de Gestion de Stock · Présentation Complète</div>
+      <h1 class="hero-title">Tous les Modules<br>en un seul Système</h1>
+      <p class="hero-subtitle">Présentation exhaustive des 18 modules qui automatisent la gestion du stock, des achats, des ventes et de l'administration de l'entreprise.</p>
+      <div class="modules-pills">
+        <a class="mpill" href="#tableau-de-bord">🏠 Tableau de Bord</a>
+        <a class="mpill" href="#articles">📦 Articles</a>
+        <a class="mpill" href="#mouvements">↔️ Mouvements</a>
+        <a class="mpill" href="#transferts">🔄 Transferts</a>
+        <a class="mpill" href="#fournisseurs">🚚 Fournisseurs</a>
+        <a class="mpill" href="#commandes-speciales">⚡ Cmd. Spéciales</a>
+        <a class="mpill" href="#contrat-passerelle">🌐 Achats et Bon de Commande</a>
+        <a class="mpill" href="#centralisation-bl-bc">📋 BL &amp; BC</a>
+        <a class="mpill" href="#decharge-groupe">📄 Bordereau de Livraison</a>
+        <a class="mpill" href="#ventes">🛒 Ventes</a>
+        <a class="mpill" href="#performance-vendeur">📊 Perf. Vendeurs</a>
+        <a class="mpill" href="#intelligence">🧠 Intelligence</a>
+        <a class="mpill" href="#clients">👥 Clients</a>
+        <a class="mpill" href="#magasins">🏪 Magasins</a>
+        <a class="mpill" href="#exercices">📅 Exercices</a>
+        <a class="mpill" href="#archives">🗃️ Archives</a>
+        <a class="mpill" href="#parametres">⚙️ Paramètres</a>
+        <a class="mpill" href="#utilisateurs">👤 Utilisateurs</a>
+        <a class="mpill" href="#journal">🛡️ Journal</a>
+      </div>
+    </div>
+    <div class="hero-scroll">↓ Défiler pour explorer</div>
+  </section>
+
+  <!-- ===== MODULE 00 : TABLEAU DE BORD ===== -->
+  <div class="divider"></div>
+  <section class="section fade-in t-blue" id="tableau-de-bord">
+    <div class="section-header">
+      <div class="section-icon-box">🏠</div>
+      <div class="section-meta">
+        <div class="section-num">Module 00 · Vue Générale</div>
+        <h2 class="section-title">Tableau de Bord</h2>
+        <p class="section-desc">Page d'accueil du système. Vue consolidée et temps réel de l'état de l'entreprise : KPIs financiers, alertes de stock, graphiques de ventes et classements clients/produits.</p>
+      </div>
+    </div>
+
+    <!-- KPI Cards -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1.25rem;margin-top:1.5rem;">
+      <div style="background:linear-gradient(135deg,#1d4ed8,#3b82f6);border-radius:14px;padding:1.5rem;position:relative;overflow:hidden;">
+        <div style="position:absolute;top:-10px;right:-10px;opacity:0.15;font-size:5rem;">📦</div>
+        <div style="font-size:0.72rem;font-weight:700;color:rgba(255,255,255,0.75);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.4rem;">Total Articles</div>
+        <div style="font-size:2.2rem;font-weight:900;color:#fff;">–</div>
+        <div style="height:4px;background:rgba(255,255,255,0.25);border-radius:2px;margin:0.75rem 0 0.5rem;"><div style="height:100%;width:70%;background:rgba(255,255,255,0.8);border-radius:2px;"></div></div>
+        <div style="font-size:0.72rem;color:rgba(255,255,255,0.8);">↑ +2.5% ce mois</div>
+      </div>
+      <div style="background:linear-gradient(135deg,#065f46,#10b981);border-radius:14px;padding:1.5rem;position:relative;overflow:hidden;">
+        <div style="position:absolute;top:-10px;right:-10px;opacity:0.15;font-size:5rem;">📈</div>
+        <div style="font-size:0.72rem;font-weight:700;color:rgba(255,255,255,0.75);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.4rem;">Chiffre d'Affaires</div>
+        <div style="font-size:2.2rem;font-weight:900;color:#fff;">– <span style="font-size:1rem;">FCFA</span></div>
+        <div style="height:4px;background:rgba(255,255,255,0.25);border-radius:2px;margin:0.75rem 0 0.5rem;"><div style="height:100%;width:85%;background:rgba(255,255,255,0.8);border-radius:2px;"></div></div>
+        <div style="font-size:0.72rem;color:rgba(255,255,255,0.8);">↑ +12.3% vs mois dernier</div>
+      </div>
+      <div style="background:linear-gradient(135deg,#92400e,#f59e0b);border-radius:14px;padding:1.5rem;position:relative;overflow:hidden;">
+        <div style="position:absolute;top:-10px;right:-10px;opacity:0.15;font-size:5rem;">💰</div>
+        <div style="font-size:0.72rem;font-weight:700;color:rgba(255,255,255,0.75);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.4rem;">Valeur vente stock/ CA potentiel</div>
+        <div style="font-size:2.2rem;font-weight:900;color:#fff;">– <span style="font-size:1rem;">FCFA</span></div>
+        <div style="height:4px;background:rgba(255,255,255,0.25);border-radius:2px;margin:0.75rem 0 0.5rem;"><div style="height:100%;width:45%;background:rgba(255,255,255,0.8);border-radius:2px;"></div></div>
+        <div style="font-size:0.72rem;color:rgba(255,255,255,0.8);">Patrimoine potentiel</div>
+      </div>
+      <div style="background:linear-gradient(135deg,#7f1d1d,#ef4444);border-radius:14px;padding:1.5rem;position:relative;overflow:hidden;">
+        <div style="position:absolute;top:-10px;right:-10px;opacity:0.15;font-size:5rem;">⚠️</div>
+        <div style="font-size:0.72rem;font-weight:700;color:rgba(255,255,255,0.75);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.4rem;">Ruptures Imminentes</div>
+        <div style="font-size:2.2rem;font-weight:900;color:#fff;">–</div>
+        <div style="height:4px;background:rgba(255,255,255,0.25);border-radius:2px;margin:0.75rem 0 0.5rem;"><div style="height:100%;width:100%;background:rgba(255,255,255,0.8);border-radius:2px;"></div></div>
+        <div style="font-size:0.72rem;color:rgba(255,255,255,0.8);">↓ Action requise</div>
+      </div>
+    </div>
+
+    <!-- Charts & Tables grid -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-top:1.75rem;">
+      <!-- Chart ventes -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.5rem;">
+        <div style="font-weight:700;color:#38bdf8;margin-bottom:1rem;font-size:0.92rem;">📊 Graphique Ventes – 30 derniers jours</div>
+        <div style="height:160px;display:flex;align-items:flex-end;gap:5px;padding-top:1rem;">
+          <!-- Simulated bars -->
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;">
+            <div style="width:100%;background:linear-gradient(180deg,#38bdf8,#0ea5e9);border-radius:4px 4px 0 0;height:40%;"></div>
+            <div style="font-size:0.55rem;color:var(--text3);">S1</div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;">
+            <div style="width:100%;background:linear-gradient(180deg,#38bdf8,#0ea5e9);border-radius:4px 4px 0 0;height:65%;"></div>
+            <div style="font-size:0.55rem;color:var(--text3);">S2</div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;">
+            <div style="width:100%;background:linear-gradient(180deg,#38bdf8,#0ea5e9);border-radius:4px 4px 0 0;height:55%;"></div>
+            <div style="font-size:0.55rem;color:var(--text3);">S3</div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;">
+            <div style="width:100%;background:linear-gradient(180deg,#38bdf8,#0ea5e9);border-radius:4px 4px 0 0;height:85%;"></div>
+            <div style="font-size:0.55rem;color:var(--text3);">S4</div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;">
+            <div style="width:100%;background:linear-gradient(180deg,#38bdf8,#0ea5e9);border-radius:4px 4px 0 0;height:70%;"></div>
+            <div style="font-size:0.55rem;color:var(--text3);">S5</div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;">
+            <div style="width:100%;background:linear-gradient(180deg,#38bdf8,#0ea5e9);border-radius:4px 4px 0 0;height:90%;"></div>
+            <div style="font-size:0.55rem;color:var(--text3);">S6</div>
+          </div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;">
+            <div style="width:100%;background:linear-gradient(180deg,#a78bfa,#8b5cf6);border-radius:4px 4px 0 0;height:100%;"></div>
+            <div style="font-size:0.55rem;color:var(--text3);">S7</div>
+          </div>
+        </div>
+        <div style="margin-top:0.75rem;font-size:0.75rem;color:var(--text3);">Graphique LineChart Recharts — données réelles en temps réel</div>
+      </div>
+
+      <!-- Donut chart -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.5rem;">
+        <div style="font-weight:700;color:#38bdf8;margin-bottom:1rem;font-size:0.92rem;">🍩 Top Articles les plus vendus</div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:2rem;height:140px;">
+          <div style="position:relative;width:120px;height:120px;">
+            <svg viewBox="0 0 36 36" width="120" height="120">
+              <path d="M18 2 a16 16 0 0 1 0 32 a16 16 0 0 1 0-32" fill="none" stroke="#0f172a" stroke-width="4"/>
+              <path d="M18 2 a16 16 0 0 1 0 32 a16 16 0 0 1 0-32" fill="none" stroke="#0088FE" stroke-width="4" stroke-dasharray="35 65"/>
+              <path d="M18 2 a16 16 0 0 1 0 32 a16 16 0 0 1 0-32" fill="none" stroke="#00C49F" stroke-width="4" stroke-dasharray="25 75" stroke-dashoffset="-35"/>
+              <path d="M18 2 a16 16 0 0 1 0 32 a16 16 0 0 1 0-32" fill="none" stroke="#FFBB28" stroke-width="4" stroke-dasharray="20 80" stroke-dashoffset="-60"/>
+              <path d="M18 2 a16 16 0 0 1 0 32 a16 16 0 0 1 0-32" fill="none" stroke="#FF8042" stroke-width="4" stroke-dasharray="20 80" stroke-dashoffset="-80"/>
+              <text x="18" y="20" text-anchor="middle" font-size="4" fill="#94a3b8" font-family="Inter">Top 5</text>
+            </svg>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:0.4rem;">
+            <div style="display:flex;align-items:center;gap:0.5rem;"><div style="width:10px;height:10px;border-radius:2px;background:#0088FE;"></div><div style="font-size:0.72rem;color:var(--text2);">Article A · 35%</div></div>
+            <div style="display:flex;align-items:center;gap:0.5rem;"><div style="width:10px;height:10px;border-radius:2px;background:#00C49F;"></div><div style="font-size:0.72rem;color:var(--text2);">Article B · 25%</div></div>
+            <div style="display:flex;align-items:center;gap:0.5rem;"><div style="width:10px;height:10px;border-radius:2px;background:#FFBB28;"></div><div style="font-size:0.72rem;color:var(--text2);">Article C · 20%</div></div>
+            <div style="display:flex;align-items:center;gap:0.5rem;"><div style="width:10px;height:10px;border-radius:2px;background:#FF8042;"></div><div style="font-size:0.72rem;color:var(--text2);">Article D · 20%</div></div>
+          </div>
+        </div>
+        <div style="margin-top:0.5rem;font-size:0.75rem;color:var(--text3);">Graphique PieChart Recharts — données dynamiques exercice actif</div>
+      </div>
+    </div>
+
+    <!-- Bottom tables -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-top:1.5rem;">
+      <!-- Top Articles Detail -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.5rem;">
+        <div style="font-weight:700;color:var(--text);margin-bottom:1rem;font-size:0.92rem;">📦 Produits les plus consommés</div>
+        <table class="dtable" style="border-radius:8px;overflow:hidden;">
+          <thead><tr><th>Produit</th><th style="text-align:center">Qté</th><th style="text-align:right">CA</th></tr></thead>
+          <tbody>
+            <tr><td class="hl">Filtre huile X</td><td style="text-align:center"><span class="badge bg">142</span></td><td style="text-align:right">320 000 FCFA</td></tr>
+            <tr><td class="hl">Courroie dist.</td><td style="text-align:center"><span class="badge bg">98</span></td><td style="text-align:right">245 000 FCFA</td></tr>
+            <tr><td class="hl">Huile moteur</td><td style="text-align:center"><span class="badge bg">87</span></td><td style="text-align:right">174 000 FCFA</td></tr>
+          </tbody>
+        </table>
+        <div style="font-size:0.72rem;color:var(--text3);margin-top:0.75rem;">Paginé 6/page · données exercice actif</div>
+      </div>
+
+      <!-- Unpaid Sales -->
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.5rem;">
+        <div style="font-weight:700;color:var(--text);margin-bottom:1rem;font-size:0.92rem;">💳 Ventes non réglées &amp; Meilleurs clients</div>
+        <table class="dtable" style="border-radius:8px;overflow:hidden;">
+          <thead><tr><th>Client</th><th style="text-align:center">Cmds</th><th style="text-align:right">Reste dû</th></tr></thead>
+          <tbody>
+            <tr><td class="hl">SOGEA-SATOM</td><td style="text-align:center">12</td><td style="text-align:right;color:#f87171;font-weight:700;">85 000 FCFA</td></tr>
+            <tr><td class="hl">SEGUR SA</td><td style="text-align:center">7</td><td style="text-align:right;color:#f87171;font-weight:700;">45 000 FCFA</td></tr>
+            <tr><td class="hl">Minas de Bolsa</td><td style="text-align:center">5</td><td style="text-align:right;color:#f87171;font-weight:700;">22 000 FCFA</td></tr>
+          </tbody>
+        </table>
+        <div style="display:flex;gap:0.5rem;margin-top:0.75rem;flex-wrap:wrap;">
+          <span class="badge bg">✓ Export Excel créances</span>
+          <span class="badge bb">Paginé 5/page</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Features list -->
+    <div class="card-grid" style="margin-top:1.75rem;">
+      <div class="card t-blue"><div class="card-icon">🌟</div><div class="card-title">Écran de bienvenue</div><div class="card-body">Animation de bienvenue avec logo et nom de l'utilisateur lors de la première connexion de la session. Fermeture automatique après 10 secondes.</div></div>
+      <div class="card t-blue"><div class="card-icon">🔔</div><div class="card-title">Alerte exercice fiscal</div><div class="card-body">Bannière d'avertissement si aucun exercice fiscal n'est actif. Bouton direct vers l'ouverture d'exercice. Bloque les saisies.</div></div>
+      <div class="card t-blue"><div class="card-icon">💊</div><div class="card-title">Indicateur de santé</div><div class="card-body">Statut en temps réel de la connexion serveur : 🟢 Stable · 🟡 Ralenti · 🔴 Indisponible. Affiché en permanence.</div></div>
+      <div class="card t-blue"><div class="card-icon">🔄</div><div class="card-title">Actualisation manuelle</div><div class="card-body">Bouton "Actualiser" pour recharger toutes les statistiques depuis la base de données sans recharger la page.</div></div>
+    </div>
+
+    <div style="margin-top:1.5rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
+      <span class="badge br">🚫 Non accessible aux Vendeurs (redirigé vers Ventes)</span>
+      <span class="badge bp">📅 Filtré par exercice fiscal actif</span>
+      <span class="badge bg">✓ Export Excel articles critiques</span>
+    </div>
+
+    <div class="stats-strip">
+      <div class="stat-item"><span class="stat-value">4</span><span class="stat-label">KPIs en temps réel</span></div>
+      <div class="stat-item"><span class="stat-value">2</span><span class="stat-label">Graphiques Recharts</span></div>
+      <div class="stat-item"><span class="stat-value">30j</span><span class="stat-label">Historique ventes</span></div>
+      <div class="stat-item"><span class="stat-value">Top5</span><span class="stat-label">Articles &amp; Clients</span></div>
+    </div>
+  </section>
+
+  <!-- ===== MODULE 01 : ARTICLES ===== -->
+  <div class="divider"></div>
+  <section class="section fade-in t-blue" id="articles">
+    <div class="section-header">
+      <div class="section-icon-box">📦</div>
+      <div class="section-meta">
+        <div class="section-num">Module 01 · Stock</div>
+        <h2 class="section-title">Articles</h2>
+        <p class="section-desc">Référentiel central de tous les produits en stock. Gestion des codes, prix, seuils d'alerte et prédiction de rupture basée sur l'historique des ventes.</p>
+      </div>
+    </div>
+    <div class="card-grid">
+      <div class="card t-blue"><div class="card-icon">🔍</div><div class="card-title">Recherche en temps réel</div><div class="card-body">Recherche debounced (400ms) par code article, nom ou code-barres. Pagination serveur 50 articles/page.</div></div>
+      <div class="card t-blue"><div class="card-icon">⚠️</div><div class="card-title">Alerte stock critique</div><div class="card-body">Mise en évidence visuelle des articles dont le stock actuel est ≤ au seuil d'alerte. Badge rouge dans la sidebar.</div></div>
+      <div class="card t-blue"><div class="card-icon">📈</div><div class="card-title">Prédiction de rupture</div><div class="card-body">Calcul automatique du nombre de jours restants avant rupture (basé sur les ventes des 30 derniers jours).</div></div>
+      <div class="card t-blue"><div class="card-icon">📥</div><div class="card-title">Import Excel</div><div class="card-body">Import en masse via Excel (colonnes : Nom, Code, Prix, Stock, Seuil). Nettoyage automatique des données mal formatées.</div></div>
+    </div>
+    <div style="margin-top:1.75rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
+      <span class="badge bg">✓ Export Excel</span>
+      <span class="badge bg">✓ Impression PDF</span>
+      <span class="badge bg">✓ Import Excel</span>
+      <span class="badge bp">🔒 Permission : stock.edit</span>
+    </div>
+    <div class="stats-strip">
+      <div class="stat-item"><span class="stat-value">50</span><span class="stat-label">Articles / page</span></div>
+      <div class="stat-item"><span class="stat-value">3</span><span class="stat-label">Champs recherche</span></div>
+      <div class="stat-item"><span class="stat-value">30j</span><span class="stat-label">Base prédiction</span></div>
+      <div class="stat-item"><span class="stat-value">0</span><span class="stat-label">Valeur min. stock</span></div>
+    </div>
+  </section>
+
+  <!-- ===== MODULE 02 : MOUVEMENTS ===== -->
+  <div class="divider"></div>
+  <section class="section fade-in t-green" id="mouvements">
+    <div class="section-header">
+      <div class="section-icon-box">↔️</div>
+      <div class="section-meta">
+        <div class="section-num">Module 02 · Stock</div>
+        <h2 class="section-title">Mouvements de Stock</h2>
+        <p class="section-desc">Enregistrement et suivi de toutes les entrées et sorties de marchandises. Chaque mouvement impacte directement l'inventaire en temps réel.</p>
+      </div>
+    </div>
+    <div class="flow">
+      <div class="flow-step"><span class="flow-icon">🔍</span><strong class="flow-label">Sélection article</strong><div class="flow-sub">Scan ou recherche</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><span class="flow-icon">📝</span><strong class="flow-label">Saisie quantité</strong><div class="flow-sub">+ Fournisseur si entrée</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><span class="flow-icon">✅</span><strong class="flow-label">Confirmation</strong><div class="flow-sub">Vérification stock</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><span class="flow-icon">📊</span><strong class="flow-label">Mise à jour inventaire</strong><div class="flow-sub">Temps réel</div></div>
+    </div>
+    <div class="feature-row">
+      <ul class="feature-list">
+        <li class="feature-item"><div class="fdot" style="background:#10b981"></div><div class="ftext"><strong>Entrées (IN)</strong> — Réapprovisionnement avec fournisseur optionnel. Vérification exercice fiscal actif obligatoire.</div></li>
+        <li class="feature-item"><div class="fdot" style="background:#10b981"></div><div class="ftext"><strong>Sorties (OUT)</strong> — Contrôle anti-dépassement : impossible de sortir plus que le stock disponible.</div></li>
+        <li class="feature-item"><div class="fdot" style="background:#10b981"></div><div class="ftext"><strong>Filtres avancés</strong> — Par article, type (IN/OUT), plage de dates. Raccourcis rapides : Aujourd'hui, 7 jours, Mois.</div></li>
+        <li class="feature-item"><div class="fdot" style="background:#10b981"></div><div class="ftext"><strong>Recherche intelligente</strong> — Autocomplete pour les articles : nom, code ou code-barres.</div></li>
+      </ul>
+      <div>
+        <table class="dtable" style="background:var(--surface);border-radius:12px;overflow:hidden;">
+          <thead><tr><th>Champ</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td class="hl">Date</td><td>Horodatage automatique de l'opération</td></tr>
+            <tr><td class="hl">Type</td><td>Entrée (IN) ou Sortie (OUT)</td></tr>
+            <tr><td class="hl">Article</td><td>Référence + code article</td></tr>
+            <tr><td class="hl">Fournisseur</td><td>Source (entrées seulement)</td></tr>
+            <tr><td class="hl">Quantité</td><td>Affichée avec signe + ou −</td></tr>
+            <tr><td class="hl">Notes</td><td>Commentaire libre</td></tr>
+          </tbody>
+        </table>
+        <div style="margin-top:0.75rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
+          <span class="badge bg">✓ Export Excel</span>
+          <span class="badge bg">✓ PDF</span>
+          <span class="badge br">✗ Observateur</span>
+        </div>
+      </div>
+    </div>
+    <div class="stats-strip">
+      <div class="stat-item"><span class="stat-value">2</span><span class="stat-label">Types de mouvement</span></div>
+      <div class="stat-item"><span class="stat-value">10/pg</span><span class="stat-label">Pagination</span></div>
+      <div class="stat-item"><span class="stat-value">100%</span><span class="stat-label">Traçabilité</span></div>
+    </div>
+  </section>
+
+  <!-- ===== MODULE 03 : TRANSFERTS ===== -->
+  <div class="divider"></div>
+  <section class="section fade-in t-teal" id="transferts">
+    <div class="section-header">
+      <div class="section-icon-box">🔄</div>
+      <div class="section-meta">
+        <div class="section-num">Module 03 · Stock</div>
+        <h2 class="section-title">Transferts Inter-Magasins</h2>
+        <p class="section-desc">Déplacement de marchandises d'un magasin physique à un autre. Gestion complète du cycle de transfert avec validation de réception.</p>
+      </div>
+    </div>
+    <div class="card-grid">
+      <div class="card t-teal"><div class="card-icon">📤</div><div class="card-title">Transfert Sortant</div><div class="card-body">Initiation d'un transfert depuis le magasin source. Décrémente le stock source immédiatement.</div></div>
+      <div class="card t-teal"><div class="card-icon">📥</div><div class="card-title">Réception</div><div class="card-body">Confirmation de réception par le magasin destinataire. Incrémente le stock destination.</div></div>
+      <div class="card t-teal"><div class="card-icon">⏳</div><div class="card-title">Statut En Transit</div><div class="card-body">Le stock transféré est en "transit" jusqu'à validation. Visible dans l'historique des deux magasins.</div></div>
+      <div class="card t-teal"><div class="card-icon">📜</div><div class="card-title">Historique Complet</div><div class="card-body">Journal complet des transferts avec date, magasins source/destination, articles et quantités.</div></div>
+    </div>
+    <div class="stats-strip">
+      <div class="stat-item"><span class="stat-value">3</span><span class="stat-label">Statuts (En attente, Transit, Reçu)</span></div>
+      <div class="stat-item"><span class="stat-value">0</span><span class="stat-label">Perte de stock</span></div>
+      <div class="stat-item"><span class="stat-value">100%</span><span class="stat-label">Traçabilité</span></div>
+    </div>
+  </section>
+
+  <!-- ===== MODULE 04 : FOURNISSEURS ===== -->
+  <div class="divider"></div>
+  <section class="section fade-in t-orange" id="fournisseurs">
+    <div class="section-header">
+      <div class="section-icon-box">🚚</div>
+      <div class="section-meta">
+        <div class="section-num">Module 04 · Achats</div>
+        <h2 class="section-title">Fournisseurs</h2>
+        <p class="section-desc">Répertoire complet des fournisseurs avec toutes les informations légales et commerciales. Utilisé dans les mouvements d'entrée et les commandes.</p>
+      </div>
+    </div>
+    <div class="card-grid">
+      <div class="card t-orange"><div class="card-icon">🏢</div><div class="card-title">Fiche Fournisseur</div><div class="card-body">Nom, adresse, BP, téléphone, RCCM, NIF/IFU. Utilisé pour auto-remplir les en-têtes de documents.</div></div>
+      <div class="card t-orange"><div class="card-icon">🔗</div><div class="card-title">Liaison Achats</div><div class="card-body">Associé aux entrées de stock (mouvements IN) et aux commandes spéciales. Référence légale pour les BL/BC.</div></div>
+      <div class="card t-orange"><div class="card-icon">📋</div><div class="card-title">Code Client Interne</div><div class="card-body">Champ "Mon code client" chez le fournisseur, pré-rempli automatiquement à l'impression des documents.</div></div>
+      <div class="card t-orange"><div class="card-icon">🔍</div><div class="card-title">Recherche &amp; Export</div><div class="card-body">Recherche rapide dans le répertoire. Export Excel du listing complet des fournisseurs.</div></div>
+    </div>
+    <div class="stats-strip">
+      <div class="stat-item"><span class="stat-value">7+</span><span class="stat-label">Champs d'info</span></div>
+      <div class="stat-item"><span class="stat-value">Auto</span><span class="stat-label">Remplissage docs</span></div>
+      <div class="stat-item"><span class="stat-value">xlsx</span><span class="stat-label">Export format</span></div>
+    </div>
+  </section>
+
+  <!-- ===== MODULE 05 : COMMANDES SPÉCIALES ===== -->
+  <div class="divider"></div>
+  <section class="section fade-in t-amber" id="commandes-speciales">
+    <div class="section-header">
+      <div class="section-icon-box">⚡</div>
+      <div class="section-meta">
+        <div class="section-num">Module 05 · Achats</div>
+        <h2 class="section-title">Commandes Spéciales</h2>
+        <p class="section-desc">Gestion des commandes hors-catalogue passées auprès de fournisseurs externes, avec suivi de livraison partielle, impression BC personnalisée et traçabilité complète.</p>
+      </div>
+    </div>
+    <div class="flow">
+      <div class="flow-step"><span class="flow-icon">🏗️</span><strong class="flow-label">Création BC</strong><div class="flow-sub">Client + Fournisseur</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><span class="flow-icon">🖨️</span><strong class="flow-label">Impression BC</strong><div class="flow-sub">N° auto</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><span class="flow-icon">🚚</span><strong class="flow-label">Livraisons partielles</strong><div class="flow-sub">Par article</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><span class="flow-icon">📄</span><strong class="flow-label">BL par livraison</strong></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><span class="flow-icon">✅</span><strong class="flow-label">Clôture</strong></div>
+    </div>
+    <div class="feature-row">
+      <ul class="feature-list">
+        <li class="feature-item"><div class="fdot" style="background:#f59e0b"></div><div class="ftext"><strong>BC personnalisé</strong> — Titre, section, TVA (paramétrable), exonération, superviseur, notes, coordonnées.</div></li>
+        <li class="feature-item"><div class="fdot" style="background:#f59e0b"></div><div class="ftext"><strong>Livraisons partielles</strong> — Saisie progressive par article, sans jamais dépasser la quantité commandée.</div></li>
+        <li class="feature-item"><div class="fdot" style="background:#f59e0b"></div><div class="ftext"><strong>Numérotation auto</strong> — Format configurable : <code style="color:#fbbf24">{ID}-{DATE}-{CLIENT}</code>. Sauvegardé en base.</div></li>
+        <li class="feature-item"><div class="fdot" style="background:#f59e0b"></div><div class="ftext"><strong>Module isolé</strong> — Bénéfice enregistré séparément, <strong>pas d'impact</strong> sur l'inventaire principal.</div></li>
+      </ul>
+      <div>
+        <table class="dtable" style="background:var(--surface);border-radius:12px;overflow:hidden;">
+          <thead><tr><th>Statut</th><th>Signification</th></tr></thead>
+          <tbody>
+            <tr><td class="hl">En attente</td><td>Commande créée, pas encore livrée</td></tr>
+            <tr><td class="hl">Partiellement livré</td><td>Au moins 1 livraison enregistrée</td></tr>
+            <tr><td class="hl">Livré &amp; Clôturé</td><td>Tout livré, bénéfice comptabilisé</td></tr>
+            <tr><td class="hl">Annulé</td><td>Commande annulée par l'utilisateur</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="stats-strip">
+      <div class="stat-item"><span class="stat-value">4</span><span class="stat-label">Statuts</span></div>
+      <div class="stat-item"><span class="stat-value">∞</span><span class="stat-label">Livraisons partielles</span></div>
+      <div class="stat-item"><span class="stat-value">18%</span><span class="stat-label">TVA par défaut</span></div>
+    </div>
+  </section>
+
+  <!-- ===== MODULE 06 : CONTRAT PASSERELLE ===== -->
+  <div class="divider"></div>
+  <section class="section fade-in t-purple" id="contrat-passerelle">
+    <div class="section-header">
+      <div class="section-icon-box">🌐</div>
+      <div class="section-meta">
+        <div class="section-num">Module 06 · Achats</div>
+        <h2 class="section-title">Achats et Bon de Commande &amp; Rapports</h2>
+        <p class="section-desc">Gestion complète des dossiers d'achat contractuels auprès de partenaires (ex : CFAO), avec catalogue, livraisons BL et rapports analytiques multi-dimensions.</p>
+      </div>
+    </div>
+    <div class="card-grid">
+      <div class="card t-purple"><div class="card-icon">🗂️</div><div class="card-title">Dossiers</div><div class="card-body">Gestion de dossiers par partenaire/client. Statuts : En demande → En cours → Clôturé. Alerte vocale retards.</div></div>
+      <div class="card t-purple"><div class="card-icon">📚</div><div class="card-title">Catalogue</div><div class="card-body">Articles négociés avec prix contractuels. Import Excel. Filtres par partenaire et client.</div></div>
+      <div class="card t-purple"><div class="card-icon">🚛</div><div class="card-title">Livraisons (BL)</div><div class="card-body">Livraisons partielles par dossier. Historique complet. Impression BL avec en-tête partenaire.</div></div>
+      <div class="card t-purple"><div class="card-icon">📊</div><div class="card-title">Rapports</div><div class="card-body">Dashboard KPIs, bilan consommation, rapport produits (rotation 2/3/6/12 mois), rapport achats par mine.</div></div>
+    </div>
+    <div style="margin-top:1.75rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1rem;">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem;border-left:4px solid #8b5cf6;">
+        <div style="font-weight:700;color:#a78bfa;margin-bottom:0.65rem;font-size:0.88rem;">📈 Dashboard</div>
+        <ul style="list-style:none;display:flex;flex-direction:column;gap:0.3rem;">
+          <li style="font-size:0.77rem;color:var(--text2);">• Dossiers en cours / clôturés</li>
+          <li style="font-size:0.77rem;color:var(--text2);">• Graphiques évolution mensuelle</li>
+          <li style="font-size:0.77rem;color:var(--text2);">• Répartition par partenaire</li>
+          <li style="font-size:0.77rem;color:var(--text2);">• Bilan HT/TVA/TTC</li>
+        </ul>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem;border-left:4px solid #6366f1;">
+        <div style="font-weight:700;color:#a5b4fc;margin-bottom:0.65rem;font-size:0.88rem;">📦 Consommation Produits</div>
+        <ul style="list-style:none;display:flex;flex-direction:column;gap:0.3rem;">
+          <li style="font-size:0.77rem;color:var(--text2);">• Qté consommée totale</li>
+          <li style="font-size:0.77rem;color:var(--text2);">• Données sur 2/3/6/12 mois</li>
+          <li style="font-size:0.77rem;color:var(--text2);">• Taux de rotation</li>
+          <li style="font-size:0.77rem;color:var(--text2);">• Export Excel détaillé</li>
+        </ul>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem;border-left:4px solid #4f46e5;">
+        <div style="font-weight:700;color:#818cf8;margin-bottom:0.65rem;font-size:0.88rem;">💰 Rapport Financier</div>
+        <ul style="list-style:none;display:flex;flex-direction:column;gap:0.3rem;">
+          <li style="font-size:0.77rem;color:var(--text2);">• Par mine et partenaire</li>
+          <li style="font-size:0.77rem;color:var(--text2);">• Qté commandée/livrée/restante</li>
+          <li style="font-size:0.77rem;color:var(--text2);">• Montants HT/TTC</li>
+          <li style="font-size:0.77rem;color:var(--text2);">• Filtre par statut dossier</li>
+        </ul>
+      </div>
+    </div>
+    <div style="margin-top:1.25rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
+      <span class="badge bp">🎙️ Alerte vocale retards</span>
+      <span class="badge bp">📅 Vue calendrier</span>
+      <span class="badge bp">⚡ Badge urgent clignotant</span>
+      <span class="badge bg">✓ Export xlsx</span>
+    </div>
+    <div class="stats-strip">
+      <div class="stat-item"><span class="stat-value">4</span><span class="stat-label">Statuts dossier</span></div>
+      <div class="stat-item"><span class="stat-value">3</span><span class="stat-label">Onglets rapports</span></div>
+      <div class="stat-item"><span class="stat-value">12</span><span class="stat-label">Mois historique</span></div>
+    </div>
+  </section>
+
+  <!-- ===== MODULE 07 : CENTRALISATION BL & BC ===== -->
+  <div class="divider"></div>
+  <section class="section fade-in t-sky" id="centralisation-bl-bc">
+    <div class="section-header">
+      <div class="section-icon-box">📋</div>
+      <div class="section-meta">
+        <div class="section-num">Module 07 · Achats</div>
+        <h2 class="section-title">Centralisation BL &amp; BC</h2>
+        <p class="section-desc">Vue unifiée de <strong>tous</strong> les Bons de Commande et Bons de Livraison, toutes sources confondues, avec suivi des scans signés.</p>
+      </div>
+    </div>
+    <div class="card-grid">
+      <div class="card t-sky"><div class="card-icon">📄</div><div class="card-title">BC Centralisés</div><div class="card-body">Tous les BC : Passerelle + Commandes Spéciales. Filtrage par partenaire, date, statut.</div></div>
+      <div class="card t-sky"><div class="card-icon">🚚</div><div class="card-title">BL Centralisés</div><div class="card-body">Tous les BL : Passerelle + Décharges Libres. Vue des quantités et articles livrés.</div></div>
+      <div class="card t-sky"><div class="card-icon">✅</div><div class="card-title">Suivi Scans Signés</div><div class="card-body">Statut "Signé" ou "Manquant" par document. Upload PDF/image depuis la liste. Taux de signature global.</div></div>
+      <div class="card t-sky"><div class="card-icon">📎</div><div class="card-title">Upload Pièces Jointes</div><div class="card-body">Association d'un scan signé à tout BL ou BC. Visualisation et téléchargement direct. Max 5 Mo.</div></div>
+    </div>
+    <div class="stats-strip">
+      <div class="stat-item"><span class="stat-value">3</span><span class="stat-label">Sources fusionnées</span></div>
+      <div class="stat-item"><span class="stat-value">BC+BL</span><span class="stat-label">Types documents</span></div>
+      <div class="stat-item"><span class="stat-value">5Mo</span><span class="stat-label">Max pièce jointe</span></div>
+    </div>
+  </section>
+
+  <!-- ===== MODULE 08 : DÉCHARGE GROUPÉE ===== -->
+  <div class="divider"></div>
+  <section class="section fade-in t-green" id="decharge-groupe">
+    <div class="section-header">
+      <div class="section-icon-box">📄</div>
+      <div class="section-meta">
+        <div class="section-num">Module 08 · Achats</div>
+        <h2 class="section-title">Bordereau de Livraison</h2>
+        <p class="section-desc">Création de Bons de Livraison libres (BEG) sans lien à une commande existante. Personnalisation complète : colonnes, sections, dates, superviseurs.</p>
+      </div>
+    </div>
+    <div class="feature-row">
+      <ul class="feature-list">
+        <li class="feature-item"><div class="fdot" style="background:#10b981"></div><div class="ftext"><strong>Bordereau de livraison libre (BEG)</strong> — Sans rattachement à aucun dossier. Format <code style="color:#34d399">BEG-XXX-JJMM-AAAA</code>.</div></li>
+        <li class="feature-item"><div class="fdot" style="background:#10b981"></div><div class="ftext"><strong>Personnalisation impression</strong> — Titres des colonnes, section, ville, date, superviseur, expéditeur/destinataire.</div></li>
+        <li class="feature-item"><div class="fdot" style="background:#10b981"></div><div class="ftext"><strong>Colonnes masquables</strong> — N°, Site, Description, Code, Réf, Quantité → chacune visible ou cachée à l'impression.</div></li>
+        <li class="feature-item"><div class="fdot" style="background:#10b981"></div><div class="ftext"><strong>Annulation logique</strong> — Statut "annulé" vs suppression physique. Décharge annulée reste dans l'historique.</div></li>
+      </ul>
+      <div>
+        <div class="role-grid">
+          <div class="rh rc an">Action</div><div class="rh rc">Admin</div><div class="rh rc">Gest.1</div><div class="rh rc">Gest.2</div><div class="rh rc">Vendeur</div>
+          <div class="rc an">Créer</div><div class="rc"><span class="ck">✓</span></div><div class="rc"><span class="ck">✓</span></div><div class="rc"><span class="ck">✓</span></div><div class="rc"><span class="cx">✗</span></div>
+          <div class="rc an">Modifier</div><div class="rc"><span class="ck">✓</span></div><div class="rc"><span class="ck">✓</span></div><div class="rc"><span class="cx">✗</span></div><div class="rc"><span class="cx">✗</span></div>
+          <div class="rc an">Annuler</div><div class="rc"><span class="ck">✓</span></div><div class="rc"><span class="ck">✓</span></div><div class="rc"><span class="cx">✗</span></div><div class="rc"><span class="cx">✗</span></div>
+          <div class="rc an">Supprimer</div><div class="rc"><span class="ck">✓</span></div><div class="rc"><span class="ck">✓</span></div><div class="rc"><span class="cx">✗</span></div><div class="rc"><span class="cx">✗</span></div>
+          <div class="rc an">Pièce jointe</div><div class="rc"><span class="ck">✓</span></div><div class="rc"><span class="ck">✓</span></div><div class="rc"><span class="ck">✓</span></div><div class="rc"><span class="cx">✗</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="stats-strip">
+      <div class="stat-item"><span class="stat-value">BEG</span><span class="stat-label">Préfixe unique</span></div>
+      <div class="stat-item"><span class="stat-value">2</span><span class="stat-label">Statuts</span></div>
+      <div class="stat-item"><span class="stat-value">0</span><span class="stat-label">Impact inventaire</span></div>
+    </div>
+  </section>
+
+  <!-- ===== MODULE 09 : VENTES ===== -->
+  <div class="divider"></div>
+  <section class="section fade-in t-pink" id="ventes">
+    <div class="section-header">
+      <div class="section-icon-box">🛒</div>
+      <div class="section-meta">
+        <div class="section-num">Module 09 · Finances</div>
+        <h2 class="section-title">Ventes</h2>
+        <p class="section-desc">Enregistrement des ventes au comptoir avec déstockage automatique, gestion des proformas, remises, TVA, paiements partiels et statuts de règlement.</p>
+      </div>
+    </div>
+    <div class="flow">
+      <div class="flow-step"><span class="flow-icon">👤</span><strong class="flow-label">Sélection client</strong></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><span class="flow-icon">📦</span><strong class="flow-label">Ajout articles</strong><div class="flow-sub">Déstockage auto</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><span class="flow-icon">💰</span><strong class="flow-label">Remise + TVA</strong><div class="flow-sub">Prix protégé vendeur</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><span class="flow-icon">💳</span><strong class="flow-label">Paiement</strong><div class="flow-sub">Comptant ou partiel</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step"><span class="flow-icon">🧾</span><strong class="flow-label">Reçu</strong></div>
+    </div>
+    <div class="card-grid">
+      <div class="card t-pink"><div class="card-icon">🛡️</div><div class="card-title">Prix Protégés</div><div class="card-body">Les vendeurs ne voient jamais les prix réels (affichés ***). Le serveur calcule lui-même le total, protégeant les marges.</div></div>
+      <div class="card t-pink"><div class="card-icon">📝</div><div class="card-title">Proformas</div><div class="card-body">Création de proformas sans déstockage. Réservé aux Admin/Gestionnaires. Convertible en vente réelle.</div></div>
+      <div class="card t-pink"><div class="card-icon">💳</div><div class="card-title">Paiements Partiels</div><div class="card-body">Statuts : Payé / Partiel / En attente. Suivi des créances clients. Module Règlements dédié.</div></div>
+      <div class="card t-pink"><div class="card-icon">🗂️</div><div class="card-title">Articles Hors-Catalogue</div><div class="card-body">Saisie d'articles non référencés réservée aux Admin/Gestionnaires uniquement.</div></div>
+    </div>
+    <div style="margin-top:1.5rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
+      <span class="badge bg">✓ Déstockage automatique</span>
+      <span class="badge bg">✓ Impression reçu</span>
+      <span class="badge ba">📅 Exercice fiscal requis</span>
+      <span class="badge br">🚫 Vendeur ne voit pas les prix</span>
+    </div>
+    <div class="stats-strip">
+      <div class="stat-item"><span class="stat-value">3</span><span class="stat-label">Statuts paiement</span></div>
+      <div class="stat-item"><span class="stat-value">18%</span><span class="stat-label">TVA par défaut</span></div>
+      <div class="stat-item"><span class="stat-value">5</span><span class="stat-label">Rôles supportés</span></div>
+    </div>
+  </section>
+
+  <!-- ===== MODULE 10 : PERFORMANCE VENDEUR ===== -->
+  <div class="divider"></div>
+  <section class="section fade-in t-red" id="performance-vendeur">
+    <div class="section-header">
+      <div class="section-icon-box">📊</div>
+      <div class="section-meta">
+        <div class="section-num">Module 10 · Finances</div>
+        <h2 class="section-title">Performances Vendeurs</h2>
+        <p class="section-desc">Analyse comparative des ventes par collaborateur. Classement, graphiques d'évolution CA, comparaison, filtres temporels et export.</p>
+      </div>
+    </div>
+    <div class="card-grid">
+      <div class="card t-red"><div class="card-icon">🏆</div><div class="card-title">Classement</div><div class="card-body">Tableau trié par CA, ventes ou produits vendus. Tri interactif sur chaque colonne. Meilleur vendeur mis en avant.</div></div>
+      <div class="card t-red"><div class="card-icon">📈</div><div class="card-title">Évolution CA</div><div class="card-body">Graphique barres par vendeur en vue Jour / Semaine / Mois / Année. Comparaison multi-vendeurs.</div></div>
+      <div class="card t-red"><div class="card-icon">📅</div><div class="card-title">Filtres Temporels</div><div class="card-body">Aujourd'hui · Semaine · Mois · Année · Tout · Période personnalisée avec dates de début/fin.</div></div>
+      <div class="card t-red"><div class="card-icon">📤</div><div class="card-title">Export</div><div class="card-body">Export Excel avec titre et période. Impression PDF (filtres masqués à l'impression).</div></div>
+    </div>
+    <div class="stats-strip">
+      <div class="stat-item"><span class="stat-value">6</span><span class="stat-label">Périodes de filtrage</span></div>
+      <div class="stat-item"><span class="stat-value">Top5</span><span class="stat-label">Graphique comparaison</span></div>
+      <div class="stat-item"><span class="stat-value">FCFA</span><span class="stat-label">Devise</span></div>
+    </div>
+  </section>
+
+  <!-- ===== MODULE 11 : INTELLIGENCE ===== -->
+  <div class="divider"></div>
+  <section class="section fade-in t-violet" id="intelligence">
+    <div class="section-header">
+      <div class="section-icon-box">🧠</div>
+      <div class="section-meta">
+        <div class="section-num">Module 11 · Finances</div>
+        <h2 class="section-title">Intelligence</h2>
+        <p class="section-desc">Module d'analyse avancée et de business intelligence. Tableaux de bord KPI, tendances, prédictions et insights automatisés pour la prise de décision.</p>
+      </div>
+    </div>
+    <div class="card-grid">
+      <div class="card t-violet"><div class="card-icon">📉</div><div class="card-title">Analyse Tendances</div><div class="card-body">Évolution des ventes dans le temps. Identification des articles les plus et moins vendus par période.</div></div>
+      <div class="card t-violet"><div class="card-icon">🔮</div><div class="card-title">Prédictions</div><div class="card-body">Anticipation des ruptures de stock. Calcul des besoins de réapprovisionnement basé sur la vitesse de vente.</div></div>
+      <div class="card t-violet"><div class="card-icon">💡</div><div class="card-title">Insights Automatisés</div><div class="card-body">Alertes intelligentes sur les anomalies de stock, les articles à rotation lente et les performances atypiques.</div></div>
+      <div class="card t-violet"><div class="card-icon">📊</div><div class="card-title">Tableaux de Bord</div><div class="card-body">KPIs consolidés : CA, marge, rotation, taux de rupture. Vue synthétique pour les décideurs.</div></div>
+    </div>
+    <div style="margin-top:1.5rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
+      <span class="badge bp">🔒 Réservé : Admin / Gestionnaire</span>
+      <span class="badge bp">📅 Filtré par exercice fiscal</span>
+    </div>
+  </section>
+
+  <!-- ===== MODULE 12 : CLIENTS ===== -->
+  <div class="divider"></div>
+  <section class="section fade-in t-emerald" id="clients">
+    <div class="section-header">
+      <div class="section-icon-box">👥</div>
+      <div class="section-meta">
+        <div class="section-num">Module 12 · Administration</div>
+        <h2 class="section-title">Clients</h2>
+        <p class="section-desc">Répertoire complet des clients avec informations légales, coordonnées et code client. Utilisé dans les ventes, contrats et impressions de documents.</p>
+      </div>
+    </div>
+    <div class="card-grid">
+      <div class="card t-emerald"><div class="card-icon">🏢</div><div class="card-title">Fiche Client</div><div class="card-body">Nom, adresse, BP, téléphone, RCCM, NIF/IFU, code client interne. Auto-remplissage dans tous les documents.</div></div>
+      <div class="card t-emerald"><div class="card-icon">📊</div><div class="card-title">Historique Ventes</div><div class="card-body">Toutes les ventes associées au client, avec montants, statuts de paiement et dates.</div></div>
+      <div class="card t-emerald"><div class="card-icon">💰</div><div class="card-title">Suivi Créances</div><div class="card-body">Vue des paiements en attente et partiels par client. Lien direct vers le module Règlements.</div></div>
+      <div class="card t-emerald"><div class="card-icon">🔍</div><div class="card-title">Recherche</div><div class="card-body">Recherche rapide par nom, code ou téléphone. Export Excel de la liste complète.</div></div>
+    </div>
+    <div class="stats-strip">
+      <div class="stat-item"><span class="stat-value">8+</span><span class="stat-label">Champs d'info</span></div>
+      <div class="stat-item"><span class="stat-value">Auto</span><span class="stat-label">Remplissage BL/BC</span></div>
+    </div>
+  </section>
+
+  <!-- ===== MODULE 13 : MAGASINS ===== -->
+  <div class="divider"></div>
+  <section class="section fade-in t-cyan" id="magasins">
+    <div class="section-header">
+      <div class="section-icon-box">🏪</div>
+      <div class="section-meta">
+        <div class="section-num">Module 13 · Administration</div>
+        <h2 class="section-title">Magasins</h2>
+        <p class="section-desc">Gestion multi-sites. Chaque magasin a son propre inventaire isolé. Sélecteur de magasin global dans la barre supérieure pour les Admin/Gestionnaires.</p>
+      </div>
+    </div>
+    <div class="card-grid">
+      <div class="card t-cyan"><div class="card-icon">🏪</div><div class="card-title">Multi-Magasins</div><div class="card-body">Création de plusieurs points de vente/stock. Inventaires complètement indépendants par magasin.</div></div>
+      <div class="card t-cyan"><div class="card-icon">🔄</div><div class="card-title">Sélecteur Global</div><div class="card-body">Menu déroulant dans la top-bar pour changer de magasin. Recharge toutes les données du magasin sélectionné.</div></div>
+      <div class="card t-cyan"><div class="card-icon">👤</div><div class="card-title">Affectation Utilisateurs</div><div class="card-body">Chaque utilisateur non-admin est affecté à un magasin fixe. Il ne voit que les données de son magasin.</div></div>
+      <div class="card t-cyan"><div class="card-icon">🌐</div><div class="card-title">Vue Globale</div><div class="card-body">Option "Tous les magasins" pour les Admin. Consolidation des stocks et ventes de l'entreprise.</div></div>
+    </div>
+    <div class="stats-strip">
+      <div class="stat-item"><span class="stat-value">∞</span><span class="stat-label">Magasins possibles</span></div>
+      <div class="stat-item"><span class="stat-value">🔒</span><span class="stat-label">Isolation des données</span></div>
+      <div class="stat-item"><span class="stat-value">Admin</span><span class="stat-label">Vue consolidée</span></div>
+    </div>
+  </section>
+
+  <!-- ===== MODULE 14 : EXERCICES FISCAUX ===== -->
+  <div class="divider"></div>
+  <section class="section fade-in t-lime" id="exercices">
+    <div class="section-header">
+      <div class="section-icon-box">📅</div>
+      <div class="section-meta">
+        <div class="section-num">Module 14 · Administration</div>
+        <h2 class="section-title">Exercices Fiscaux</h2>
+        <p class="section-desc">Gestion des périodes comptables annuelles. Un exercice actif est obligatoire pour enregistrer des ventes et mouvements. La clôture archive toutes les données.</p>
+      </div>
+    </div>
+    <div class="card-grid">
+      <div class="card t-lime"><div class="card-icon">📂</div><div class="card-title">Ouverture Exercice</div><div class="card-body">Création d'un nouvel exercice fiscal (ex: 2026). Devient immédiatement l'exercice actif de l'entreprise.</div></div>
+      <div class="card t-lime"><div class="card-icon">🔒</div><div class="card-title">Clôture</div><div class="card-body">Clôture de l'exercice actif. Après clôture : aucune vente ni mouvement ne peut être enregistré.</div></div>
+      <div class="card t-lime"><div class="card-icon">📊</div><div class="card-title">Isolation des Données</div><div class="card-body">Ventes et mouvements liés à l'exercice. Après clôture, les données sont archivées et consultables dans Archives.</div></div>
+      <div class="card t-lime"><div class="card-icon">🏷️</div><div class="card-title">Affichage dans la Top-Bar</div><div class="card-body">L'exercice actif est visible en permanence dans la barre supérieure pour tous les utilisateurs.</div></div>
+    </div>
+    <div style="margin-top:1.5rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
+      <span class="badge ba">⚠️ Requis pour les ventes et mouvements</span>
+      <span class="badge br">🔒 Réservé : Admin uniquement</span>
+    </div>
+  </section>
+
+  <!-- ===== MODULE 15 : ARCHIVES ===== -->
+  <div class="divider"></div>
+  <section class="section fade-in t-slate" id="archives">
+    <div class="section-header">
+      <div class="section-icon-box">🗃️</div>
+      <div class="section-meta">
+        <div class="section-num">Module 15 · Administration</div>
+        <h2 class="section-title">Archives</h2>
+        <p class="section-desc">Consultation des données des exercices fiscaux clôturés. Les archives permettent de retrouver toutes les ventes, mouvements et rapports des années précédentes.</p>
+      </div>
+    </div>
+    <div class="card-grid">
+      <div class="card t-slate"><div class="card-icon">📁</div><div class="card-title">Données Historiques</div><div class="card-body">Accès en lecture seule à toutes les ventes, mouvements et rapports des exercices clôturés.</div></div>
+      <div class="card t-slate"><div class="card-icon">🔍</div><div class="card-title">Recherche dans les Archives</div><div class="card-body">Filtrage par exercice, période, magasin, client ou article. Navigation dans l'historique complet.</div></div>
+      <div class="card t-slate"><div class="card-icon">📊</div><div class="card-title">Bilan Annuel</div><div class="card-body">Génération du bilan de l'exercice clôturé : CA, achats, marge, stock de clôture.</div></div>
+      <div class="card t-slate"><div class="card-icon">📤</div><div class="card-title">Export</div><div class="card-body">Export Excel des données archivées pour comptabilité, audit ou rapports de direction.</div></div>
+    </div>
+    <div style="margin-top:1.5rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
+      <span class="badge bb">👁️ Lecture seule</span>
+      <span class="badge br">🔒 Réservé : Admin / Gestionnaire</span>
+    </div>
+  </section>
+
+  <!-- ===== MODULE 16 : PARAMÈTRES ===== -->
+  <div class="divider"></div>
+  <section class="section fade-in t-fuchsia" id="parametres">
+    <div class="section-header">
+      <div class="section-icon-box">⚙️</div>
+      <div class="section-meta">
+        <div class="section-num">Module 16 · Administration</div>
+        <h2 class="section-title">Paramètres</h2>
+        <p class="section-desc">Configuration globale de l'application : identité de l'entreprise, règles fiscales, formats de numérotation des documents, logo et préférences d'affichage.</p>
+      </div>
+    </div>
+    <div class="card-grid">
+      <div class="card t-fuchsia"><div class="card-icon">🏢</div><div class="card-title">Identité Entreprise</div><div class="card-body">Nom, adresse, BP, téléphone, RCCM, NIF/IFU, logo. Pré-rempli sur tous les documents imprimés.</div></div>
+      <div class="card t-fuchsia"><div class="card-icon">💰</div><div class="card-title">Règles Fiscales</div><div class="card-body">Taux TVA global, option arrondi des montants, système d'imposition. Appliqués à toutes les ventes.</div></div>
+      <div class="card t-fuchsia"><div class="card-icon">🔢</div><div class="card-title">Formats de Numérotation</div><div class="card-body">Format des numéros BL et BC : configurable avec variables {ID}, {DATE}, {CLIENT}, {YEAR}.</div></div>
+      <div class="card t-fuchsia"><div class="card-icon">👤</div><div class="card-title">Superviseurs par défaut</div><div class="card-body">Nom et titre du superviseur, ville, préfixe BL. Appliqués automatiquement à l'impression si non personnalisés.</div></div>
+    </div>
+    <div class="stats-strip">
+      <div class="stat-item"><span class="stat-value">18%</span><span class="stat-label">TVA par défaut</span></div>
+      <div class="stat-item"><span class="stat-value">{ID}</span><span class="stat-label">Format numérotation</span></div>
+      <div class="stat-item"><span class="stat-value">Admin</span><span class="stat-label">Accès requis</span></div>
+    </div>
+  </section>
+
+  <!-- ===== MODULE 17 : UTILISATEURS ===== -->
+  <div class="divider"></div>
+  <section class="section fade-in t-rose" id="utilisateurs">
+    <div class="section-header">
+      <div class="section-icon-box">👤</div>
+      <div class="section-meta">
+        <div class="section-num">Module 17 · Administration</div>
+        <h2 class="section-title">Utilisateurs</h2>
+        <p class="section-desc">Gestion des comptes utilisateurs avec rôles et permissions granulaires. Chaque rôle a un accès précis aux modules et fonctionnalités du système.</p>
+      </div>
+    </div>
+    <div style="margin-top:1.5rem;overflow-x:auto;">
+      <table class="dtable" style="background:var(--surface);border-radius:12px;overflow:hidden;">
+        <thead>
+          <tr>
+            <th>Rôle</th><th>Stock</th><th>Achats</th><th>Ventes</th><th>Finances</th><th>Admin</th><th>Prix</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="hl">Admin</td><td><span class="ck">✓ Tout</span></td><td><span class="ck">✓ Tout</span></td><td><span class="ck">✓ Tout</span></td><td><span class="ck">✓ Tout</span></td><td><span class="ck">✓ Tout</span></td><td><span class="ck">✓</span></td></tr>
+          <tr><td class="hl">Gestionnaire</td><td><span class="ck">✓</span></td><td><span class="ck">✓</span></td><td><span class="ck">✓</span></td><td><span class="ck">✓</span></td><td style="color:#fbbf24">⚠ Partiel</td><td><span class="ck">✓</span></td></tr>
+          <tr><td class="hl">Gestionnaire 2</td><td><span class="cx">✗</span></td><td style="color:#fbbf24">⚠ Décharge</td><td><span class="cx">✗</span></td><td><span class="cx">✗</span></td><td><span class="cx">✗</span></td><td><span class="cx">✗</span></td></tr>
+          <tr><td class="hl">Vendeur</td><td style="color:#fbbf24">⚠ Vue</td><td><span class="cx">✗</span></td><td><span class="ck">✓ Vente</span></td><td><span class="cx">✗</span></td><td><span class="cx">✗</span></td><td><span class="cx">✗ Caché</span></td></tr>
+          <tr><td class="hl">Observateur</td><td style="color:#fbbf24">⚠ Vue</td><td style="color:#fbbf24">⚠ Vue</td><td style="color:#fbbf24">⚠ Vue</td><td style="color:#fbbf24">⚠ Vue</td><td><span class="cx">✗</span></td><td><span class="cx">✗</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card-grid" style="margin-top:1.5rem;">
+      <div class="card t-rose"><div class="card-icon">🔐</div><div class="card-title">JWT Authentification</div><div class="card-body">Tokens JWT pour chaque session. Déconnexion automatique après 30 min d'inactivité.</div></div>
+      <div class="card t-rose"><div class="card-icon">🏪</div><div class="card-title">Affectation Magasin</div><div class="card-body">Chaque utilisateur non-admin est affecté à un magasin. Isolation stricte des données.</div></div>
+      <div class="card t-rose"><div class="card-icon">🛡️</div><div class="card-title">Contrôle d'accès</div><div class="card-body">Vérification côté serveur de chaque requête API. Les permissions sont appliquées même si le frontend est contourné.</div></div>
+      <div class="card t-rose"><div class="card-icon">📝</div><div class="card-title">Gestion Profils</div><div class="card-body">Création, modification, réinitialisation du mot de passe. Désactivation sans suppression des données.</div></div>
+    </div>
+    <div class="stats-strip">
+      <div class="stat-item"><span class="stat-value">5</span><span class="stat-label">Rôles distincts</span></div>
+      <div class="stat-item"><span class="stat-value">30min</span><span class="stat-label">Timeout inactivité</span></div>
+      <div class="stat-item"><span class="stat-value">JWT</span><span class="stat-label">Authentification</span></div>
+    </div>
+  </section>
+
+  <!-- ===== MODULE 18 : JOURNAL D'ACTIVITÉS ===== -->
+  <div class="divider"></div>
+  <section class="section fade-in t-sky" id="journal">
+    <div class="section-header">
+      <div class="section-icon-box">🛡️</div>
+      <div class="section-meta">
+        <div class="section-num">Module 18 · Administration</div>
+        <h2 class="section-title">Journal d'Activité</h2>
+        <p class="section-desc">Traçabilité complète de toutes les actions effectuées dans le système. Audit trail horodaté par utilisateur, module et type d'action.</p>
+      </div>
+    </div>
+    <div class="card-grid">
+      <div class="card t-sky"><div class="card-icon">📝</div><div class="card-title">Actions Enregistrées</div><div class="card-body">Chaque création, modification, suppression, connexion, impression est enregistrée avec l'utilisateur et la date.</div></div>
+      <div class="card t-sky"><div class="card-icon">🔍</div><div class="card-title">Recherche &amp; Filtres</div><div class="card-body">Filtrage par utilisateur, type d'action, module, plage de dates. Recherche textuelle dans les détails.</div></div>
+      <div class="card t-sky"><div class="card-icon">👤</div><div class="card-title">Qui a fait quoi ?</div><div class="card-body">Chaque log contient : utilisateur, rôle, magasin, action, détails JSON, horodatage précis.</div></div>
+      <div class="card t-sky"><div class="card-icon">🏪</div><div class="card-title">Par Magasin</div><div class="card-body">Logs filtrables par magasin. Les admins voient tous les magasins, les utilisateurs voient leur propre historique.</div></div>
+    </div>
+    <div style="margin-top:1.5rem;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem;">
+      <div style="font-size:0.78rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:1rem;">Actions types enregistrées</div>
+      <div style="display:flex;gap:0.6rem;flex-wrap:wrap;">
+        <span class="badge bg">Nouvelle vente</span>
+        <span class="badge bp">Entrée de stock</span>
+        <span class="badge ba">Sortie de stock</span>
+        <span class="badge br">Suppression</span>
+        <span class="badge bb">Connexion</span>
+        <span class="badge bg">Décharge BEG</span>
+        <span class="badge bp">Impression BC/BL</span>
+        <span class="badge ba">Clôture exercice</span>
+        <span class="badge br">Annulation</span>
+        <span class="badge bb">Transfert</span>
+        <span class="badge bg">Modification</span>
+        <span class="badge bp">Création dossier</span>
+      </div>
+    </div>
+    <div style="margin-top:1rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
+      <span class="badge br">🔒 Réservé : Admin uniquement</span>
+      <span class="badge bg">✓ Immuable (lecture seule)</span>
+    </div>
+    <div class="stats-strip">
+      <div class="stat-item"><span class="stat-value">100%</span><span class="stat-label">Couverture modules</span></div>
+      <div class="stat-item"><span class="stat-value">ms</span><span class="stat-label">Précision horodatage</span></div>
+      <div class="stat-item"><span class="stat-value">JSON</span><span class="stat-label">Format détails</span></div>
+    </div>
+  </section>
+
+  <!-- ===== SYNTHÈSE ===== -->
+  <div class="divider"></div>
+  <section class="summary-section" id="synthese">
+    <div style="max-width:900px;margin:0 auto;text-align:center;">
+      <div class="hero-badge" style="justify-content:center;">✅ Synthèse Globale</div>
+      <h2 style="font-size:2.2rem;font-weight:900;margin:1rem 0;background:linear-gradient(135deg,#fff,#c7d2fe,#7dd3fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">18 Modules · 1 Écosystème Complet</h2>
+      <p style="color:var(--text2);font-size:1rem;line-height:1.7;max-width:700px;margin:0 auto;">
+        Un système intégré couvrant l'ensemble du cycle opérationnel : du stock à la vente, de l'achat à la livraison, de la comptabilité à l'audit.
+      </p>
+    </div>
+    <div class="summary-grid">
+      <div class="scard"><div class="scard-icon">📦</div><div class="scard-title">Articles</div><div class="scard-desc">Référentiel, alertes et prédictions</div></div>
+      <div class="scard"><div class="scard-icon">↔️</div><div class="scard-title">Mouvements</div><div class="scard-desc">Entrées/sorties temps réel</div></div>
+      <div class="scard"><div class="scard-icon">🔄</div><div class="scard-title">Transferts</div><div class="scard-desc">Déplacements inter-magasins</div></div>
+      <div class="scard"><div class="scard-icon">🚚</div><div class="scard-title">Fournisseurs</div><div class="scard-desc">Répertoire légal</div></div>
+      <div class="scard"><div class="scard-icon">⚡</div><div class="scard-title">Cmd. Spéciales</div><div class="scard-desc">BC hors-catalogue</div></div>
+      <div class="scard"><div class="scard-icon">🌐</div><div class="scard-title">Achats et BC</div><div class="scard-desc">Dossiers contractuels</div></div>
+      <div class="scard"><div class="scard-icon">📋</div><div class="scard-title">Centralis. BL/BC</div><div class="scard-desc">Vue unifiée documents</div></div>
+      <div class="scard"><div class="scard-icon">📄</div><div class="scard-title">Bordereau de Livraison</div><div class="scard-desc">Bordereaux libres BEG</div></div>
+      <div class="scard"><div class="scard-icon">🛒</div><div class="scard-title">Ventes</div><div class="scard-desc">Comptoir + proformas</div></div>
+      <div class="scard"><div class="scard-icon">📊</div><div class="scard-title">Perf. Vendeurs</div><div class="scard-desc">Analyse comparative</div></div>
+      <div class="scard"><div class="scard-icon">🧠</div><div class="scard-title">Intelligence</div><div class="scard-desc">KPIs et insights</div></div>
+      <div class="scard"><div class="scard-icon">👥</div><div class="scard-title">Clients</div><div class="scard-desc">Répertoire + créances</div></div>
+      <div class="scard"><div class="scard-icon">🏪</div><div class="scard-title">Magasins</div><div class="scard-desc">Multi-sites isolés</div></div>
+      <div class="scard"><div class="scard-icon">📅</div><div class="scard-title">Exercices</div><div class="scard-desc">Gestion comptable</div></div>
+      <div class="scard"><div class="scard-icon">🗃️</div><div class="scard-title">Archives</div><div class="scard-desc">Données clôturées</div></div>
+      <div class="scard"><div class="scard-icon">⚙️</div><div class="scard-title">Paramètres</div><div class="scard-desc">Configuration globale</div></div>
+      <div class="scard"><div class="scard-icon">👤</div><div class="scard-title">Utilisateurs</div><div class="scard-desc">Rôles et permissions</div></div>
+      <div class="scard"><div class="scard-icon">🛡️</div><div class="scard-title">Journal d'Activité</div><div class="scard-desc">Audit trail complet</div></div>
+    </div>
+
+    <div style="max-width:1150px;margin:2.5rem auto 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;">
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:1.1rem;text-align:center;"><div style="font-size:1.8rem;font-weight:900;color:#a5b4fc;">18</div><div style="font-size:0.7rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-top:0.2rem;">Modules</div></div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:1.1rem;text-align:center;"><div style="font-size:1.8rem;font-weight:900;color:#6ee7b7;">5</div><div style="font-size:0.7rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-top:0.2rem;">Rôles</div></div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:1.1rem;text-align:center;"><div style="font-size:1.8rem;font-weight:900;color:#fcd34d;">JWT</div><div style="font-size:0.7rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-top:0.2rem;">Authentification</div></div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:1.1rem;text-align:center;"><div style="font-size:1.8rem;font-weight:900;color:#fca5a5;">MySQL</div><div style="font-size:0.7rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-top:0.2rem;">Base de données</div></div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:1.1rem;text-align:center;"><div style="font-size:1.8rem;font-weight:900;color:#f9a8d4;">Next.js</div><div style="font-size:0.7rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-top:0.2rem;">Framework</div></div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:1.1rem;text-align:center;"><div style="font-size:1.8rem;font-weight:900;color:#86efac;">xlsx</div><div style="font-size:0.7rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-top:0.2rem;">Export Excel</div></div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:1.1rem;text-align:center;"><div style="font-size:1.8rem;font-weight:900;color:#7dd3fc;">REST</div><div style="font-size:0.7rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-top:0.2rem;">Architecture API</div></div>
+    </div>
+
+    <div style="text-align:center;margin-top:3rem;padding-top:2rem;border-top:1px solid var(--border);color:var(--text3);font-size:0.78rem;">
+      Système de Gestion de Stock · Présentation Complète des Modules · Juin 2026
+    </div>
+  </section>
+
+</main>
+
+<script>
+  // Fade-in on scroll
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if(e.isIntersecting) e.target.classList.add('visible'); });
+  }, { threshold: 0.08 });
+  document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+  // Active nav on scroll
+  const sections = document.querySelectorAll('section[id]');
+  const navItems = document.querySelectorAll('.nav-item');
+  window.addEventListener('scroll', () => {
+    let cur = '';
+    sections.forEach(s => { if(window.scrollY >= s.offsetTop - 130) cur = s.id; });
+    navItems.forEach(it => {
+      it.classList.remove('active');
+      const h = it.getAttribute('href').substring(1);
+      if(h === cur) it.classList.add('active');
+    });
+  });
+</script>
+</body>
+</html>
