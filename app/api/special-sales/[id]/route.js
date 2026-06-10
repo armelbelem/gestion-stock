@@ -9,7 +9,7 @@ export async function PUT(request, { params }) {
   const auth = authenticateToken(request);
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
-  const { id } = params;
+  const { id } = await params;
   const body = await request.json();
   const { action } = body;
 
@@ -28,6 +28,13 @@ export async function PUT(request, { params }) {
       await connection.query('UPDATE special_sales SET status = ? WHERE id = ?', ['annule', id]);
       await connection.commit();
       await logAction(auth.user.id, auth.user.storeId, 'Annulation vente spéciale', { id, clientName: sale.clientName });
+      return NextResponse.json({ success: true });
+    }
+
+    if (action === 'update_metadata') {
+      const { metadata } = body;
+      await connection.query('UPDATE special_sales SET metadata = ? WHERE id = ?', [JSON.stringify(metadata), id]);
+      await connection.commit();
       return NextResponse.json({ success: true });
     }
 
@@ -97,7 +104,7 @@ export async function DELETE(request, { params }) {
     return NextResponse.json({ error: 'Accès interdit pour ce rôle' }, { status: 403 });
   }
 
-  const { id } = params;
+  const { id } = await params;
   const connection = await db.getConnection();
   try {
     await connection.beginTransaction();
