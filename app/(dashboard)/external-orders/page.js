@@ -1072,15 +1072,15 @@ export default function ExternalOrdersPage() {
                 </p>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px' }}>
-                <div style={{ textAlign: 'center', width: '220px' }}>
-                  {settings?.stampImage && (
-                    <div style={{ width: '150px', height: '110px', margin: '0 auto', overflow: 'hidden', position: 'relative' }}>
-                      <img src={settings.stampImage} alt="Cachet" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                    </div>
-                  )}
-                </div>
+              <div style={{ display: 'flex', marginLeft: 'auto', marginRight: '0', width: 'fit-content', alignItems: 'flex-end', gap: '10px', marginTop: '20px' }}>
+                {/* Cachet Area */}
+                {settings?.stampImage && (
+                  <div style={{ width: '150px', height: '110px', marginBottom: '10px', marginRight: '-30px', zIndex: 1 }}>
+                    <img src={settings.stampImage} alt="Cachet" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                  </div>
+                )}
 
+                {/* Signature Area */}
                 <div style={{ textAlign: 'right', minWidth: '250px' }}>
                   <p style={{ fontStyle: 'italic', fontSize: '13px', marginBottom: '5px' }}>Fait à {printData.customCity} le {new Date(printData.customDate).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
 

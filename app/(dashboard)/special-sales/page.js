@@ -123,7 +123,7 @@ export default function SpecialSalesPage() {
     clientName: '', 
     notes: '', 
     date: '', 
-    items: [{ ref: '', description: '', quantity: 1, purchasePrice: '', sellingPrice: '' }]
+    items: [{ ref: '', description: '', quantity: '', purchasePrice: '', sellingPrice: '' }]
   });
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -264,7 +264,7 @@ export default function SpecialSalesPage() {
       clientName: '',
       notes: '',
       date: new Date().toISOString().split('T')[0],
-      items: [{ ref: '', description: '', quantity: 1, purchasePrice: '', sellingPrice: '' }]
+      items: [{ ref: '', description: '', quantity: '', purchasePrice: '', sellingPrice: '' }]
     });
     setIsModalOpen(true);
   };
@@ -290,7 +290,7 @@ export default function SpecialSalesPage() {
   const handleAddItem = () => {
     setFormData({
       ...formData,
-      items: [...formData.items, { ref: '', description: '', quantity: 1, purchasePrice: '', sellingPrice: '' }]
+      items: [...formData.items, { ref: '', description: '', quantity: '', purchasePrice: '', sellingPrice: '' }]
     });
   };
 
@@ -1272,10 +1272,10 @@ export default function SpecialSalesPage() {
                             className="form-control" 
                             style={{ padding: '4px', textAlign: 'center' }} 
                             min="1"
-                            value={item.quantity || ''}
+                            value={item.quantity === 0 ? 0 : (item.quantity || '')}
                             onChange={(e) => {
                               const newItems = [...printFormData.items];
-                              newItems[idx].quantity = parseInt(e.target.value) || 0;
+                              newItems[idx].quantity = e.target.value === '' ? '' : (parseInt(e.target.value) || 0);
                               setPrintFormData({ ...printFormData, items: newItems });
                             }}
                           />
@@ -1322,7 +1322,7 @@ export default function SpecialSalesPage() {
                     onClick={() => {
                       setPrintFormData({
                         ...printFormData,
-                        items: [...printFormData.items, { code: '', ref: '', description: '', quantity: 1, sellingPrice: 0, purchasePrice: 0 }]
+                        items: [...printFormData.items, { code: '', ref: '', description: '', quantity: '', sellingPrice: '', purchasePrice: '' }]
                       });
                     }}
                   >
@@ -1589,15 +1589,15 @@ export default function SpecialSalesPage() {
                             const signatureImg = settings?.signatureImage || settings?.signature_image || fallbackPartnerWithSig?.signature_image;
 
                             return (
-                              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px' }}>
-                                <div style={{ textAlign: 'center', width: '220px' }}>
-                                  {stampImg && (
-                                    <div style={{ width: '150px', height: '110px', margin: '0 auto', overflow: 'hidden', position: 'relative' }}>
-                                      <img src={stampImg} alt="Cachet" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                                    </div>
-                                  )}
-                                </div>
+                              <div style={{ display: 'flex', marginLeft: 'auto', marginRight: '0', width: 'fit-content', alignItems: 'flex-end', gap: '10px', marginTop: '20px' }}>
+                                {/* Cachet Area */}
+                                {stampImg && (
+                                  <div style={{ width: '150px', height: '110px', marginBottom: '10px', marginRight: '-30px', zIndex: 1 }}>
+                                    <img src={stampImg} alt="Cachet" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                                  </div>
+                                )}
 
+                                {/* Signature Area */}
                                 <div style={{ textAlign: 'right', minWidth: '250px' }}>
                                   <p style={{ fontStyle: 'italic', fontSize: '13px', marginBottom: '5px' }}>Fait à {printFormData.city} le {new Date(printFormData.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
 

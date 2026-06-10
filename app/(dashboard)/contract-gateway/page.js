@@ -2471,19 +2471,11 @@ export default function ContractGatewayPage() {
             </p>
           </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-end', gap: '40px', marginTop: '20px' }}>
+            <div style={{ display: 'flex', marginLeft: 'auto', marginRight: '0', width: 'fit-content', alignItems: 'flex-end', gap: '10px', marginTop: '20px' }}>
               {/* Cachet Area */}
               {(selectedPartner?.stamp_image || settings?.stampImage) && (
-                <div style={{ textAlign: 'center', width: '180px', marginBottom: '10px' }}>
-                  <div style={{
-                    width: '150px',
-                    height: '110px',
-                    margin: '0 auto',
-                    overflow: 'hidden',
-                    position: 'relative'
-                  }}>
-                    <img src={selectedPartner?.stamp_image || settings.stampImage} alt="Cachet" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                  </div>
+                <div style={{ width: '150px', height: '110px', marginBottom: '10px', marginRight: '-30px', zIndex: 1 }}>
+                  <img src={selectedPartner?.stamp_image || settings.stampImage} alt="Cachet" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                 </div>
               )}
 

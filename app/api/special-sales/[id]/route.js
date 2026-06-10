@@ -73,12 +73,46 @@ export async function PUT(request, { params }) {
       const tva = totalHT * (tvaRate / 100);
       const totalTTC = totalHT + tva;
 
-      // 3. Mettre à jour l'en-tête
+      // 3. Mettre à jour l'en-tête et synchroniser les métadonnées de l'impression
+      let updatedMetadata = null;
+      if (sale.metadata) {
+        try {
+          const meta = typeof sale.metadata === 'string' ? JSON.parse(sale.metadata) : sale.metadata;
+          if (meta && meta.items) {
+            const oldMetaItems = meta.items || [];
+            meta.items = items.map((newItem, idx) => {
+              const matchingOld = newItem.id ? oldMetaItems.find(o => o.id === newItem.id) : null;
+              if (matchingOld) {
+                return {
+                  ...newItem,
+                  code: matchingOld.code || ''
+                };
+              }
+              const matchingIndex = oldMetaItems[idx];
+              return {
+                ...newItem,
+                code: matchingIndex ? (matchingIndex.code || '') : ''
+              };
+            });
+            updatedMetadata = JSON.stringify(meta);
+          }
+        } catch (e) {
+          console.error("Error parsing/updating metadata during edit:", e);
+        }
+      }
+
       const saleDate = date ? new Date(date) : new Date(sale.date);
-      await connection.query(
-        'UPDATE special_sales SET clientName = ?, date = ?, notes = ?, totalHT = ?, tva = ?, totalTTC = ?, margin = ? WHERE id = ?',
-        [clientName, saleDate, notes || null, totalHT, tva, totalTTC, totalMargin, id]
-      );
+      if (updatedMetadata) {
+        await connection.query(
+          'UPDATE special_sales SET clientName = ?, date = ?, notes = ?, totalHT = ?, tva = ?, totalTTC = ?, margin = ?, metadata = ? WHERE id = ?',
+          [clientName, saleDate, notes || null, totalHT, tva, totalTTC, totalMargin, updatedMetadata, id]
+        );
+      } else {
+        await connection.query(
+          'UPDATE special_sales SET clientName = ?, date = ?, notes = ?, totalHT = ?, tva = ?, totalTTC = ?, margin = ? WHERE id = ?',
+          [clientName, saleDate, notes || null, totalHT, tva, totalTTC, totalMargin, id]
+        );
+      }
 
       await connection.commit();
       await logAction(auth.user.id, auth.user.storeId, 'Modification vente spéciale', { id, clientName, totalTTC });

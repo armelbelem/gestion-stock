@@ -543,21 +543,13 @@ export default function ClientReportPage() {
             </p>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '20px' }}>
+          <div style={{ display: 'flex', marginLeft: 'auto', marginRight: '0', width: 'fit-content', alignItems: 'flex-end', gap: '10px', marginTop: '20px' }}>
             {/* Cachet Area */}
-            <div style={{ textAlign: 'center', width: '220px' }}>
-              {stamp && (
-                <div style={{
-                  width: '150px',
-                  height: '110px',
-                  margin: '0 auto',
-                  overflow: 'hidden',
-                  position: 'relative'
-                }}>
-                  <img src={stamp} alt="Cachet" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                </div>
-              )}
-            </div>
+            {stamp && (
+              <div style={{ width: '150px', height: '110px', marginBottom: '10px', marginRight: '-30px', zIndex: 1 }}>
+                <img src={stamp} alt="Cachet" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+              </div>
+            )}
 
             {/* Signature Area */}
             <div style={{ textAlign: 'right', minWidth: '250px' }}>
