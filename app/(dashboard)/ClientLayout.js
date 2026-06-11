@@ -51,6 +51,8 @@ export default function ClientLayout({ children }) {
   const [stores, setStores] = useState([]);
   const [selectedStore, setSelectedStore] = useState('');
   const [settings, setSettings] = useState(null);
+  const [newVersionAvailable, setNewVersionAvailable] = useState(false);
+  const [currentBuildId, setCurrentBuildId] = useState(null);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') || 'light';
@@ -71,6 +73,63 @@ export default function ClientLayout({ children }) {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
   }, [theme]);
+
+  // Gestion automatique des versions et erreurs de déploiement (Server Action / Chunk Load)
+  useEffect(() => {
+    const checkVersion = async (isInitial = false) => {
+      try {
+        const res = await fetch('/api/version');
+        if (res.ok) {
+          const data = await res.json();
+          if (isInitial) {
+            setCurrentBuildId(data.buildId);
+          } else if (currentBuildId && data.buildId !== currentBuildId) {
+            setNewVersionAvailable(true);
+          }
+        }
+      } catch (err) {
+        console.error("Erreur vérification version:", err);
+      }
+    };
+
+    if (!currentBuildId) {
+      checkVersion(true);
+    }
+
+    // Vérification de version toutes les 3 minutes
+    const interval = setInterval(() => {
+      checkVersion(false);
+    }, 180000);
+
+    // Détecter et recharger automatiquement en cas d'erreurs d'import dynamique (nouvelle version déployée)
+    const handleGlobalError = (event) => {
+      const message = event.message || '';
+      const isChunkError = /Loading chunk|Failed to fetch dynamically imported module/i.test(message);
+      if (isChunkError) {
+        console.warn('Erreur de chargement de chunk Next.js détectée, rechargement automatique...');
+        window.location.reload();
+      }
+    };
+
+    const handleUnhandledRejection = (event) => {
+      const reason = event.reason?.message || '';
+      const isChunkError = /Loading chunk|Failed to fetch dynamically imported module/i.test(reason);
+      const isServerActionError = /Failed to find Server Action/i.test(reason);
+      if (isChunkError || isServerActionError) {
+        console.warn('Erreur réseau ou Action de serveur Next.js introuvable, rechargement automatique...');
+        window.location.reload();
+      }
+    };
+
+    window.addEventListener('error', handleGlobalError);
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('error', handleGlobalError);
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    };
+  }, [currentBuildId]);
 
   useEffect(() => {
     const checkStock = async () => {
@@ -457,6 +516,52 @@ export default function ClientLayout({ children }) {
           </div>
         ))}
       </div>
+
+      {newVersionAvailable && (
+        <>
+          <style>{`
+            @keyframes slideInUp {
+              from { transform: translateY(100px); opacity: 0; }
+              to { transform: translateY(0); opacity: 1; }
+            }
+          `}</style>
+          <div className="sticky-alert-banner" style={{
+            position: 'fixed',
+            bottom: '24px',
+            right: '24px',
+            left: 'auto',
+            width: 'auto',
+            maxWidth: '380px',
+            backgroundColor: '#1e293b',
+            color: '#ffffff',
+            borderRadius: '12px',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3)',
+            padding: '1rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
+            zIndex: 99999,
+            border: '1px solid #334155',
+            animation: 'slideInUp 0.3s ease-out'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <AlertCircle size={20} style={{ color: '#38bdf8' }} />
+              <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>Mise à jour disponible</span>
+            </div>
+            <p style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8', lineHeight: 1.4 }}>
+              Une nouvelle version de l'application est prête. Veuillez actualiser pour en profiter.
+            </p>
+            <button 
+              type="button" 
+              className="btn btn-primary btn-sm" 
+              style={{ width: '100%', alignSelf: 'stretch' }} 
+              onClick={() => window.location.reload()}
+            >
+              Actualiser maintenant
+            </button>
+          </div>
+        </>
+      )}
 
       <GlobalSearch />
     </div>
