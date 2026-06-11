@@ -4,6 +4,34 @@ import { logAction } from '../../lib/actions';
 import { NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 
+async function ensureDeliveriesTableExists(connection) {
+  // 1. Créer la table deliveries si elle n'existe pas
+  await connection.query(`
+    CREATE TABLE IF NOT EXISTS deliveries (
+      id VARCHAR(100) NOT NULL PRIMARY KEY,
+      order_id VARCHAR(100) DEFAULT NULL,
+      bl_number VARCHAR(100) DEFAULT NULL,
+      items JSON DEFAULT NULL,
+      created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+      attachment VARCHAR(255) DEFAULT NULL,
+      grouped_discharge_id VARCHAR(100) DEFAULT NULL,
+      KEY fk_deliveries_order_id (order_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  `);
+
+  // 2. Ajouter la colonne grouped_discharge_id si elle est manquante
+  const [columns] = await connection.query(`
+    SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'deliveries' AND COLUMN_NAME = 'grouped_discharge_id'
+  `);
+
+  if (columns.length === 0) {
+    await connection.query(`
+      ALTER TABLE deliveries ADD COLUMN grouped_discharge_id VARCHAR(100) DEFAULT NULL
+    `);
+  }
+}
+
 export async function GET(request) {
   const auth = authenticateToken(request);
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -11,15 +39,19 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const orderId = searchParams.get('orderId');
 
+  const connection = await db.getConnection();
   try {
+    await ensureDeliveriesTableExists(connection);
     if (orderId) {
-      const [rows] = await db.query('SELECT * FROM deliveries WHERE order_id = ? ORDER BY created_at DESC', [orderId]);
+      const [rows] = await connection.query('SELECT * FROM deliveries WHERE order_id = ? ORDER BY created_at DESC', [orderId]);
       return NextResponse.json(rows);
     }
-    const [rows] = await db.query('SELECT * FROM deliveries ORDER BY created_at DESC');
+    const [rows] = await connection.query('SELECT * FROM deliveries ORDER BY created_at DESC');
     return NextResponse.json(rows);
   } catch (err) {
     return NextResponse.json({ error: err.message }, { status: 500 });
+  } finally {
+    connection.release();
   }
 }
 
@@ -30,6 +62,7 @@ export async function POST(request) {
   const { orderId, blNumber, items } = await request.json();
   const connection = await db.getConnection();
   try {
+    await ensureDeliveriesTableExists(connection);
     await connection.beginTransaction();
 
     const [orderItems] = await connection.query('SELECT * FROM contract_order_items WHERE orderId = ?', [orderId]);
@@ -142,6 +175,7 @@ export async function DELETE(request) {
 
   const connection = await db.getConnection();
   try {
+    await ensureDeliveriesTableExists(connection);
     await connection.beginTransaction();
 
     const [deliveryRows] = await connection.query('SELECT * FROM deliveries WHERE id = ?', [id]);

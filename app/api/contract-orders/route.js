@@ -151,10 +151,9 @@ export async function POST(request) {
     const [settingsRows] = await connection.query('SELECT tvaRate FROM settings LIMIT 1');
     const currentTvaRate = Number(settingsRows[0]?.tvaRate || 18);
 
-    // 1. Créer l'en-tête du dossier (avec capture du taux de TVA immuable)
     await connection.query(
       'INSERT INTO contract_orders (id, clientId, notes, status, attachment, orderNumber, partner_id, storeId, tva_rate, delivery_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-      [id, clientId, notes, 'BROUILLON', body.attachment || null, nextNum, partnerId, storeId, currentTvaRate, deliveryDate || null]
+      [id, clientId, notes, 'BROUILLON', body.attachment || null, nextNum, partnerId, storeId, currentTvaRate, deliveryDate || new Date().toISOString().split('T')[0]]
     );
 
     // 1b. Enregistrer l'historique initial

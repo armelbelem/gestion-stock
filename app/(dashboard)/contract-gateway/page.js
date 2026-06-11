@@ -1414,7 +1414,10 @@ export default function ContractGatewayPage() {
             })
           });
 
-          if (!res.ok) throw new Error("Erreur lors de la sauvegarde du BL");
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || "Erreur lors de la sauvegarde du BL");
+          }
 
           showAlert('success', 'Livraison validée', `La livraison a été enregistrée avec succès.`);
           setIsSimpleDeliveryModalOpen(false);
@@ -1649,7 +1652,10 @@ export default function ContractGatewayPage() {
               })
             });
 
-            if (!res.ok) throw new Error("Erreur lors de la sauvegarde du BL");
+            if (!res.ok) {
+              const errData = await res.json().catch(() => ({}));
+              throw new Error(errData.error || "Erreur lors de la sauvegarde du BL");
+            }
           }
 
           // Save to special history if it's a special doc

@@ -70,7 +70,7 @@ export async function PUT(request, { params }) {
 
       const finalNotes = notes !== undefined ? notes : current.notes;
       const finalAttachment = body.attachment !== undefined ? body.attachment : current.attachment;
-      const finalDeliveryDate = deliveryDate !== undefined ? deliveryDate : current.delivery_date;
+      const finalDeliveryDate = (deliveryDate !== undefined ? deliveryDate : current.delivery_date) || new Date().toISOString().split('T')[0];
       
       let finalContractAmount = current.contractAmount;
       let finalTotalAmount = current.totalAmount;
