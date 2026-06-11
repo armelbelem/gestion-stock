@@ -3075,9 +3075,14 @@ export default function ContractGatewayPage() {
                     return (
                       <tr key={order.id} className={isLateDelivery ? 'row-urgent' : isOldRequest ? 'row-urgent' : ''}>
                         <td style={{ fontWeight: 700 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            #{String(order.orderNumber).padStart(3, '0')}
-                            {order.attachment && <Paperclip size={14} className="text-primary" title="Document joint" />}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              #{String(order.orderNumber).padStart(3, '0')}
+                              {order.attachment && <Paperclip size={14} className="text-primary" title="Document joint" />}
+                            </div>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+                              Créé le {new Date(order.createdAt).toLocaleDateString()}
+                            </div>
                           </div>
                         </td>
                         {selectedPartner?.id === 'all' && <td style={{ fontWeight: 600 }}>{order.partnerName || 'N/A'}</td>}
