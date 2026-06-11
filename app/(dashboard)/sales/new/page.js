@@ -69,7 +69,8 @@ export default function NewSalePage() {
       }
 
       // Auto-sélection et filtrage du client par défaut du magasin
-      const selectedStoreId = localStorage.getItem('selectedStore') || currentUser?.storeId;
+      const isGlobalUser = currentUser?.storeId === null || currentUser?.storeId === undefined;
+      const selectedStoreId = isGlobalUser ? (localStorage.getItem('selectedStore') || '') : currentUser?.storeId;
       console.log('[DEBUG_CLIENT] selectedStoreId:', selectedStoreId);
       if (selectedStoreId && selectedStoreId !== 'all') {
         const currentStore = storesData.find(s => String(s.id) === String(selectedStoreId));
@@ -94,7 +95,7 @@ export default function NewSalePage() {
       id: Math.random().toString(36).substr(2, 9),
       articleId: '',
       description: '',
-      quantity: 1,
+      quantity: '',
       unitPrice: 0,
       maxStock: 0,
       isManual: isManual
@@ -114,6 +115,7 @@ export default function NewSalePage() {
           if (article) {
             newItem.unitPrice = article.price;
             newItem.maxStock = article.currentStock;
+            newItem.quantity = '';
           }
         }
         if (field === 'quantity') {
@@ -186,7 +188,7 @@ export default function NewSalePage() {
         id: Math.random().toString(36).substr(2, 9),
         articleId: article.id,
         description: article.name,
-        quantity: 1,
+        quantity: '',
         unitPrice: article.price,
         maxStock: article.currentStock,
         isManual: false

@@ -11,7 +11,10 @@ export async function GET(request) {
     const storeId = getStoreConstraint(auth.user, request.nextUrl.searchParams.get('storeId'));
     let query = 'SELECT * FROM clients';
     let params = [];
-    if (storeId) { query += ' WHERE storeId = ? OR storeId IS NULL'; params.push(storeId); }
+    if (storeId) { 
+      query += ' WHERE storeId = ? OR storeId IS NULL OR id IN (SELECT defaultClientId FROM stores WHERE id = ?)'; 
+      params.push(storeId, storeId); 
+    }
     query += ' ORDER BY createdAt DESC';
     const [clients] = await db.query(query, params);
     return NextResponse.json(clients);
