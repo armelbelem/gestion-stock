@@ -85,6 +85,9 @@ export default function DeadStockReportPage() {
         <Link href="/reports/stock-valuation" className={`nav-item ${pathname === '/reports/stock-valuation' ? 'active' : ''}`} style={{ borderRadius: '0', padding: '0.75rem 1.5rem', marginBottom: '-1px' }}>
           <FileSpreadsheet size={18} /> Valorisation de Stock
         </Link>
+        <Link href="/reports/profitability" className={`nav-item ${pathname === '/reports/profitability' ? 'active' : ''}`} style={{ borderRadius: '0', padding: '0.75rem 1.5rem', marginBottom: '-1px' }}>
+          <TrendingUp size={18} /> Analyse Rentabilité
+        </Link>
       </div>
 
       <div style={{ marginTop: '1.5rem' }}>

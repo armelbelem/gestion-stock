@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Présentation – Modules Gestion de Stock</title>
+  <title>Présentation Détaillée – Modules Gestion de Stock</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -33,9 +33,9 @@
       background: var(--bg2); border-right: 1px solid var(--border);
       display: flex; flex-direction: column; align-items: center;
       padding: 1rem 0; gap: 0.15rem; z-index: 100;
-      transition: width 0.3s cubic-bezier(0.4,0,0.2,1); overflow: hidden;
+      transition: width 0.3s cubic-bezier(0.4,0,0.2,1); overflow-y: auto; overflow-x: hidden;
     }
-    .sidebar:hover { width: 230px; }
+    .sidebar:hover { width: 260px; }
     .sidebar-logo {
       width: 40px; height: 40px;
       background: linear-gradient(135deg, var(--primary), var(--secondary));
@@ -109,7 +109,7 @@
 
     /* SECTION */
     .section { padding: 4rem 3rem; max-width: 1150px; margin: 0 auto; }
-    .section-header { display: flex; align-items: flex-start; gap: 1.25rem; margin-bottom: 2.5rem; }
+    .section-header { display: flex; align-items: flex-start; gap: 1.25rem; margin-bottom: 2rem; }
     .section-icon-box { width: 58px; height: 58px; flex-shrink: 0; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; }
     .section-meta { flex: 1; }
     .section-num { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text3); margin-bottom: 0.3rem; }
@@ -118,7 +118,7 @@
     .divider { height: 1px; background: linear-gradient(90deg, transparent, var(--border), transparent); margin: 0 3rem; }
 
     /* CARDS */
-    .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1.25rem; margin-top: 1.75rem; }
+    .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 1.25rem; margin-top: 1.5rem; }
     .card {
       background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
       padding: 1.5rem; transition: all 0.3s; position: relative; overflow: hidden;
@@ -129,38 +129,117 @@
     .card-title { font-size: 0.95rem; font-weight: 700; color: var(--text); margin-bottom: 0.4rem; }
     .card-body { font-size: 0.82rem; color: var(--text2); line-height: 1.55; }
 
+    /* DETAIL BLOCK */
+    .detail-block {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.75rem;
+      margin-top: 1.5rem;
+    }
+    .detail-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px dashed var(--border);
+      padding-bottom: 0.5rem;
+    }
+    .detail-text {
+      font-size: 0.85rem;
+      color: var(--text2);
+      line-height: 1.6;
+      margin-bottom: 1.25rem;
+    }
+    .detail-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+      margin-bottom: 1.25rem;
+    }
+    .detail-list-item {
+      font-size: 0.82rem;
+      color: var(--text2);
+      line-height: 1.5;
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .detail-list-item strong {
+      color: var(--text);
+      font-weight: 600;
+    }
+    .actions-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 0.75rem;
+    }
+    .action-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.85rem;
+      font-size: 0.8rem;
+      color: var(--text2);
+      line-height: 1.5;
+    }
+    .action-card strong {
+      color: var(--text);
+      font-weight: 600;
+    }
+
     /* THEMES */
     .t-purple .section-icon-box { background: rgba(99,102,241,0.15); color: #818cf8; }
+    .t-purple .card::before, .t-purple .detail-title { color: #818cf8; }
     .t-purple .card::before { background: linear-gradient(90deg,#6366f1,#818cf8); }
     .t-blue .section-icon-box { background: rgba(14,165,233,0.15); color: #38bdf8; }
+    .t-blue .card::before, .t-blue .detail-title { color: #38bdf8; }
     .t-blue .card::before { background: linear-gradient(90deg,#0ea5e9,#38bdf8); }
     .t-green .section-icon-box { background: rgba(16,185,129,0.15); color: #34d399; }
+    .t-green .card::before, .t-green .detail-title { color: #34d399; }
     .t-green .card::before { background: linear-gradient(90deg,#10b981,#34d399); }
     .t-amber .section-icon-box { background: rgba(245,158,11,0.15); color: #fbbf24; }
+    .t-amber .card::before, .t-amber .detail-title { color: #fbbf24; }
     .t-amber .card::before { background: linear-gradient(90deg,#f59e0b,#fbbf24); }
     .t-red .section-icon-box { background: rgba(239,68,68,0.15); color: #f87171; }
+    .t-red .card::before, .t-red .detail-title { color: #f87171; }
     .t-red .card::before { background: linear-gradient(90deg,#ef4444,#f87171); }
     .t-teal .section-icon-box { background: rgba(20,184,166,0.15); color: #2dd4bf; }
+    .t-teal .card::before, .t-teal .detail-title { color: #2dd4bf; }
     .t-teal .card::before { background: linear-gradient(90deg,#14b8a6,#2dd4bf); }
     .t-pink .section-icon-box { background: rgba(236,72,153,0.15); color: #f472b6; }
+    .t-pink .card::before, .t-pink .detail-title { color: #f472b6; }
     .t-pink .card::before { background: linear-gradient(90deg,#ec4899,#f472b6); }
     .t-orange .section-icon-box { background: rgba(249,115,22,0.15); color: #fb923c; }
+    .t-orange .card::before, .t-orange .detail-title { color: #fb923c; }
     .t-orange .card::before { background: linear-gradient(90deg,#f97316,#fb923c); }
     .t-slate .section-icon-box { background: rgba(100,116,139,0.15); color: #94a3b8; }
+    .t-slate .card::before, .t-slate .detail-title { color: #94a3b8; }
     .t-slate .card::before { background: linear-gradient(90deg,#475569,#94a3b8); }
     .t-cyan .section-icon-box { background: rgba(6,182,212,0.15); color: #22d3ee; }
+    .t-cyan .card::before, .t-cyan .detail-title { color: #22d3ee; }
     .t-cyan .card::before { background: linear-gradient(90deg,#06b6d4,#22d3ee); }
     .t-lime .section-icon-box { background: rgba(132,204,22,0.15); color: #a3e635; }
+    .t-lime .card::before, .t-lime .detail-title { color: #a3e635; }
     .t-lime .card::before { background: linear-gradient(90deg,#84cc16,#a3e635); }
     .t-rose .section-icon-box { background: rgba(244,63,94,0.15); color: #fb7185; }
+    .t-rose .card::before, .t-rose .detail-title { color: #fb7185; }
     .t-rose .card::before { background: linear-gradient(90deg,#f43f5e,#fb7185); }
     .t-violet .section-icon-box { background: rgba(139,92,246,0.15); color: #a78bfa; }
+    .t-violet .card::before, .t-violet .detail-title { color: #a78bfa; }
     .t-violet .card::before { background: linear-gradient(90deg,#8b5cf6,#a78bfa); }
     .t-sky .section-icon-box { background: rgba(56,189,248,0.15); color: #7dd3fc; }
+    .t-sky .card::before, .t-sky .detail-title { color: #7dd3fc; }
     .t-sky .card::before { background: linear-gradient(90deg,#38bdf8,#7dd3fc); }
     .t-emerald .section-icon-box { background: rgba(52,211,153,0.15); color: #6ee7b7; }
+    .t-emerald .card::before, .t-emerald .detail-title { color: #6ee7b7; }
     .t-emerald .card::before { background: linear-gradient(90deg,#34d399,#6ee7b7); }
     .t-fuchsia .section-icon-box { background: rgba(232,121,249,0.15); color: #f0abfc; }
+    .t-fuchsia .card::before, .t-fuchsia .detail-title { color: #f0abfc; }
     .t-fuchsia .card::before { background: linear-gradient(90deg,#e879f9,#f0abfc); }
 
     /* FEATURES */
@@ -223,27 +302,6 @@
     .dtable tr:hover td { background:var(--surface2);color:var(--text); }
     .dtable .hl { color:var(--text);font-weight:600; }
 
-    /* ROLES TABLE */
-    .role-grid { display:grid;grid-template-columns:1fr repeat(4,auto);gap:0;border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-top:1.25rem; }
-    .rh { background:var(--bg3);padding:0.65rem 0.9rem;font-size:0.68rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.07em;border-bottom:1px solid var(--border); }
-    .rc { background:var(--surface);padding:0.75rem 0.9rem;font-size:0.78rem;color:var(--text2);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:center; }
-    .rc.an { justify-content:flex-start;font-weight:600;color:var(--text); }
-    .rc:hover { background:var(--surface2); }
-    .ck { color:#34d399;font-size:1rem; }
-    .cx { color:#6b7280;font-size:1rem; }
-
-    /* PERM MATRIX */
-    .perm-box { background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.5rem;margin-top:1.5rem; }
-    .perm-title { font-size:0.8rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:1rem; }
-    .perm-row { display:flex;align-items:center;gap:0.75rem;padding:0.5rem 0;border-bottom:1px solid var(--border); }
-    .perm-row:last-child { border-bottom:none; }
-    .perm-module { flex:1;font-size:0.82rem;font-weight:600;color:var(--text); }
-    .perm-who { font-size:0.75rem;color:var(--text2); }
-
-    /* ANIMATIONS */
-    .fade-in { opacity:0;transform:translateY(18px);transition:opacity 0.6s ease,transform 0.6s ease; }
-    .fade-in.visible { opacity:1;transform:translateY(0); }
-
     /* SUMMARY */
     .summary-section { background:var(--surface);border-top:1px solid var(--border);padding:4rem 3rem; }
     .summary-grid { display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1.25rem;max-width:1150px;margin:2rem auto 0; }
@@ -265,24 +323,25 @@
 <!-- SIDEBAR -->
 <nav class="sidebar">
   <div class="sidebar-logo">📦</div>
-  <!-- Accueil -->
   <a class="nav-item active" href="#hero"><span class="nav-icon">🏠</span><span class="nav-label">Accueil</span></a>
   <a class="nav-item" href="#introduction"><span class="nav-icon">ℹ️</span><span class="nav-label">Présentation</span></a>
-  <a class="nav-item" href="#tableau-de-bord"><span class="nav-icon">📊</span><span class="nav-label">Tableau de Bord</span></a>
-  <!-- Stock -->
+  
+  <div class="sidebar-group-label">Général</div>
+  <a class="nav-item" href="#tableau-de-bord"><span class="nav-icon">🏠</span><span class="nav-label">Tableau de Bord</span></a>
+  
   <div class="sidebar-group-label">Stock</div>
   <a class="nav-item" href="#articles"><span class="nav-icon">📦</span><span class="nav-label">Articles</span></a>
   <a class="nav-item" href="#mouvements"><span class="nav-icon">↔️</span><span class="nav-label">Mouvements</span></a>
   <a class="nav-item" href="#transferts"><span class="nav-icon">🔄</span><span class="nav-label">Transferts</span></a>
-  <!-- Achats -->
+  
   <div class="sidebar-divider"></div>
   <div class="sidebar-group-label">Achats</div>
   <a class="nav-item" href="#fournisseurs"><span class="nav-icon">🚚</span><span class="nav-label">Fournisseurs</span></a>
   <a class="nav-item" href="#commandes-speciales"><span class="nav-icon">⚡</span><span class="nav-label">Cmd. Spéciales</span></a>
-  <a class="nav-item" href="#contrat-passerelle"><span class="nav-icon">🌐</span><span class="nav-label">Achats et Bon de Commande</span></a>
+  <a class="nav-item" href="#contrat-passerelle"><span class="nav-icon">🌐</span><span class="nav-label">Achats et BC</span></a>
   <a class="nav-item" href="#centralisation-bl-bc"><span class="nav-icon">📋</span><span class="nav-label">Centralis. BL &amp; BC</span></a>
-  <a class="nav-item" href="#decharge-groupe"><span class="nav-icon">📄</span><span class="nav-label">Bordereau de Livraison</span></a>
-  <!-- Finances -->
+  <a class="nav-item" href="#decharge-groupe"><span class="nav-icon">📄</span><span class="nav-label">Bordereau Livraison</span></a>
+  
   <div class="sidebar-divider"></div>
   <div class="sidebar-group-label">Finances</div>
   <a class="nav-item" href="#ventes"><span class="nav-icon">🛒</span><span class="nav-label">Ventes</span></a>
@@ -290,7 +349,7 @@
   <a class="nav-item" href="#performance-vendeur"><span class="nav-icon">📊</span><span class="nav-label">Perf. Vendeurs</span></a>
   <a class="nav-item" href="#intelligence"><span class="nav-icon">🧠</span><span class="nav-label">Intelligence</span></a>
   <a class="nav-item" href="#valorisation-stock"><span class="nav-icon">📈</span><span class="nav-label">Valorisation Stock</span></a>
-  <!-- Admin -->
+  
   <div class="sidebar-divider"></div>
   <div class="sidebar-group-label">Administration</div>
   <a class="nav-item" href="#clients"><span class="nav-icon">👥</span><span class="nav-label">Clients</span></a>
@@ -300,6 +359,7 @@
   <a class="nav-item" href="#parametres"><span class="nav-icon">⚙️</span><span class="nav-label">Paramètres</span></a>
   <a class="nav-item" href="#utilisateurs"><span class="nav-icon">👤</span><span class="nav-label">Utilisateurs</span></a>
   <a class="nav-item" href="#journal"><span class="nav-icon">🛡️</span><span class="nav-label">Journal d'Activité</span></a>
+  
   <div class="sidebar-divider"></div>
   <a class="nav-item" href="#synthese"><span class="nav-icon">✅</span><span class="nav-label">Synthèse</span></a>
   <a class="nav-item" href="#perspectives"><span class="nav-icon">🚀</span><span class="nav-label">Perspectives</span></a>
@@ -323,9 +383,9 @@
         <a class="mpill" href="#transferts">🔄 Transferts</a>
         <a class="mpill" href="#fournisseurs">🚚 Fournisseurs</a>
         <a class="mpill" href="#commandes-speciales">⚡ Cmd. Spéciales</a>
-        <a class="mpill" href="#contrat-passerelle">🌐 Achats et Bon de Commande</a>
+        <a class="mpill" href="#contrat-passerelle">🌐 Achats et BC</a>
         <a class="mpill" href="#centralisation-bl-bc">📋 BL &amp; BC</a>
-        <a class="mpill" href="#decharge-groupe">📄 Bordereau de Livraison</a>
+        <a class="mpill" href="#decharge-groupe">📄 Bordereau Livraison</a>
         <a class="mpill" href="#ventes">🛒 Ventes</a>
         <a class="mpill" href="#ventes-speciales">🪙 Ventes Spéciales</a>
         <a class="mpill" href="#performance-vendeur">📊 Perf. Vendeurs</a>
@@ -384,6 +444,61 @@
       <span class="badge bb">📊 Traçabilité audit trail (100%)</span>
       <span class="badge ba">📅 Exercices fiscaux</span>
     </div>
+
+    <!-- Problématiques métiers et Objectif Principal -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;margin-top:2rem;background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:2rem;">
+      <div>
+        <h3 style="color:#fbbf24;margin-bottom:1rem;font-size:1.1rem;font-weight:700;display:flex;align-items:center;gap:8px;">⚠️ Problématiques avant le système</h3>
+        <p style="font-size:0.85rem;color:var(--text2);line-height:1.6;margin-bottom:1.2rem;">
+          Sans un outil centralisé et fiable, l'organisation fait face à des inefficacités majeures. 
+          <strong style="color:var(--text);font-weight:700;">Cette organisation peut provoquer des pertes financières, des erreurs opérationnelles et un manque total de visibilité et de suivi.</strong>
+        </p>
+        <p style="font-size:0.85rem;color:var(--text);font-weight:600;margin-bottom:0.5rem;">
+          L'entreprise subit notamment :
+        </p>
+        <ul style="list-style:none;display:flex;flex-direction:column;gap:0.5rem;padding-left:0.5rem;">
+          <li style="font-size:0.82rem;color:var(--text2);display:flex;gap:8px;align-items:flex-start;">
+            ❌ <span>Des pertes de chiffre d’affaires dues aux ruptures et le manque de suivi ;</span>
+          </li>
+          <li style="font-size:0.82rem;color:var(--text2);display:flex;gap:8px;align-items:flex-start;">
+            ❌ <span>Une perte importante de temps administratif ;</span>
+          </li>
+          <li style="font-size:0.82rem;color:var(--text2);display:flex;gap:8px;align-items:flex-start;">
+            ❌ <span>Une absence de traçabilité des opérations ;</span>
+          </li>
+          <li style="font-size:0.82rem;color:var(--text2);display:flex;gap:8px;align-items:flex-start;">
+            ❌ <span>Des difficultés de pilotage stratégique.</span>
+          </li>
+        </ul>
+      </div>
+
+      <div>
+        <h3 style="color:#34d399;margin-bottom:1rem;font-size:1.1rem;font-weight:700;display:flex;align-items:center;gap:8px;">🎯 Objectif Principal</h3>
+        <p style="font-size:0.85rem;color:var(--text2);line-height:1.6;margin-bottom:1rem;">
+          L'objectif fondamental de cette application est d'accompagner l'entreprise pour :
+        </p>
+        <ul style="list-style:none;display:flex;flex-direction:column;gap:0.5rem;padding-left:0.5rem;margin-bottom:1.2rem;">
+          <li style="font-size:0.82rem;color:var(--text2);display:flex;gap:8px;align-items:flex-start;">
+            ✅ <span>Centraliser ses activités ;</span>
+          </li>
+          <li style="font-size:0.82rem;color:var(--text2);display:flex;gap:8px;align-items:flex-start;">
+            ✅ <span>Sécuriser ses opérations ;</span>
+          </li>
+          <li style="font-size:0.82rem;color:var(--text2);display:flex;gap:8px;align-items:flex-start;">
+            ✅ <span>Automatiser ses processus ;</span>
+          </li>
+          <li style="font-size:0.82rem;color:var(--text2);display:flex;gap:8px;align-items:flex-start;">
+            ✅ <span>Améliorer sa rentabilité ;</span>
+          </li>
+          <li style="font-size:0.82rem;color:var(--text2);display:flex;gap:8px;align-items:flex-start;">
+            ✅ <span>Prendre des décisions basées sur des données fiables.</span>
+          </li>
+        </ul>
+        <p style="font-size:0.85rem;color:var(--text2);line-height:1.6;">
+          En instaurant un suivi en temps réel rigoureux, une traçabilité complète des mouvements de marchandises et des outils d'intelligence commerciale, le système offre une visibilité totale à la direction pour un pilotage stratégique optimal.
+        </p>
+      </div>
+    </div>
   </section>
 
   <!-- ===== MODULE 00 : TABLEAU DE BORD ===== -->
@@ -394,159 +509,31 @@
       <div class="section-meta">
         <div class="section-num">Module 00 · Vue Générale</div>
         <h2 class="section-title">Tableau de Bord</h2>
-        <p class="section-desc">Page d'accueil du système. Vue consolidée et temps réel de l'état de l'entreprise : KPIs financiers, alertes de stock, graphiques de ventes et classements clients/produits.</p>
+        <p class="section-desc">Page d'accueil du système. Vue consolidée et en temps réel de l'état de l'entreprise : KPIs financiers, alertes de stock, graphiques de ventes et classements clients/produits.</p>
       </div>
     </div>
 
-    <!-- KPI Cards -->
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1.25rem;margin-top:1.5rem;">
-      <div style="background:linear-gradient(135deg,#1d4ed8,#3b82f6);border-radius:14px;padding:1.5rem;position:relative;overflow:hidden;">
-        <div style="position:absolute;top:-10px;right:-10px;opacity:0.15;font-size:5rem;">📦</div>
-        <div style="font-size:0.72rem;font-weight:700;color:rgba(255,255,255,0.75);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.4rem;">Total Articles</div>
-        <div style="font-size:2.2rem;font-weight:900;color:#fff;">–</div>
-        <div style="height:4px;background:rgba(255,255,255,0.25);border-radius:2px;margin:0.75rem 0 0.5rem;"><div style="height:100%;width:70%;background:rgba(255,255,255,0.8);border-radius:2px;"></div></div>
-        <div style="font-size:0.72rem;color:rgba(255,255,255,0.8);">↑ +2.5% ce mois</div>
-      </div>
-      <div style="background:linear-gradient(135deg,#065f46,#10b981);border-radius:14px;padding:1.5rem;position:relative;overflow:hidden;">
-        <div style="position:absolute;top:-10px;right:-10px;opacity:0.15;font-size:5rem;">📈</div>
-        <div style="font-size:0.72rem;font-weight:700;color:rgba(255,255,255,0.75);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.4rem;">Chiffre d'Affaires</div>
-        <div style="font-size:2.2rem;font-weight:900;color:#fff;">– <span style="font-size:1rem;">FCFA</span></div>
-        <div style="height:4px;background:rgba(255,255,255,0.25);border-radius:2px;margin:0.75rem 0 0.5rem;"><div style="height:100%;width:85%;background:rgba(255,255,255,0.8);border-radius:2px;"></div></div>
-        <div style="font-size:0.72rem;color:rgba(255,255,255,0.8);">↑ +12.3% vs mois dernier</div>
-      </div>
-      <div style="background:linear-gradient(135deg,#92400e,#f59e0b);border-radius:14px;padding:1.5rem;position:relative;overflow:hidden;">
-        <div style="position:absolute;top:-10px;right:-10px;opacity:0.15;font-size:5rem;">💰</div>
-        <div style="font-size:0.72rem;font-weight:700;color:rgba(255,255,255,0.75);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.4rem;">Valeur vente stock/ CA potentiel</div>
-        <div style="font-size:2.2rem;font-weight:900;color:#fff;">– <span style="font-size:1rem;">FCFA</span></div>
-        <div style="height:4px;background:rgba(255,255,255,0.25);border-radius:2px;margin:0.75rem 0 0.5rem;"><div style="height:100%;width:45%;background:rgba(255,255,255,0.8);border-radius:2px;"></div></div>
-        <div style="font-size:0.72rem;color:rgba(255,255,255,0.8);">Patrimoine potentiel</div>
-      </div>
-      <div style="background:linear-gradient(135deg,#7f1d1d,#ef4444);border-radius:14px;padding:1.5rem;position:relative;overflow:hidden;">
-        <div style="position:absolute;top:-10px;right:-10px;opacity:0.15;font-size:5rem;">⚠️</div>
-        <div style="font-size:0.72rem;font-weight:700;color:rgba(255,255,255,0.75);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.4rem;">Ruptures Imminentes</div>
-        <div style="font-size:2.2rem;font-weight:900;color:#fff;">–</div>
-        <div style="height:4px;background:rgba(255,255,255,0.25);border-radius:2px;margin:0.75rem 0 0.5rem;"><div style="height:100%;width:100%;background:rgba(255,255,255,0.8);border-radius:2px;"></div></div>
-        <div style="font-size:0.72rem;color:rgba(255,255,255,0.8);">↓ Action requise</div>
-      </div>
-    </div>
+    <div class="detail-block t-blue">
+      <h3 class="detail-title">🎯 Objectif du module</h3>
+      <p class="detail-text">
+        Fournir aux décideurs et gestionnaires une vue d'ensemble immédiate et synthétique de la santé financière, opérationnelle et logistique de l'entreprise afin de faciliter la prise de décision quotidienne.
+      </p>
 
-    <!-- Charts & Tables grid -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-top:1.75rem;">
-      <!-- Chart ventes -->
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.5rem;">
-        <div style="font-weight:700;color:#38bdf8;margin-bottom:1rem;font-size:0.92rem;">📊 Graphique Ventes – 30 derniers jours</div>
-        <div style="height:160px;display:flex;align-items:flex-end;gap:5px;padding-top:1rem;">
-          <!-- Simulated bars -->
-          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;">
-            <div style="width:100%;background:linear-gradient(180deg,#38bdf8,#0ea5e9);border-radius:4px 4px 0 0;height:40%;"></div>
-            <div style="font-size:0.55rem;color:var(--text3);">S1</div>
-          </div>
-          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;">
-            <div style="width:100%;background:linear-gradient(180deg,#38bdf8,#0ea5e9);border-radius:4px 4px 0 0;height:65%;"></div>
-            <div style="font-size:0.55rem;color:var(--text3);">S2</div>
-          </div>
-          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;">
-            <div style="width:100%;background:linear-gradient(180deg,#38bdf8,#0ea5e9);border-radius:4px 4px 0 0;height:55%;"></div>
-            <div style="font-size:0.55rem;color:var(--text3);">S3</div>
-          </div>
-          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;">
-            <div style="width:100%;background:linear-gradient(180deg,#38bdf8,#0ea5e9);border-radius:4px 4px 0 0;height:85%;"></div>
-            <div style="font-size:0.55rem;color:var(--text3);">S4</div>
-          </div>
-          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;">
-            <div style="width:100%;background:linear-gradient(180deg,#38bdf8,#0ea5e9);border-radius:4px 4px 0 0;height:70%;"></div>
-            <div style="font-size:0.55rem;color:var(--text3);">S5</div>
-          </div>
-          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;">
-            <div style="width:100%;background:linear-gradient(180deg,#38bdf8,#0ea5e9);border-radius:4px 4px 0 0;height:90%;"></div>
-            <div style="font-size:0.55rem;color:var(--text3);">S6</div>
-          </div>
-          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;">
-            <div style="width:100%;background:linear-gradient(180deg,#a78bfa,#8b5cf6);border-radius:4px 4px 0 0;height:100%;"></div>
-            <div style="font-size:0.55rem;color:var(--text3);">S7</div>
-          </div>
-        </div>
-        <div style="margin-top:0.75rem;font-size:0.75rem;color:var(--text3);">Graphique LineChart Recharts — données réelles en temps réel</div>
+      <h3 class="detail-title">🛠️ Fonctionnalités</h3>
+      <ul class="detail-list">
+        <li class="detail-list-item">⚡ <strong>Indicateurs Financiers Clés (KPIs)</strong> : Visualisation instantanée du Chiffre d'Affaires du mois, du nombre total d'articles référencés, de la valeur de vente totale du stock (CA potentiel) et des alertes de rupture imminentes.</li>
+        <li class="detail-list-item">⚡ <strong>Graphiques Dynamiques Recharts</strong> : Graphique d'évolution des ventes sur les 30 derniers jours (LineChart) et répartition en pourcentage des articles les plus vendus (PieChart).</li>
+        <li class="detail-list-item">⚡ <strong>Alertes de Stock Critique</strong> : Bannière d'avertissement rouge clignotante listant le nombre d'articles sous le seuil d'alerte, avec lien d'exportation Excel.</li>
+        <li class="detail-list-item">⚡ <strong>Classement des Ventes Non Réglées</strong> : Liste paginée des créances clients avec raccourci pour l'export Excel immédiat.</li>
+      </ul>
+
+      <h3 class="detail-title">🟢 Actions réalisables</h3>
+      <div class="actions-grid">
+        <div class="action-card">✨ <strong>Filtrer par Magasin</strong> : Les administrateurs peuvent basculer de magasin pour voir des données isolées ou consolidées.</div>
+        <div class="action-card">✨ <strong>Exporter les Alertes</strong> : Télécharger en un clic le tableau des produits en rupture sous format Excel.</div>
+        <div class="action-card">✨ <strong>Exporter les Créances</strong> : Générer un tableur contenant la liste des factures impayées et restes à payer par client.</div>
+        <div class="action-card">✨ <strong>Actualisation manuelle</strong> : Bouton "Rafraîchir" pour forcer le rechargement des indicateurs directement depuis la base MySQL.</div>
       </div>
-
-      <!-- Donut chart -->
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.5rem;">
-        <div style="font-weight:700;color:#38bdf8;margin-bottom:1rem;font-size:0.92rem;">🍩 Top Articles les plus vendus</div>
-        <div style="display:flex;align-items:center;justify-content:center;gap:2rem;height:140px;">
-          <div style="position:relative;width:120px;height:120px;">
-            <svg viewBox="0 0 36 36" width="120" height="120">
-              <path d="M18 2 a16 16 0 0 1 0 32 a16 16 0 0 1 0-32" fill="none" stroke="#0f172a" stroke-width="4"/>
-              <path d="M18 2 a16 16 0 0 1 0 32 a16 16 0 0 1 0-32" fill="none" stroke="#0088FE" stroke-width="4" stroke-dasharray="35 65"/>
-              <path d="M18 2 a16 16 0 0 1 0 32 a16 16 0 0 1 0-32" fill="none" stroke="#00C49F" stroke-width="4" stroke-dasharray="25 75" stroke-dashoffset="-35"/>
-              <path d="M18 2 a16 16 0 0 1 0 32 a16 16 0 0 1 0-32" fill="none" stroke="#FFBB28" stroke-width="4" stroke-dasharray="20 80" stroke-dashoffset="-60"/>
-              <path d="M18 2 a16 16 0 0 1 0 32 a16 16 0 0 1 0-32" fill="none" stroke="#FF8042" stroke-width="4" stroke-dasharray="20 80" stroke-dashoffset="-80"/>
-              <text x="18" y="20" text-anchor="middle" font-size="4" fill="#94a3b8" font-family="Inter">Top 5</text>
-            </svg>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:0.4rem;">
-            <div style="display:flex;align-items:center;gap:0.5rem;"><div style="width:10px;height:10px;border-radius:2px;background:#0088FE;"></div><div style="font-size:0.72rem;color:var(--text2);">Article A · 35%</div></div>
-            <div style="display:flex;align-items:center;gap:0.5rem;"><div style="width:10px;height:10px;border-radius:2px;background:#00C49F;"></div><div style="font-size:0.72rem;color:var(--text2);">Article B · 25%</div></div>
-            <div style="display:flex;align-items:center;gap:0.5rem;"><div style="width:10px;height:10px;border-radius:2px;background:#FFBB28;"></div><div style="font-size:0.72rem;color:var(--text2);">Article C · 20%</div></div>
-            <div style="display:flex;align-items:center;gap:0.5rem;"><div style="width:10px;height:10px;border-radius:2px;background:#FF8042;"></div><div style="font-size:0.72rem;color:var(--text2);">Article D · 20%</div></div>
-          </div>
-        </div>
-        <div style="margin-top:0.5rem;font-size:0.75rem;color:var(--text3);">Graphique PieChart Recharts — données dynamiques exercice actif</div>
-      </div>
-    </div>
-
-    <!-- Bottom tables -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;margin-top:1.5rem;">
-      <!-- Top Articles Detail -->
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.5rem;">
-        <div style="font-weight:700;color:var(--text);margin-bottom:1rem;font-size:0.92rem;">📦 Produits les plus consommés</div>
-        <table class="dtable" style="border-radius:8px;overflow:hidden;">
-          <thead><tr><th>Produit</th><th style="text-align:center">Qté</th><th style="text-align:right">CA</th></tr></thead>
-          <tbody>
-            <tr><td class="hl">Filtre huile X</td><td style="text-align:center"><span class="badge bg">142</span></td><td style="text-align:right">320 000 FCFA</td></tr>
-            <tr><td class="hl">Courroie dist.</td><td style="text-align:center"><span class="badge bg">98</span></td><td style="text-align:right">245 000 FCFA</td></tr>
-            <tr><td class="hl">Huile moteur</td><td style="text-align:center"><span class="badge bg">87</span></td><td style="text-align:right">174 000 FCFA</td></tr>
-          </tbody>
-        </table>
-        <div style="font-size:0.72rem;color:var(--text3);margin-top:0.75rem;">Paginé 6/page · données exercice actif</div>
-      </div>
-
-      <!-- Unpaid Sales -->
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.5rem;">
-        <div style="font-weight:700;color:var(--text);margin-bottom:1rem;font-size:0.92rem;">💳 Ventes non réglées &amp; Meilleurs clients</div>
-        <table class="dtable" style="border-radius:8px;overflow:hidden;">
-          <thead><tr><th>Client</th><th style="text-align:center">Cmds</th><th style="text-align:right">Reste dû</th></tr></thead>
-          <tbody>
-            <tr><td class="hl">SOGEA-SATOM</td><td style="text-align:center">12</td><td style="text-align:right;color:#f87171;font-weight:700;">85 000 FCFA</td></tr>
-            <tr><td class="hl">SEGUR SA</td><td style="text-align:center">7</td><td style="text-align:right;color:#f87171;font-weight:700;">45 000 FCFA</td></tr>
-            <tr><td class="hl">Minas de Bolsa</td><td style="text-align:center">5</td><td style="text-align:right;color:#f87171;font-weight:700;">22 000 FCFA</td></tr>
-          </tbody>
-        </table>
-        <div style="display:flex;gap:0.5rem;margin-top:0.75rem;flex-wrap:wrap;">
-          <span class="badge bg">✓ Export Excel créances</span>
-          <span class="badge bb">Paginé 5/page</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Features list -->
-    <div class="card-grid" style="margin-top:1.75rem;">
-      <div class="card t-blue"><div class="card-icon">🌟</div><div class="card-title">Écran de bienvenue</div><div class="card-body">Animation de bienvenue avec logo et nom de l'utilisateur lors de la première connexion de la session. Fermeture automatique après 10 secondes.</div></div>
-      <div class="card t-blue"><div class="card-icon">🔔</div><div class="card-title">Alerte exercice fiscal</div><div class="card-body">Bannière d'avertissement si aucun exercice fiscal n'est actif. Bouton direct vers l'ouverture d'exercice. Bloque les saisies.</div></div>
-      <div class="card t-blue"><div class="card-icon">💊</div><div class="card-title">Indicateur de santé</div><div class="card-body">Statut en temps réel de la connexion serveur : 🟢 Stable · 🟡 Ralenti · 🔴 Indisponible. Affiché en permanence.</div></div>
-      <div class="card t-blue"><div class="card-icon">🔄</div><div class="card-title">Actualisation manuelle</div><div class="card-body">Bouton "Actualiser" pour recharger toutes les statistiques depuis la base de données sans recharger la page.</div></div>
-    </div>
-
-    <div style="margin-top:1.5rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
-      <span class="badge br">🚫 Non accessible aux Vendeurs (redirigé vers Ventes)</span>
-      <span class="badge bp">📅 Filtré par exercice fiscal actif</span>
-      <span class="badge bg">✓ Export Excel articles critiques</span>
-    </div>
-
-    <div class="stats-strip">
-      <div class="stat-item"><span class="stat-value">4</span><span class="stat-label">KPIs en temps réel</span></div>
-      <div class="stat-item"><span class="stat-value">2</span><span class="stat-label">Graphiques Recharts</span></div>
-      <div class="stat-item"><span class="stat-value">30j</span><span class="stat-label">Historique ventes</span></div>
-      <div class="stat-item"><span class="stat-value">Top5</span><span class="stat-label">Articles &amp; Clients</span></div>
     </div>
   </section>
 
@@ -558,26 +545,31 @@
       <div class="section-meta">
         <div class="section-num">Module 01 · Stock</div>
         <h2 class="section-title">Articles</h2>
-        <p class="section-desc">Référentiel central de tous les produits en stock. Gestion des codes, prix, seuils d'alerte et prédiction de rupture basée sur l'historique des ventes.</p>
+        <p class="section-desc">Référentiel centralisé de tous les produits en stock. Gestion des codes, prix, seuils d'alerte et prédiction de rupture basée sur l'historique des ventes.</p>
       </div>
     </div>
-    <div class="card-grid">
-      <div class="card t-blue"><div class="card-icon">🔍</div><div class="card-title">Recherche en temps réel</div><div class="card-body">Recherche debounced (400ms) par code article, nom ou code-barres. Pagination serveur 50 articles/page.</div></div>
-      <div class="card t-blue"><div class="card-icon">⚠️</div><div class="card-title">Alerte stock critique</div><div class="card-body">Mise en évidence visuelle des articles dont le stock actuel est ≤ au seuil d'alerte. Badge rouge dans la sidebar.</div></div>
-      <div class="card t-blue"><div class="card-icon">📈</div><div class="card-title">Prédiction de rupture</div><div class="card-body">Calcul automatique du nombre de jours restants avant rupture (basé sur les ventes des 30 derniers jours).</div></div>
-      <div class="card t-blue"><div class="card-icon">📥</div><div class="card-title">Import Excel</div><div class="card-body">Import en masse via Excel (colonnes : Nom, Code, Prix, Stock, Seuil). Nettoyage automatique des données mal formatées.</div></div>
-    </div>
-    <div style="margin-top:1.75rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
-      <span class="badge bg">✓ Export Excel</span>
-      <span class="badge bg">✓ Impression PDF</span>
-      <span class="badge bg">✓ Import Excel</span>
-      <span class="badge bp">🔒 Permission : stock.edit</span>
-    </div>
-    <div class="stats-strip">
-      <div class="stat-item"><span class="stat-value">50</span><span class="stat-label">Articles / page</span></div>
-      <div class="stat-item"><span class="stat-value">3</span><span class="stat-label">Champs recherche</span></div>
-      <div class="stat-item"><span class="stat-value">30j</span><span class="stat-label">Base prédiction</span></div>
-      <div class="stat-item"><span class="stat-value">0</span><span class="stat-label">Valeur min. stock</span></div>
+
+    <div class="detail-block t-blue">
+      <h3 class="detail-title">🎯 Objectif du module</h3>
+      <p class="detail-text">
+        Centraliser et modéliser l'ensemble du catalogue de produits commercialisables avec leur niveau de stock actuel, leur tarification et leurs critères de réapprovisionnement.
+      </p>
+
+      <h3 class="detail-title">🛠️ Fonctionnalités</h3>
+      <ul class="detail-list">
+        <li class="detail-list-item">⚡ <strong>Recherche &amp; Filtrage Intelligent</strong> : Recherche temps réel (debounced à 400ms) par code article, désignation, référence constructeur ou code-barres.</li>
+        <li class="detail-list-item">⚡ <strong>Prédiction de Rupture Logistique</strong> : Algorithme estimant le nombre de jours restants avant épuisement total du stock d'un article en se basant sur le rythme moyen de vente sur les 30 derniers jours.</li>
+        <li class="detail-list-item">⚡ <strong>Importation de Masse (Excel)</strong> : Importation rapide de centaines de produits depuis un fichier tableur, avec nettoyage automatique des blancs et formatage automatique des nombres.</li>
+        <li class="detail-list-item">⚡ <strong>Valorisation instantanée</strong> : Calcul automatique de la valeur financière totale du stock de chaque produit (Quantité en stock × Prix de vente).</li>
+      </ul>
+
+      <h3 class="detail-title">🟢 Actions réalisables</h3>
+      <div class="actions-grid">
+        <div class="action-card">✨ <strong>Créer / Modifier un Article</strong> : Définir le nom, le code unique, le code-barres (EAN), le prix de vente unitaire, le stock de départ et le seuil d'alerte minimal.</div>
+        <div class="action-card">✨ <strong>Importer par Lot</strong> : Uploader un fichier Excel pour peupler instantanément la base de données.</div>
+        <div class="action-card">✨ <strong>Exporter / Imprimer</strong> : Télécharger le catalogue filtré au format Excel ou générer une version PDF imprimable propre.</div>
+        <div class="action-card">✨ <strong>Supprimer</strong> : Retirer un article obsolète de la base (possible uniquement s'il n'a pas d'historique de mouvement ou de vente).</div>
+      </div>
     </div>
   </section>
 
@@ -589,48 +581,30 @@
       <div class="section-meta">
         <div class="section-num">Module 02 · Stock</div>
         <h2 class="section-title">Mouvements de Stock</h2>
-        <p class="section-desc">Enregistrement et suivi de toutes les entrées et sorties de marchandises. Chaque mouvement impacte directement l'inventaire en temps réel.</p>
+        <p class="section-desc">Enregistrement et suivi de toutes les entrées et sorties physiques de marchandises. Chaque mouvement impacte directement l'inventaire en temps réel.</p>
       </div>
     </div>
-    <div class="flow">
-      <div class="flow-step"><span class="flow-icon">🔍</span><strong class="flow-label">Sélection article</strong><div class="flow-sub">Scan ou recherche</div></div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-step"><span class="flow-icon">📝</span><strong class="flow-label">Saisie quantité</strong><div class="flow-sub">+ Fournisseur si entrée</div></div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-step"><span class="flow-icon">✅</span><strong class="flow-label">Confirmation</strong><div class="flow-sub">Vérification stock</div></div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-step"><span class="flow-icon">📊</span><strong class="flow-label">Mise à jour inventaire</strong><div class="flow-sub">Temps réel</div></div>
-    </div>
-    <div class="feature-row">
-      <ul class="feature-list">
-        <li class="feature-item"><div class="fdot" style="background:#10b981"></div><div class="ftext"><strong>Entrées (IN)</strong> — Réapprovisionnement avec fournisseur optionnel. Vérification exercice fiscal actif obligatoire.</div></li>
-        <li class="feature-item"><div class="fdot" style="background:#10b981"></div><div class="ftext"><strong>Sorties (OUT)</strong> — Contrôle anti-dépassement : impossible de sortir plus que le stock disponible.</div></li>
-        <li class="feature-item"><div class="fdot" style="background:#10b981"></div><div class="ftext"><strong>Filtres avancés</strong> — Par article, type (IN/OUT), plage de dates. Raccourcis rapides : Aujourd'hui, 7 jours, Mois.</div></li>
-        <li class="feature-item"><div class="fdot" style="background:#10b981"></div><div class="ftext"><strong>Recherche intelligente</strong> — Autocomplete pour les articles : nom, code ou code-barres.</div></li>
+
+    <div class="detail-block t-green">
+      <h3 class="detail-title">🎯 Objectif du module</h3>
+      <p class="detail-text">
+        Assurer la traçabilité absolue de tout flux physique de marchandises (réception de commande, ajustement d'inventaire, perte ou casse) et maintenir l'exactitude des stocks.
+      </p>
+
+      <h3 class="detail-title">🛠️ Fonctionnalités</h3>
+      <ul class="detail-list">
+        <li class="detail-list-item">⚡ <strong>Double Flux (Entrée / Sortie)</strong> : Gestion des flux d'approvisionnement (IN) associés à un fournisseur et des flux de déstockage/perte (OUT).</li>
+        <li class="detail-list-item">⚡ <strong>Contrôle de Cohérence Anti-Dépassement</strong> : Blocage automatique de toute tentative de saisie de sortie de stock supérieure à la quantité réellement disponible en rayon pour éviter les stocks négatifs.</li>
+        <li class="detail-list-item">⚡ <strong>Historisation Auditée</strong> : Chaque transaction de mouvement est immuable et enregistre l'utilisateur responsable, la date exacte, la quantité et une note justificative.</li>
+        <li class="detail-list-item">⚡ <strong>Filtre Temporel Précis</strong> : Sélection par date ou par raccourcis temporels (Aujourd'hui, 7 derniers jours, ce mois).</li>
       </ul>
-      <div>
-        <table class="dtable" style="background:var(--surface);border-radius:12px;overflow:hidden;">
-          <thead><tr><th>Champ</th><th>Description</th></tr></thead>
-          <tbody>
-            <tr><td class="hl">Date</td><td>Horodatage automatique de l'opération</td></tr>
-            <tr><td class="hl">Type</td><td>Entrée (IN) ou Sortie (OUT)</td></tr>
-            <tr><td class="hl">Article</td><td>Référence + code article</td></tr>
-            <tr><td class="hl">Fournisseur</td><td>Source (entrées seulement)</td></tr>
-            <tr><td class="hl">Quantité</td><td>Affichée avec signe + ou −</td></tr>
-            <tr><td class="hl">Notes</td><td>Commentaire libre</td></tr>
-          </tbody>
-        </table>
-        <div style="margin-top:0.75rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
-          <span class="badge bg">✓ Export Excel</span>
-          <span class="badge bg">✓ PDF</span>
-          <span class="badge br">✗ Observateur</span>
-        </div>
+
+      <h3 class="detail-title">🟢 Actions réalisables</h3>
+      <div class="actions-grid">
+        <div class="action-card">✨ <strong>Enregistrer une Entrée (IN)</strong> : Sélectionner un article, saisir la quantité reçue, affecter un fournisseur et écrire une note explicative (ex: Livraison commande N°10).</div>
+        <div class="action-card">✨ <strong>Enregistrer une Sortie (OUT)</strong> : Déclarer une baisse de stock suite à un inventaire défectueux, une perte ou un prélèvement interne.</div>
+        <div class="action-card">✨ <strong>Générer des Rapports</strong> : Exporter l'historique complet des flux physiques sous format Excel ou PDF.</div>
       </div>
-    </div>
-    <div class="stats-strip">
-      <div class="stat-item"><span class="stat-value">2</span><span class="stat-label">Types de mouvement</span></div>
-      <div class="stat-item"><span class="stat-value">10/pg</span><span class="stat-label">Pagination</span></div>
-      <div class="stat-item"><span class="stat-value">100%</span><span class="stat-label">Traçabilité</span></div>
     </div>
   </section>
 
@@ -642,19 +616,29 @@
       <div class="section-meta">
         <div class="section-num">Module 03 · Stock</div>
         <h2 class="section-title">Transferts Inter-Magasins</h2>
-        <p class="section-desc">Déplacement de marchandises d'un magasin physique à un autre. Gestion complète du cycle de transfert avec validation de réception.</p>
+        <p class="section-desc">Déplacement sécurisé de marchandises d'un magasin physique à un autre, avec validation de transit.</p>
       </div>
     </div>
-    <div class="card-grid">
-      <div class="card t-teal"><div class="card-icon">📤</div><div class="card-title">Transfert Sortant</div><div class="card-body">Initiation d'un transfert depuis le magasin source. Décrémente le stock source immédiatement.</div></div>
-      <div class="card t-teal"><div class="card-icon">📥</div><div class="card-title">Réception</div><div class="card-body">Confirmation de réception par le magasin destinataire. Incrémente le stock destination.</div></div>
-      <div class="card t-teal"><div class="card-icon">⏳</div><div class="card-title">Statut En Transit</div><div class="card-body">Le stock transféré est en "transit" jusqu'à validation. Visible dans l'historique des deux magasins.</div></div>
-      <div class="card t-teal"><div class="card-icon">📜</div><div class="card-title">Historique Complet</div><div class="card-body">Journal complet des transferts avec date, magasins source/destination, articles et quantités.</div></div>
-    </div>
-    <div class="stats-strip">
-      <div class="stat-item"><span class="stat-value">3</span><span class="stat-label">Statuts (En attente, Transit, Reçu)</span></div>
-      <div class="stat-item"><span class="stat-value">0</span><span class="stat-label">Perte de stock</span></div>
-      <div class="stat-item"><span class="stat-value">100%</span><span class="stat-label">Traçabilité</span></div>
+
+    <div class="detail-block t-teal">
+      <h3 class="detail-title">🎯 Objectif du module</h3>
+      <p class="detail-text">
+        Permettre l'échange de stock entre différents points de vente ou entrepôts de l'entreprise tout en garantissant qu'aucune marchandise ne disparaisse durant le transport.
+      </p>
+
+      <h3 class="detail-title">🛠️ Fonctionnalités</h3>
+      <ul class="detail-list">
+        <li class="detail-list-item">⚡ <strong>Workflow en Deux Étapes</strong> : Le transfert est initié par le magasin source (ce qui décrémente son stock disponible et place l'article en statut "En Transit") puis validé par le magasin destinataire (qui confirme la réception et incrémente son stock).</li>
+        <li class="detail-list-item">⚡ <strong>Sécurité de Flux</strong> : Un magasin ne peut pas recevoir d'articles tant qu'un transfert n'a pas été physiquement envoyé et tracé.</li>
+        <li class="detail-list-item">⚡ <strong>Suivi Visuel des Statuts</strong> : Les transferts affichent clairement les statuts colorés : `En transit` (orange) ou `Reçu` (vert).</li>
+      </ul>
+
+      <h3 class="detail-title">🟢 Actions réalisables</h3>
+      <div class="actions-grid">
+        <div class="action-card">✨ <strong>Initier un Transfert</strong> : Sélectionner le magasin destinataire, choisir les articles et les quantités à expédier, et valider l'envoi.</div>
+        <div class="action-card">✨ <strong>Valider une Réception</strong> : Le gestionnaire du magasin cible clique sur "Confirmer la réception" une fois les cartons vérifiés.</div>
+        <div class="action-card">✨ <strong>Annuler un Transfert</strong> : L'expéditeur peut annuler un transfert en transit si le chauffeur n'est pas encore parti (re-crédite le magasin source).</div>
+      </div>
     </div>
   </section>
 
@@ -666,19 +650,29 @@
       <div class="section-meta">
         <div class="section-num">Module 04 · Achats</div>
         <h2 class="section-title">Fournisseurs</h2>
-        <p class="section-desc">Répertoire complet des fournisseurs avec toutes les informations légales et commerciales. Utilisé dans les mouvements d'entrée et les commandes.</p>
+        <p class="section-desc">Répertoire complet des fournisseurs avec toutes leurs informations légales et commerciales pour les approvisionnements.</p>
       </div>
     </div>
-    <div class="card-grid">
-      <div class="card t-orange"><div class="card-icon">🏢</div><div class="card-title">Fiche Fournisseur</div><div class="card-body">Nom, adresse, BP, téléphone, RCCM, NIF/IFU. Utilisé pour auto-remplir les en-têtes de documents.</div></div>
-      <div class="card t-orange"><div class="card-icon">🔗</div><div class="card-title">Liaison Achats</div><div class="card-body">Associé aux entrées de stock (mouvements IN) et aux commandes spéciales. Référence légale pour les BL/BC.</div></div>
-      <div class="card t-orange"><div class="card-icon">📋</div><div class="card-title">Code Client Interne</div><div class="card-body">Champ "Mon code client" chez le fournisseur, pré-rempli automatiquement à l'impression des documents.</div></div>
-      <div class="card t-orange"><div class="card-icon">🔍</div><div class="card-title">Recherche &amp; Export</div><div class="card-body">Recherche rapide dans le répertoire. Export Excel du listing complet des fournisseurs.</div></div>
-    </div>
-    <div class="stats-strip">
-      <div class="stat-item"><span class="stat-value">7+</span><span class="stat-label">Champs d'info</span></div>
-      <div class="stat-item"><span class="stat-value">Auto</span><span class="stat-label">Remplissage docs</span></div>
-      <div class="stat-item"><span class="stat-value">xlsx</span><span class="stat-label">Export format</span></div>
+
+    <div class="detail-block t-orange">
+      <h3 class="detail-title">🎯 Objectif du module</h3>
+      <p class="detail-text">
+        Centraliser les fiches signalétiques de tous les partenaires d'approvisionnement afin de faciliter la génération automatique des Bons de Commande d'achat et le suivi comptable.
+      </p>
+
+      <h3 class="detail-title">🛠️ Fonctionnalités</h3>
+      <ul class="detail-list">
+        <li class="detail-list-item">⚡ <strong>Identité Légale Exhaustive</strong> : Stockage du Nom, Téléphone, Adresse physique, Boîte Postale (BP), numéro RCCM, NIF/IFU de chaque partenaire.</li>
+        <li class="detail-list-item">⚡ <strong>Intégration Documentaire</strong> : Les informations d'en-tête de ces fiches sont injectées automatiquement lors de l'impression des Bons de Commande générés par le système.</li>
+        <li class="detail-list-item">⚡ <strong>Code Client Fournisseur</strong> : Mémorisation de votre propre code d'identification chez ce fournisseur pour que le BC imprimé contienne votre numéro de compte client partenaire.</li>
+      </ul>
+
+      <h3 class="detail-title">🟢 Actions réalisables</h3>
+      <div class="actions-grid">
+        <div class="action-card">✨ <strong>Créer / Modifier un Fournisseur</strong> : Remplir l'ensemble des coordonnées et identifiants fiscaux du partenaire.</div>
+        <div class="action-card">✨ <strong>Consulter le Répertoire</strong> : Moteur de recherche pour retrouver rapidement une adresse ou un contact téléphonique.</div>
+        <div class="action-card">✨ <strong>Exporter la Liste</strong> : Télécharger l'ensemble du répertoire des fournisseurs sous format Excel.</div>
+      </div>
     </div>
   </section>
 
@@ -690,43 +684,31 @@
       <div class="section-meta">
         <div class="section-num">Module 05 · Achats</div>
         <h2 class="section-title">Commandes Spéciales</h2>
-        <p class="section-desc">Gestion des commandes hors-catalogue passées auprès de fournisseurs externes, avec suivi de livraison partielle, impression BC personnalisée et traçabilité complète.</p>
+        <p class="section-desc">Gestion des commandes hors-catalogue passées auprès de fournisseurs externes, avec suivi de livraison partielle et impression de Bon de Commande (BC).</p>
       </div>
     </div>
-    <div class="flow">
-      <div class="flow-step"><span class="flow-icon">🏗️</span><strong class="flow-label">Création BC</strong><div class="flow-sub">Client + Fournisseur</div></div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-step"><span class="flow-icon">🖨️</span><strong class="flow-label">Impression BC</strong><div class="flow-sub">N° auto</div></div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-step"><span class="flow-icon">🚚</span><strong class="flow-label">Livraisons partielles</strong><div class="flow-sub">Par article</div></div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-step"><span class="flow-icon">📄</span><strong class="flow-label">BL par livraison</strong></div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-step"><span class="flow-icon">✅</span><strong class="flow-label">Clôture</strong></div>
-    </div>
-    <div class="feature-row">
-      <ul class="feature-list">
-        <li class="feature-item"><div class="fdot" style="background:#f59e0b"></div><div class="ftext"><strong>BC personnalisé</strong> — Titre, section, TVA (paramétrable), exonération, superviseur, notes, coordonnées.</div></li>
-        <li class="feature-item"><div class="fdot" style="background:#f59e0b"></div><div class="ftext"><strong>Livraisons partielles</strong> — Saisie progressive par article, sans jamais dépasser la quantité commandée.</div></li>
-        <li class="feature-item"><div class="fdot" style="background:#f59e0b"></div><div class="ftext"><strong>Numérotation auto</strong> — Format configurable : <code style="color:#fbbf24">{ID}-{DATE}-{CLIENT}</code>. Sauvegardé en base.</div></li>
-        <li class="feature-item"><div class="fdot" style="background:#f59e0b"></div><div class="ftext"><strong>Module isolé</strong> — Bénéfice enregistré séparément, <strong>pas d'impact</strong> sur l'inventaire principal.</div></li>
+
+    <div class="detail-block t-amber">
+      <h3 class="detail-title">🎯 Objectif du module</h3>
+      <p class="detail-text">
+        Permettre l'acquisition et la facturation d'articles spécifiques qui ne font pas partie du catalogue de stock régulier (achats ponctuels, demandes spéciales de clients), en calculant précisément la marge bénéficiaire générée.
+      </p>
+
+      <h3 class="detail-title">🛠️ Fonctionnalités</h3>
+      <ul class="detail-list">
+        <li class="detail-list-item">⚡ <strong>Saisie d'Articles Libres</strong> : L'utilisateur saisit à la volée les désignations, prix d'achat, prix de vente et quantités sans devoir pré-enregistrer les produits.</li>
+        <li class="detail-list-item">⚡ <strong>Génération Automatique de PDF (BC)</strong> : Création d'un Bon de Commande professionnel avec en-tête de l'entreprise, coordonnées du fournisseur, tableau des prix et signatures.</li>
+        <li class="detail-list-item">⚡ <strong>Suivi des Livraisons Partielles</strong> : Gestion de la réception progressive des articles commandés. Possibilité de saisir plusieurs Bons de Livraison (BL) sur un même BC.</li>
+        <li class="detail-list-item">⚡ <strong>Calculateur de Marge commercial</strong> : Visualisation en temps réel de la marge bénéficiaire estimée sur le dossier `(Prix Vente - Prix Achat) × Quantité`.</li>
       </ul>
-      <div>
-        <table class="dtable" style="background:var(--surface);border-radius:12px;overflow:hidden;">
-          <thead><tr><th>Statut</th><th>Signification</th></tr></thead>
-          <tbody>
-            <tr><td class="hl">En attente</td><td>Commande créée, pas encore livrée</td></tr>
-            <tr><td class="hl">Partiellement livré</td><td>Au moins 1 livraison enregistrée</td></tr>
-            <tr><td class="hl">Livré &amp; Clôturé</td><td>Tout livré, bénéfice comptabilisé</td></tr>
-            <tr><td class="hl">Annulé</td><td>Commande annulée par l'utilisateur</td></tr>
-          </tbody>
-        </table>
+
+      <h3 class="detail-title">🟢 Actions réalisables</h3>
+      <div class="actions-grid">
+        <div class="action-card">✨ <strong>Saisir un nouveau Bon de Commande</strong> : Sélectionner le client, le fournisseur, ajouter les lignes d'articles, fixer les prix et générer le BC.</div>
+        <div class="action-card">✨ <strong>Enregistrer une Livraison partielle</strong> : Indiquer les quantités réellement reçues pour chaque article du BC et associer un numéro de BL.</div>
+        <div class="action-card">✨ <strong>Imprimer / Exporter</strong> : Télécharger le Bon de Commande ou le Bon de Livraison au format PDF pour envoi.</div>
+        <div class="action-card">✨ <strong>Clôturer le dossier</strong> : Clôturer manuellement la commande une fois toutes les livraisons validées pour acter le bénéfice.</div>
       </div>
-    </div>
-    <div class="stats-strip">
-      <div class="stat-item"><span class="stat-value">4</span><span class="stat-label">Statuts</span></div>
-      <div class="stat-item"><span class="stat-value">∞</span><span class="stat-label">Livraisons partielles</span></div>
-      <div class="stat-item"><span class="stat-value">18%</span><span class="stat-label">TVA par défaut</span></div>
     </div>
   </section>
 
@@ -738,54 +720,32 @@
       <div class="section-meta">
         <div class="section-num">Module 06 · Achats</div>
         <h2 class="section-title">Achats et Bon de Commande &amp; Rapports</h2>
-        <p class="section-desc">Gestion complète des dossiers d'achat contractuels auprès de partenaires (ex : CFAO), avec catalogue, livraisons BL et rapports analytiques multi-dimensions.</p>
+        <p class="section-desc">Gestion complète des dossiers d'achat contractuels auprès de partenaires institutionnels avec importation de catalogues dédiés.</p>
       </div>
     </div>
-    <div class="card-grid">
-      <div class="card t-purple"><div class="card-icon">🗂️</div><div class="card-title">Dossiers</div><div class="card-body">Gestion de dossiers par partenaire/client. Statuts : En demande → En cours → Clôturé. Alerte vocale retards.</div></div>
-      <div class="card t-purple"><div class="card-icon">📚</div><div class="card-title">Catalogue</div><div class="card-body">Articles négociés avec prix contractuels. Import Excel. Filtres par partenaire et client.</div></div>
-      <div class="card t-purple"><div class="card-icon">🚛</div><div class="card-title">Livraisons (BL)</div><div class="card-body">Livraisons partielles par dossier. Historique complet. Impression BL avec en-tête partenaire.</div></div>
-      <div class="card t-purple"><div class="card-icon">📊</div><div class="card-title">Rapports</div><div class="card-body">Dashboard KPIs, bilan consommation, rapport produits (rotation 2/3/6/12 mois), rapport achats par mine.</div></div>
-    </div>
-    <div style="margin-top:1.75rem;display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1rem;">
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem;border-left:4px solid #8b5cf6;">
-        <div style="font-weight:700;color:#a78bfa;margin-bottom:0.65rem;font-size:0.88rem;">📈 Dashboard</div>
-        <ul style="list-style:none;display:flex;flex-direction:column;gap:0.3rem;">
-          <li style="font-size:0.77rem;color:var(--text2);">• Dossiers en cours / clôturés</li>
-          <li style="font-size:0.77rem;color:var(--text2);">• Graphiques évolution mensuelle</li>
-          <li style="font-size:0.77rem;color:var(--text2);">• Répartition par partenaire</li>
-          <li style="font-size:0.77rem;color:var(--text2);">• Bilan HT/TVA/TTC</li>
-        </ul>
+
+    <div class="detail-block t-purple">
+      <h3 class="detail-title">🎯 Objectif du module</h3>
+      <p class="detail-text">
+        Suivre l'exécution des contrats de fournitures à long terme signés avec de grands partenaires (ex : CFAO pour les mines), avec des catalogues tarifaires négociés et des livraisons échelonnées.
+      </p>
+
+      <h3 class="detail-title">🛠️ Fonctionnalités</h3>
+      <ul class="detail-list">
+        <li class="detail-list-item">⚡ <strong>Gestion de Dossiers Contractuels</strong> : Regroupement de toutes les transactions (BC, BL, Correspondances) sous une référence de dossier unique.</li>
+        <li class="detail-list-item">⚡ <strong>Catalogue Partenaire Négocié</strong> : Grille tarifaire fermée pour chaque partenaire. Importation en masse du catalogue via Excel.</li>
+        <li class="detail-list-item">⚡ <strong>Alerte Vocale Intelligente</strong> : Synthèse vocale du navigateur qui liste et annonce les dossiers en retard de livraison lors de l'ouverture de la page.</li>
+        <li class="detail-list-item">⚡ <strong>Rapport Financier Détaillé par Mine (CFAO)</strong> : Tableau de bord financier complet pour le suivi précis des engagements, livraisons réelles et reliquats (KPIs : Total Commandé HT, Total Livré Réel HT, Reste à Livrer HT, Total Livré TTC, Taux de Livraison) structuré avec une Synthèse Financière par Mine et un tableau de Détail Ligne par Ligne des Pièces Commandées.</li>
+      </ul>
+
+      <h3 class="detail-title">🟢 Actions réalisables</h3>
+      <div class="actions-grid">
+        <div class="action-card">✨ <strong>Créer un Dossier de Contrat</strong> : Ouvrir un dossier en saisissant la référence, le partenaire, le client final (la mine) et la date limite.</div>
+        <div class="action-card">✨ <strong>Éditer le Catalogue Négocié</strong> : Ajouter un produit spécifique avec son prix contractuel ou importer un fichier complet.</div>
+        <div class="action-card">✨ <strong>Saisir un BL de Livraison Contractuelle</strong> : Enregistrer l'arrivée des articles en renseignant la quantité reçue par rapport à celle initialement commandée.</div>
+        <div class="action-card">✨ <strong>Consulter et Filtrer le Rapport Financier CFAO</strong> : Filtrer le tableau de bord par période, partenaire de facturation, mine de destination et statut des dossiers, et utiliser le moteur de recherche par BC ou désignation pour analyser les écarts et taux de livraison.</div>
+        <div class="action-card">✨ <strong>Exporter / Imprimer le Bilan Financier par Mine</strong> : Télécharger l'ensemble des données consolidées et détaillées au format Excel ou générer une version d'impression PDF.</div>
       </div>
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem;border-left:4px solid #6366f1;">
-        <div style="font-weight:700;color:#a5b4fc;margin-bottom:0.65rem;font-size:0.88rem;">📦 Consommation Produits</div>
-        <ul style="list-style:none;display:flex;flex-direction:column;gap:0.3rem;">
-          <li style="font-size:0.77rem;color:var(--text2);">• Qté consommée totale</li>
-          <li style="font-size:0.77rem;color:var(--text2);">• Données sur 2/3/6/12 mois</li>
-          <li style="font-size:0.77rem;color:var(--text2);">• Taux de rotation</li>
-          <li style="font-size:0.77rem;color:var(--text2);">• Export Excel détaillé</li>
-        </ul>
-      </div>
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem;border-left:4px solid #4f46e5;">
-        <div style="font-weight:700;color:#818cf8;margin-bottom:0.65rem;font-size:0.88rem;">💰 Rapport Financier</div>
-        <ul style="list-style:none;display:flex;flex-direction:column;gap:0.3rem;">
-          <li style="font-size:0.77rem;color:var(--text2);">• Par mine et partenaire</li>
-          <li style="font-size:0.77rem;color:var(--text2);">• Qté commandée/livrée/restante</li>
-          <li style="font-size:0.77rem;color:var(--text2);">• Montants HT/TTC</li>
-          <li style="font-size:0.77rem;color:var(--text2);">• Filtre par statut dossier</li>
-        </ul>
-      </div>
-    </div>
-    <div style="margin-top:1.25rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
-      <span class="badge bp">🎙️ Alerte vocale retards</span>
-      <span class="badge bp">📅 Vue calendrier</span>
-      <span class="badge bp">⚡ Badge urgent clignotant</span>
-      <span class="badge bg">✓ Export xlsx</span>
-    </div>
-    <div class="stats-strip">
-      <div class="stat-item"><span class="stat-value">4</span><span class="stat-label">Statuts dossier</span></div>
-      <div class="stat-item"><span class="stat-value">3</span><span class="stat-label">Onglets rapports</span></div>
-      <div class="stat-item"><span class="stat-value">12</span><span class="stat-label">Mois historique</span></div>
     </div>
   </section>
 
@@ -797,19 +757,30 @@
       <div class="section-meta">
         <div class="section-num">Module 07 · Achats</div>
         <h2 class="section-title">Centralisation BL &amp; BC</h2>
-        <p class="section-desc">Vue unifiée de <strong>tous</strong> les Bons de Commande et Bons de Livraison, toutes sources confondues, avec suivi des scans signés.</p>
+        <p class="section-desc">Vue unifiée de tous les Bons de Commande et Bons de Livraison, toutes sources confondues, avec gestion des documents signés.</p>
       </div>
     </div>
-    <div class="card-grid">
-      <div class="card t-sky"><div class="card-icon">📄</div><div class="card-title">BC Centralisés</div><div class="card-body">Tous les BC : Passerelle + Commandes Spéciales. Filtrage par partenaire, date, statut.</div></div>
-      <div class="card t-sky"><div class="card-icon">🚚</div><div class="card-title">BL Centralisés</div><div class="card-body">Tous les BL : Passerelle + Décharges Libres. Vue des quantités et articles livrés.</div></div>
-      <div class="card t-sky"><div class="card-icon">✅</div><div class="card-title">Suivi Scans Signés</div><div class="card-body">Statut "Signé" ou "Manquant" par document. Upload PDF/image depuis la liste. Taux de signature global.</div></div>
-      <div class="card t-sky"><div class="card-icon">📎</div><div class="card-title">Upload Pièces Jointes</div><div class="card-body">Association d'un scan signé à tout BL ou BC. Visualisation et téléchargement direct. Max 5 Mo.</div></div>
-    </div>
-    <div class="stats-strip">
-      <div class="stat-item"><span class="stat-value">3</span><span class="stat-label">Sources fusionnées</span></div>
-      <div class="stat-item"><span class="stat-value">BC+BL</span><span class="stat-label">Types documents</span></div>
-      <div class="stat-item"><span class="stat-value">5Mo</span><span class="stat-label">Max pièce jointe</span></div>
+
+    <div class="detail-block t-sky">
+      <h3 class="detail-title">🎯 Objectif du module</h3>
+      <p class="detail-text">
+        Fournir au service comptabilité et logistique un guichet unique pour l'archivage, la vérification et l'audit de l'ensemble des documents d'achats et livraisons signés.
+      </p>
+
+      <h3 class="detail-title">🛠️ Fonctionnalités</h3>
+      <ul class="detail-list">
+        <li class="detail-list-item">⚡ <strong>Fusion des Canaux</strong> : Agrégation automatique des BC et BL issus de la Passerelle Contractuelle ET des Commandes Spéciales dans deux onglets séparés.</li>
+        <li class="detail-list-item">⚡ <strong>Statut de Signature Électronique</strong> : Suivi rigoureux de la présence du scan physique signé (Statuts : `Signé` / `Manquant`).</li>
+        <li class="detail-list-item">⚡ <strong>Stockage de Fichiers Dédié</strong> : Module de téléchargement de pièces jointes (PDF, PNG, JPG) jusqu'à 5 Mo directement rattaché au document.</li>
+      </ul>
+
+      <h3 class="detail-title">🟢 Actions réalisables</h3>
+      <div class="actions-grid">
+        <div class="action-card">✨ <strong>Rechercher et Filtrer</strong> : Retrouver un document par son numéro unique, son client, ou sa plage de dates.</div>
+        <div class="action-card">✨ <strong>Uploader un Scan Signé</strong> : Parcourir son ordinateur et téléverser le document papier scanné et signé par le client.</div>
+        <div class="action-card">✨ <strong>Télécharger / Consulter</strong> : Ouvrir et visualiser en plein écran la pièce jointe associée à un BC ou un BL.</div>
+        <div class="action-card">✨ <strong>Changer le statut de conformité</strong> : Marquer manuellement un document comme conforme ou rejeter un scan illisible.</div>
+      </div>
     </div>
   </section>
 
@@ -821,31 +792,31 @@
       <div class="section-meta">
         <div class="section-num">Module 08 · Achats</div>
         <h2 class="section-title">Bordereau de Livraison</h2>
-        <p class="section-desc">Création de Bons de Livraison libres (BEG) sans lien à une commande existante. Personnalisation complète : colonnes, sections, dates, superviseurs.</p>
+        <p class="section-desc">Création de Bons de Livraison libres (BEG) sans lien à une commande existante, avec personnalisation d'impression.</p>
       </div>
     </div>
-    <div class="feature-row">
-      <ul class="feature-list">
-        <li class="feature-item"><div class="fdot" style="background:#10b981"></div><div class="ftext"><strong>Bordereau de livraison libre (BEG)</strong> — Sans rattachement à aucun dossier. Format <code style="color:#34d399">BEG-XXX-JJMM-AAAA</code>.</div></li>
-        <li class="feature-item"><div class="fdot" style="background:#10b981"></div><div class="ftext"><strong>Personnalisation impression</strong> — Titres des colonnes, section, ville, date, superviseur, expéditeur/destinataire.</div></li>
-        <li class="feature-item"><div class="fdot" style="background:#10b981"></div><div class="ftext"><strong>Colonnes masquables</strong> — N°, Site, Description, Code, Réf, Quantité → chacune visible ou cachée à l'impression.</div></li>
-        <li class="feature-item"><div class="fdot" style="background:#10b981"></div><div class="ftext"><strong>Annulation logique</strong> — Statut "annulé" vs suppression physique. Décharge annulée reste dans l'historique.</div></li>
+
+    <div class="detail-block t-green">
+      <h3 class="detail-title">🎯 Objectif du module</h3>
+      <p class="detail-text">
+        Permettre l'expédition rapide et libre de marchandises hors-contrat ou dans le cadre de décharges spéciales, avec une mise en page d'impression configurable et flexible.
+      </p>
+
+      <h3 class="detail-title">🛠️ Fonctionnalités</h3>
+      <ul class="detail-list">
+        <li class="detail-list-item">⚡ <strong>Numérotation BEG dédiée</strong> : Attribution d'un numéro chronologique unique sous le format légal `BEG-[ID]-[Date]`.</li>
+        <li class="detail-list-item">⚡ <strong>Mise en Page Dynamique</strong> : Possibilité de masquer ou afficher à la volée les colonnes (N° d'article, Nom du site, Code, Référence, etc.) avant de lancer l'impression.</li>
+        <li class="detail-list-item">⚡ <strong>Champs Libres de Signature</strong> : Personnalisation de la ville, de la date, du nom de l'expéditeur et du nom du superviseur devant valider le document.</li>
+        <li class="detail-list-item">⚡ <strong>Gestion de l'Annulation</strong> : Les décharges ne peuvent pas être supprimées si elles possèdent un scan attaché, mais elles peuvent être annulées logiquement pour préserver la séquence des numéros.</li>
       </ul>
-      <div>
-        <div class="role-grid">
-          <div class="rh rc an">Action</div><div class="rh rc">Admin</div><div class="rh rc">Gest.1</div><div class="rh rc">Gest.2</div><div class="rh rc">Vendeur</div>
-          <div class="rc an">Créer</div><div class="rc"><span class="ck">✓</span></div><div class="rc"><span class="ck">✓</span></div><div class="rc"><span class="ck">✓</span></div><div class="rc"><span class="cx">✗</span></div>
-          <div class="rc an">Modifier</div><div class="rc"><span class="ck">✓</span></div><div class="rc"><span class="ck">✓</span></div><div class="rc"><span class="cx">✗</span></div><div class="rc"><span class="cx">✗</span></div>
-          <div class="rc an">Annuler</div><div class="rc"><span class="ck">✓</span></div><div class="rc"><span class="ck">✓</span></div><div class="rc"><span class="cx">✗</span></div><div class="rc"><span class="cx">✗</span></div>
-          <div class="rc an">Supprimer</div><div class="rc"><span class="ck">✓</span></div><div class="rc"><span class="ck">✓</span></div><div class="rc"><span class="cx">✗</span></div><div class="rc"><span class="cx">✗</span></div>
-          <div class="rc an">Pièce jointe</div><div class="rc"><span class="ck">✓</span></div><div class="rc"><span class="ck">✓</span></div><div class="rc"><span class="ck">✓</span></div><div class="rc"><span class="cx">✗</span></div>
-        </div>
+
+      <h3 class="detail-title">🟢 Actions réalisables</h3>
+      <div class="actions-grid">
+        <div class="action-card">✨ <strong>Rédiger un Bordereau BEG</strong> : Saisir le client, le destinataire, ajouter les lignes de pièces avec leurs quantités et valider.</div>
+        <div class="action-card">✨ <strong>Configurer les Colonnes à Imprimer</strong> : Cocher/décocher les cases pour masquer les colonnes superflues sur le PDF final.</div>
+        <div class="action-card">✨ <strong>Télécharger / Imprimer</strong> : Lancer la génération du PDF format A4 optimisé pour signature papier.</div>
+        <div class="action-card">✨ <strong>Annuler / Archiver</strong> : Marquer le document comme "Annulé" en saisissant un motif dans le journal d'activité.</div>
       </div>
-    </div>
-    <div class="stats-strip">
-      <div class="stat-item"><span class="stat-value">BEG</span><span class="stat-label">Préfixe unique</span></div>
-      <div class="stat-item"><span class="stat-value">2</span><span class="stat-label">Statuts</span></div>
-      <div class="stat-item"><span class="stat-value">0</span><span class="stat-label">Impact inventaire</span></div>
     </div>
   </section>
 
@@ -857,36 +828,31 @@
       <div class="section-meta">
         <div class="section-num">Module 09 · Finances</div>
         <h2 class="section-title">Ventes</h2>
-        <p class="section-desc">Enregistrement des ventes au comptoir avec déstockage automatique, gestion des proformas, remises, TVA, paiements partiels et statuts de règlement.</p>
+        <p class="section-desc">Enregistrement des ventes au comptoir avec déstockage instantané, gestion des remises, TVA, règlements partiels et proformas.</p>
       </div>
     </div>
-    <div class="flow">
-      <div class="flow-step"><span class="flow-icon">👤</span><strong class="flow-label">Sélection client</strong></div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-step"><span class="flow-icon">📦</span><strong class="flow-label">Ajout articles</strong><div class="flow-sub">Déstockage auto</div></div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-step"><span class="flow-icon">💰</span><strong class="flow-label">Remise + TVA</strong><div class="flow-sub">Prix protégé vendeur</div></div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-step"><span class="flow-icon">💳</span><strong class="flow-label">Paiement</strong><div class="flow-sub">Comptant ou partiel</div></div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-step"><span class="flow-icon">🧾</span><strong class="flow-label">Reçu</strong></div>
-    </div>
-    <div class="card-grid">
-      <div class="card t-pink"><div class="card-icon">🛡️</div><div class="card-title">Prix Protégés</div><div class="card-body">Les vendeurs ne voient jamais les prix réels (affichés ***). Le serveur calcule lui-même le total, protégeant les marges.</div></div>
-      <div class="card t-pink"><div class="card-icon">📝</div><div class="card-title">Proformas</div><div class="card-body">Création de proformas sans déstockage. Réservé aux Admin/Gestionnaires. Convertible en vente réelle.</div></div>
-      <div class="card t-pink"><div class="card-icon">💳</div><div class="card-title">Paiements Partiels</div><div class="card-body">Statuts : Payé / Partiel / En attente. Suivi des créances clients. Module Règlements dédié.</div></div>
-      <div class="card t-pink"><div class="card-icon">🗂️</div><div class="card-title">Articles Hors-Catalogue</div><div class="card-body">Saisie d'articles non référencés réservée aux Admin/Gestionnaires uniquement.</div></div>
-    </div>
-    <div style="margin-top:1.5rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
-      <span class="badge bg">✓ Déstockage automatique</span>
-      <span class="badge bg">✓ Impression reçu</span>
-      <span class="badge ba">📅 Exercice fiscal requis</span>
-      <span class="badge br">🚫 Vendeur ne voit pas les prix</span>
-    </div>
-    <div class="stats-strip">
-      <div class="stat-item"><span class="stat-value">3</span><span class="stat-label">Statuts paiement</span></div>
-      <div class="stat-item"><span class="stat-value">18%</span><span class="stat-label">TVA par défaut</span></div>
-      <div class="stat-item"><span class="stat-value">5</span><span class="stat-label">Rôles supportés</span></div>
+
+    <div class="detail-block t-pink">
+      <h3 class="detail-title">🎯 Objectif du module</h3>
+      <p class="detail-text">
+        Gérer le cycle de facturation des clients au comptoir du magasin, sécuriser les encaissements et mettre à jour automatiquement les stocks d'articles associés.
+      </p>
+
+      <h3 class="detail-title">🛠️ Fonctionnalités</h3>
+      <ul class="detail-list">
+        <li class="detail-list-item">⚡ <strong>Déstockage Temps Réel Intégré</strong> : La validation d'une vente soustrait immédiatement les quantités vendues du stock du magasin concerné.</li>
+        <li class="detail-list-item">⚡ <strong>Masquage des Prix d'Achat (Sécurité Vendeurs)</strong> : Les comptes de rôle `vendeur` voient les prix masqués par des étoiles (***) afin de protéger la confidentialité des marges commerciales de l'entreprise.</li>
+        <li class="detail-list-item">⚡ <strong>Règlements Multi-Modes</strong> : Gestion des factures payées entièrement, à crédit (Consommation) ou avec versement partiel (créance restante).</li>
+        <li class="detail-list-item">⚡ <strong>Factures Proforma</strong> : Édition de devis / proformas n'ayant aucun impact sur les stocks physiques, convertibles ultérieurement en ventes fermes.</li>
+      </ul>
+
+      <h3 class="detail-title">🟢 Actions réalisables</h3>
+      <div class="actions-grid">
+        <div class="action-card">✨ <strong>Saisir une Vente Comptoir</strong> : Sélectionner le client, ajouter les articles (via scan code-barres ou moteur de recherche), saisir la quantité, choisir le mode de paiement et valider.</div>
+        <div class="action-card">✨ <strong>Appliquer des remises</strong> : Saisir une remise fixe en FCFA ou ajuster le taux de TVA (par défaut à 18%).</div>
+        <div class="action-card">✨ <strong>Générer une Facture Proforma</strong> : Enregistrer un devis sans décrémenter le stock et l'imprimer pour le client.</div>
+        <div class="action-card">✨ <strong>Imprimer le reçu de caisse</strong> : Générer un format de ticket de caisse thermique optimisé.</div>
+      </div>
     </div>
   </section>
 
@@ -898,36 +864,29 @@
       <div class="section-meta">
         <div class="section-num">Module 09-bis · Finances</div>
         <h2 class="section-title">Ventes Spéciales</h2>
-        <p class="section-desc">Gestion des ventes libres destinées à des clients externes, déconnectées du stock central d'articles. Saisie 100% libre, calcul de marge et configuration de facture personnalisée.</p>
+        <p class="section-desc">Gestion des ventes libres destinées à des clients externes, déconnectées du stock d'articles principal.</p>
       </div>
     </div>
-    <div class="flow">
-      <div class="flow-step"><span class="flow-icon">👥</span><strong class="flow-label">Saisie Client</strong><div class="flow-sub">Nom libre</div></div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-step"><span class="flow-icon">📝</span><strong class="flow-label">Ajout Produits</strong><div class="flow-sub">Sans déstockage</div></div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-step"><span class="flow-icon">📈</span><strong class="flow-label">Calcul de Marge</strong><div class="flow-sub">Marge bénéficiaire auto</div></div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-step"><span class="flow-icon">⚙️</span><strong class="flow-label">Configuration</strong><div class="flow-sub">Personnalisation impression</div></div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-step"><span class="flow-icon">🖨️</span><strong class="flow-label">Impression</strong><div class="flow-sub">Facture / Reçu</div></div>
-    </div>
-    <div class="card-grid">
-      <div class="card t-teal"><div class="card-icon">🪙</div><div class="card-title">Saisie 100% Libre</div><div class="card-body">Entrée libre des noms de clients et détails d'articles (Réf, désignation, quantité, P.A, P.V) sans contrainte du catalogue central.</div></div>
-      <div class="card t-teal"><div class="card-icon">📈</div><div class="card-title">Suivi de Marge</div><div class="card-body">Calcul automatique de la marge par produit `(P.V - P.A) * Qté` et consolidation sur le tableau de bord du module.</div></div>
-      <div class="card t-teal"><div class="card-icon">🖨️</div><div class="card-title">Facturation Sur-Mesure</div><div class="card-body">Personnalisation poussée du document (Titre, section, TVA, détails émetteur, superviseur) et masquage dynamique de colonnes.</div></div>
-      <div class="card t-teal"><div class="card-icon">💾</div><div class="card-title">Persistance Métadonnées</div><div class="card-body">Sauvegarde automatique en base de données de la mise en page et des configurations configurées lors de la dernière impression.</div></div>
-    </div>
-    <div style="margin-top:1.5rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
-      <span class="badge bg">✓ Zéro impact stock</span>
-      <span class="badge bg">✓ Export Excel des ventes</span>
-      <span class="badge ba">📅 Exercice fiscal requis</span>
-      <span class="badge br">🔒 Réservé Admin / Gestionnaires</span>
-    </div>
-    <div class="stats-strip">
-      <div class="stat-item"><span class="stat-value">HT/TTC</span><span class="stat-label">Calcul automatique</span></div>
-      <div class="stat-item"><span class="stat-value">TVA</span><span class="stat-label">Récupérée des paramètres</span></div>
-      <div class="stat-item"><span class="stat-value">Excel</span><span class="stat-label">Export complet</span></div>
+
+    <div class="detail-block t-teal">
+      <h3 class="detail-title">🎯 Objectif du module</h3>
+      <p class="detail-text">
+        Facturer des ventes de produits spécifiques ou de services qui ne figurent pas dans le catalogue régulier (achats/reventes directs), sans impacter l'inventaire physique et en assurant le suivi de la marge bénéficiaire.
+      </p>
+
+      <h3 class="detail-title">🛠️ Fonctionnalités</h3>
+      <ul class="detail-list">
+        <li class="detail-list-item">⚡ <strong>Saisie 100% Libre</strong> : Écriture manuelle du nom du client (sans sélection requise dans le répertoire) et des libellés de produits.</li>
+        <li class="detail-list-item">⚡ <strong>Suivi de Marge sur Vente</strong> : Renseignement obligatoire du Prix d'Achat (P.A) et du Prix de Vente (P.V). Le système calcule immédiatement le bénéfice net de la vente.</li>
+        <li class="detail-list-item">⚡ <strong>Configuration d'Impression Persistante</strong> : Les personnalisations de mise en page (superviseur, en-tête de section, TVA incluse ou non) sont mémorisées localement pour les prochaines impressions.</li>
+      </ul>
+
+      <h3 class="detail-title">🟢 Actions réalisables</h3>
+      <div class="actions-grid">
+        <div class="action-card">✨ <strong>Saisir une Vente Spéciale</strong> : Entrer le nom du client, ajouter les produits, renseigner pour chacun le Prix d'Achat et le Prix de Vente.</div>
+        <div class="action-card">✨ <strong>Configurer et Imprimer la Facture</strong> : Choisir les colonnes à afficher sur le PDF et imprimer la facture de vente spéciale.</div>
+        <div class="action-card">✨ <strong>Exporter l'Historique</strong> : Télécharger la liste des ventes spéciales de l'exercice avec calcul de la marge cumulée sous format Excel.</div>
+      </div>
     </div>
   </section>
 
@@ -939,19 +898,29 @@
       <div class="section-meta">
         <div class="section-num">Module 10 · Finances</div>
         <h2 class="section-title">Performances Vendeurs</h2>
-        <p class="section-desc">Analyse comparative des ventes par collaborateur. Classement, graphiques d'évolution CA, comparaison, filtres temporels et export.</p>
+        <p class="section-desc">Analyse comparative et suivi de l'activité commerciale de chaque vendeur ou collaborateur du système.</p>
       </div>
     </div>
-    <div class="card-grid">
-      <div class="card t-red"><div class="card-icon">🏆</div><div class="card-title">Classement</div><div class="card-body">Tableau trié par CA, ventes ou produits vendus. Tri interactif sur chaque colonne. Meilleur vendeur mis en avant.</div></div>
-      <div class="card t-red"><div class="card-icon">📈</div><div class="card-title">Évolution CA</div><div class="card-body">Graphique barres par vendeur en vue Jour / Semaine / Mois / Année. Comparaison multi-vendeurs.</div></div>
-      <div class="card t-red"><div class="card-icon">📅</div><div class="card-title">Filtres Temporels</div><div class="card-body">Aujourd'hui · Semaine · Mois · Année · Tout · Période personnalisée avec dates de début/fin.</div></div>
-      <div class="card t-red"><div class="card-icon">📤</div><div class="card-title">Export</div><div class="card-body">Export Excel avec titre et période. Impression PDF (filtres masqués à l'impression).</div></div>
-    </div>
-    <div class="stats-strip">
-      <div class="stat-item"><span class="stat-value">6</span><span class="stat-label">Périodes de filtrage</span></div>
-      <div class="stat-item"><span class="stat-value">Top5</span><span class="stat-label">Graphique comparaison</span></div>
-      <div class="stat-item"><span class="stat-value">FCFA</span><span class="stat-label">Devise</span></div>
+
+    <div class="detail-block t-red">
+      <h3 class="detail-title">🎯 Objectif du module</h3>
+      <p class="detail-text">
+        Permettre à la direction générale de suivre l'efficacité commerciale des équipes sur le terrain, d'identifier les meilleurs vendeurs et d'analyser l'évolution du Chiffre d'Affaires par collaborateur.
+      </p>
+
+      <h3 class="detail-title">🛠️ Fonctionnalités</h3>
+      <ul class="detail-list">
+        <li class="detail-list-item">⚡ <strong>Classement Dynamique des Collaborateurs</strong> : Tableau triable en temps réel affichant le Chiffre d'Affaires total généré, le nombre total de ventes conclues et le volume d'articles vendus par chaque utilisateur.</li>
+        <li class="detail-list-item">⚡ <strong>Graphiques Comparatifs Recharts</strong> : Histogramme affichant les ventes mensuelles ou hebdomadaires pour comparer visuellement les résultats des vendeurs.</li>
+        <li class="detail-list-item">⚡ <strong>Filtres Temporels Raccourcis</strong> : Sélection rapide de la période d'analyse (Aujourd'hui, Cette semaine, Ce mois, Cette année ou plage personnalisée via calendrier).</li>
+      </ul>
+
+      <h3 class="detail-title">🟢 Actions réalisables</h3>
+      <div class="actions-grid">
+        <div class="action-card">✨ <strong>Analyser un Vendeur spécifique</strong> : Cliquer sur un collaborateur dans la liste pour voir le détail de ses ventes sur la période.</div>
+        <div class="action-card">✨ <strong>Exporter le Classement</strong> : Télécharger le rapport de performance des vendeurs sous format Excel.</div>
+        <div class="action-card">✨ <strong>Imprimer le Bilan</strong> : Générer une version papier propre du tableau de bord des ventes par vendeur.</div>
+      </div>
     </div>
   </section>
 
@@ -963,18 +932,29 @@
       <div class="section-meta">
         <div class="section-num">Module 11 · Finances</div>
         <h2 class="section-title">Intelligence</h2>
-        <p class="section-desc">Module d'analyse avancée et de business intelligence. Tableaux de bord KPI, tendances, prédictions et insights automatisés pour la prise de décision.</p>
+        <p class="section-desc">Analyses avancées, statistiques consolidées et insights automatisés pour le pilotage de l'entreprise.</p>
       </div>
     </div>
-    <div class="card-grid">
-      <div class="card t-violet"><div class="card-icon">📉</div><div class="card-title">Analyse Tendances</div><div class="card-body">Évolution des ventes dans le temps. Identification des articles les plus et moins vendus par période.</div></div>
-      <div class="card t-violet"><div class="card-icon">🔮</div><div class="card-title">Prédictions</div><div class="card-body">Anticipation des ruptures de stock. Calcul des besoins de réapprovisionnement basé sur la vitesse de vente.</div></div>
-      <div class="card t-violet"><div class="card-icon">💡</div><div class="card-title">Insights Automatisés</div><div class="card-body">Alertes intelligentes sur les anomalies de stock, les articles à rotation lente et les performances atypiques.</div></div>
-      <div class="card t-violet"><div class="card-icon">📊</div><div class="card-title">Tableaux de Bord</div><div class="card-body">KPIs consolidés : CA, marge, rotation, taux de rupture. Vue synthétique pour les décideurs.</div></div>
-    </div>
-    <div style="margin-top:1.5rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
-      <span class="badge bp">🔒 Réservé : Admin / Gestionnaire</span>
-      <span class="badge bp">📅 Filtré par exercice fiscal</span>
+
+    <div class="detail-block t-violet">
+      <h3 class="detail-title">🎯 Objectif du module</h3>
+      <p class="detail-text">
+        Transformer les données brutes de la base de données (ventes, achats, mouvements) en indicateurs décisionnels clairs pour orienter la stratégie commerciale et logistique.
+      </p>
+
+      <h3 class="detail-title">🛠️ Fonctionnalités</h3>
+      <ul class="detail-list">
+        <li class="detail-list-item">⚡ <strong>Calcul de Marge Brute Global</strong> : Consolidation du chiffre d'affaires et des coûts d'achat pour afficher la marge réelle générée sur l'exercice fiscal.</li>
+        <li class="detail-list-item">⚡ <strong>Analyse des Stocks Dormants</strong> : Identification automatique des produits n'ayant subi aucun mouvement de vente depuis plus de 60 jours afin d'éviter le surstockage inutile.</li>
+        <li class="detail-list-item">⚡ <strong>Alertes de Taux de Rupture</strong> : Pourcentage d'articles actuellement indisponibles par rapport au catalogue total pour mesurer la qualité du service logistique.</li>
+      </ul>
+
+      <h3 class="detail-title">🟢 Actions réalisables</h3>
+      <div class="actions-grid">
+        <div class="action-card">✨ <strong>Consulter les Insights</strong> : Prendre connaissance des recommandations automatiques générées par le système (ex : "Réapprovisionner l'article X en urgence").</div>
+        <div class="action-card">✨ <strong>Analyser les Catégories</strong> : Filtrer les graphiques pour voir quelles familles d'articles génèrent le plus de rentabilité.</div>
+        <div class="action-card">✨ <strong>Exporter les Analyses</strong> : Extraire les rapports de stock dormant ou de marge brute sous format Excel.</div>
+      </div>
     </div>
   </section>
 
@@ -986,39 +966,30 @@
       <div class="section-meta">
         <div class="section-num">Module 11-bis · Intelligence &amp; Rapports</div>
         <h2 class="section-title">Valorisation de Stock</h2>
-        <p class="section-desc">Rapprochement de deux fichiers Excel pour générer un rapport de valorisation de stock. Compare les données de vente/stock (Fichier A) et d'achat (Fichier B) pour calculer la valeur du stock et les marges potentielles.</p>
+        <p class="section-desc">Rapprochement de deux fichiers Excel pour générer un rapport financier de valorisation et calcul de marges.</p>
       </div>
     </div>
-    
-    <div class="flow">
-      <div class="flow-step"><span class="flow-icon">📥</span><strong class="flow-label">Fichier A (Ventes/Stock)</strong><div class="flow-sub">Réf, Désignation, Stock, Prix Vente</div></div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-step"><span class="flow-icon">📥</span><strong class="flow-label">Fichier B (Achats)</strong><div class="flow-sub">Réf, Désignation, Prix Achat</div></div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-step"><span class="flow-icon">🔄</span><strong class="flow-label">Rapprochement</strong><div class="flow-sub">Normalisation des clés</div></div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-step"><span class="flow-icon">📊</span><strong class="flow-label">Calcul &amp; Diagnostics</strong><div class="flow-sub">Marge &amp; Valeur stock</div></div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-step"><span class="flow-icon">📤</span><strong class="flow-label">Export Excel</strong><div class="flow-sub">Fichier consolidé</div></div>
-    </div>
 
-    <div class="card-grid">
-      <div class="card t-purple"><div class="card-icon">🔍</div><div class="card-title">Normalisation de Référence</div><div class="card-body">Correspondance intelligente ignorant la casse, les espaces superflus et les tirets (ex. <code>48531-09550</code> matche avec <code>4853109550</code>).</div></div>
-      <div class="card t-purple"><div class="card-icon">👥</div><div class="card-title">Gestion des Doublons</div><div class="card-body">Appariement ordonné des doublons par ordre d'apparition pour préserver la précision des prix distincts et des marges.</div></div>
-      <div class="card t-purple"><div class="card-icon">⚠️</div><div class="card-title">Contrôle de Validité</div><div class="card-body">Validation automatique de la structure des en-têtes. En cas de colonnes manquantes, un message d'erreur clair bloque le traitement.</div></div>
-      <div class="card t-purple"><div class="card-icon">📊</div><div class="card-title">Diagnostics &amp; Aperçus</div><div class="card-body">Visualisation interactive : articles concordants, écarts (présents dans A uniquement ou B uniquement) et doublons détectés.</div></div>
-    </div>
+    <div class="detail-block t-purple">
+      <h3 class="detail-title">🎯 Objectif du module</h3>
+      <p class="detail-text">
+        Permettre un audit financier rapide en croisant les données réelles du stock/vente avec les historiques de prix d'achat fournisseurs, le tout sans alourdir la base de données principale.
+      </p>
 
-    <div style="margin-top:1.5rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
-      <span class="badge bg">✓ Export Excel avec formules de calcul</span>
-      <span class="badge bp">🔒 Permission : Intelligence / Rapports</span>
-      <span class="badge br">⚠️ Stock disponible lu dans le Fichier A</span>
-    </div>
+      <h3 class="detail-title">🛠️ Fonctionnalités</h3>
+      <ul class="detail-list">
+        <li class="detail-list-item">⚡ <strong>Rapprochement Intelligent par Référence</strong> : Algorithme puissant capable d'associer les lignes des deux fichiers Excel même si les formats des codes de référence diffèrent légèrement (ignore la casse, supprime les espaces superflus et les tirets).</li>
+        <li class="detail-list-item">⚡ <strong>Gestion Avancée des Doublons</strong> : Appariement précis des lignes multiples afin de ne pas fausser les calculs de valeur lorsque plusieurs prix d'achat différents existent pour une même pièce.</li>
+        <li class="detail-list-item">⚡ <strong>Formules de Calcul Excel Intégrées</strong> : L'export génère un fichier Excel contenant des formules mathématiques natives (ex : `=PRODUIT(...)`) au lieu de valeurs figées, permettant à l'utilisateur de continuer ses simulations sur son tableur.</li>
+        <li class="detail-list-item">⚡ <strong>Aperçu des Écarts (Diagnostics)</strong> : Affichage instantané du nombre de lignes parfaitement concordantes, des références présentes uniquement dans le fichier A, et de celles présentes uniquement dans le fichier B.</li>
+      </ul>
 
-    <div class="stats-strip">
-      <div class="stat-item"><span class="stat-value">2</span><span class="stat-label">Fichiers Excel requis</span></div>
-      <div class="stat-item"><span class="stat-value">1</span><span class="stat-label">Clé de matching unique</span></div>
-      <div class="stat-item"><span class="stat-value">4</span><span class="stat-label">Onglets de prévisualisation</span></div>
+      <h3 class="detail-title">🟢 Actions réalisables</h3>
+      <div class="actions-grid">
+        <div class="action-card">✨ <strong>Uploader les Fichiers</strong> : Sélectionner le fichier A (inventaire/ventes avec quantité et prix vente) et le fichier B (catalogue d'achats avec prix d'achat).</div>
+        <div class="action-card">✨ <strong>Lancer le Rapprochement</strong> : Cliquer sur "Calculer la valorisation" pour exécuter l'appariement en quelques secondes dans le navigateur.</div>
+        <div class="action-card">✨ <strong>Télécharger le Rapport Consolidé</strong> : Exporter le résultat final directement dans un nouveau fichier Excel prêt à l'emploi.</div>
+      </div>
     </div>
   </section>
 
@@ -1030,18 +1001,29 @@
       <div class="section-meta">
         <div class="section-num">Module 12 · Administration</div>
         <h2 class="section-title">Clients</h2>
-        <p class="section-desc">Répertoire complet des clients avec informations légales, coordonnées et code client. Utilisé dans les ventes, contrats et impressions de documents.</p>
+        <p class="section-desc">Répertoire centralisé des clients avec coordonnées, coordonnées de facturation et encours de crédit.</p>
       </div>
     </div>
-    <div class="card-grid">
-      <div class="card t-emerald"><div class="card-icon">🏢</div><div class="card-title">Fiche Client</div><div class="card-body">Nom, adresse, BP, téléphone, RCCM, NIF/IFU, code client interne. Auto-remplissage dans tous les documents.</div></div>
-      <div class="card t-emerald"><div class="card-icon">📊</div><div class="card-title">Historique Ventes</div><div class="card-body">Toutes les ventes associées au client, avec montants, statuts de paiement et dates.</div></div>
-      <div class="card t-emerald"><div class="card-icon">💰</div><div class="card-title">Suivi Créances</div><div class="card-body">Vue des paiements en attente et partiels par client. Lien direct vers le module Règlements.</div></div>
-      <div class="card t-emerald"><div class="card-icon">🔍</div><div class="card-title">Recherche</div><div class="card-body">Recherche rapide par nom, code ou téléphone. Export Excel de la liste complète.</div></div>
-    </div>
-    <div class="stats-strip">
-      <div class="stat-item"><span class="stat-value">8+</span><span class="stat-label">Champs d'info</span></div>
-      <div class="stat-item"><span class="stat-value">Auto</span><span class="stat-label">Remplissage BL/BC</span></div>
+
+    <div class="detail-block t-emerald">
+      <h3 class="detail-title">🎯 Objectif du module</h3>
+      <p class="detail-text">
+        Suivre la relation commerciale avec chaque entreprise ou acheteur récurrent, gérer leur encours de crédit (créances) et automatiser la facturation.
+      </p>
+
+      <h3 class="detail-title">🛠️ Fonctionnalités</h3>
+      <ul class="detail-list">
+        <li class="detail-list-item">⚡ <strong>Fiche Client Complète</strong> : Enregistrement des données de facturation obligatoires (Boîte Postale, RCCM, NIF/IFU fiscal, téléphone et adresse).</li>
+        <li class="detail-list-item">⚡ <strong>Suivi Comptable de la Dette</strong> : Centralisation du montant total restant dû par le client sur l'ensemble de ses achats à crédit.</li>
+        <li class="detail-list-item">⚡ <strong>Historique d'Achat Individuel</strong> : Accès rapide à la liste de toutes les factures et proformas éditées pour le compte du client.</li>
+      </ul>
+
+      <h3 class="detail-title">🟢 Actions réalisables</h3>
+      <div class="actions-grid">
+        <div class="action-card">✨ <strong>Créer / Éditer un Client</strong> : Renseigner les coordonnées complètes et le code client interne (ex : CL-001).</div>
+        <div class="action-card">✨ <strong>Enregistrer un Règlement de Créance</strong> : Saisir un paiement qui viendra déduire directement la dette accumulée du client.</div>
+        <div class="action-card">✨ <strong>Exporter le fichier client</strong> : Générer un listing Excel de tous les clients avec leur téléphone et leur solde débiteur actuel.</div>
+      </div>
     </div>
   </section>
 
@@ -1053,19 +1035,29 @@
       <div class="section-meta">
         <div class="section-num">Module 13 · Administration</div>
         <h2 class="section-title">Magasins</h2>
-        <p class="section-desc">Gestion multi-sites. Chaque magasin a son propre inventaire isolé. Sélecteur de magasin global dans la barre supérieure pour les Admin/Gestionnaires.</p>
+        <p class="section-desc">Gestion de l'architecture multi-magasins de l'entreprise avec isolation stricte des stocks.</p>
       </div>
     </div>
-    <div class="card-grid">
-      <div class="card t-cyan"><div class="card-icon">🏪</div><div class="card-title">Multi-Magasins</div><div class="card-body">Création de plusieurs points de vente/stock. Inventaires complètement indépendants par magasin.</div></div>
-      <div class="card t-cyan"><div class="card-icon">🔄</div><div class="card-title">Sélecteur Global</div><div class="card-body">Menu déroulant dans la top-bar pour changer de magasin. Recharge toutes les données du magasin sélectionné.</div></div>
-      <div class="card t-cyan"><div class="card-icon">👤</div><div class="card-title">Affectation Utilisateurs</div><div class="card-body">Chaque utilisateur non-admin est affecté à un magasin fixe. Il ne voit que les données de son magasin.</div></div>
-      <div class="card t-cyan"><div class="card-icon">🌐</div><div class="card-title">Vue Globale</div><div class="card-body">Option "Tous les magasins" pour les Admin. Consolidation des stocks et ventes de l'entreprise.</div></div>
-    </div>
-    <div class="stats-strip">
-      <div class="stat-item"><span class="stat-value">∞</span><span class="stat-label">Magasins possibles</span></div>
-      <div class="stat-item"><span class="stat-value">🔒</span><span class="stat-label">Isolation des données</span></div>
-      <div class="stat-item"><span class="stat-value">Admin</span><span class="stat-label">Vue consolidée</span></div>
+
+    <div class="detail-block t-cyan">
+      <h3 class="detail-title">🎯 Objectif du module</h3>
+      <p class="detail-text">
+        Permettre l'exploitation de plusieurs points de vente ou entrepôts physiques au sein d'une seule et même application, tout en cloisonnant les données pour la sécurité des stocks locaux.
+      </p>
+
+      <h3 class="detail-title">🛠️ Fonctionnalités</h3>
+      <ul class="detail-list">
+        <li class="detail-list-item">⚡ <strong>Cloisonnement Hermétique des Stocks</strong> : Les articles possèdent des niveaux de stock distincts pour chaque magasin. Un vendeur d'un magasin X ne peut pas vendre ou modifier le stock du magasin Y.</li>
+        <li class="detail-list-item">⚡ <strong>Client par Défaut Configurable</strong> : Chaque magasin peut être lié à un client par défaut de sa région. Lors d'une vente par un vendeur local, ce client est sélectionné automatiquement.</li>
+        <li class="detail-list-item">⚡ <strong>Sélecteur Global de Magasin</strong> : Barre de choix présente dans le header de l'application permettant aux administrateurs de changer d'entrepôt en un clic pour consulter les chiffres locaux.</li>
+      </ul>
+
+      <h3 class="detail-title">🟢 Actions réalisables</h3>
+      <div class="actions-grid">
+        <div class="action-card">✨ <strong>Créer un Magasin</strong> : Définir le nom (ex : MANA SEMAFO M), l'adresse et lui attribuer un client par défaut pour la facturation rapide.</div>
+        <div class="action-card">✨ <strong>Modifier la Fiche Magasin</strong> : Mettre à jour l'adresse physique ou modifier le client par défaut.</div>
+        <div class="action-card">✨ <strong>Consulter les Chiffres Consolider</strong> : Sélectionner l'option "Tous les magasins" pour fusionner les stocks dans vos rapports d'inventaire.</div>
+      </div>
     </div>
   </section>
 
@@ -1077,18 +1069,28 @@
       <div class="section-meta">
         <div class="section-num">Module 14 · Administration</div>
         <h2 class="section-title">Exercices Fiscaux</h2>
-        <p class="section-desc">Gestion des périodes comptables annuelles. Un exercice actif est obligatoire pour enregistrer des ventes et mouvements. La clôture archive toutes les données.</p>
+        <p class="section-desc">Définition et clôture des périodes comptables et fiscales annuelles de l'entreprise.</p>
       </div>
     </div>
-    <div class="card-grid">
-      <div class="card t-lime"><div class="card-icon">📂</div><div class="card-title">Ouverture Exercice</div><div class="card-body">Création d'un nouvel exercice fiscal (ex: 2026). Devient immédiatement l'exercice actif de l'entreprise.</div></div>
-      <div class="card t-lime"><div class="card-icon">🔒</div><div class="card-title">Clôture</div><div class="card-body">Clôture de l'exercice actif. Après clôture : aucune vente ni mouvement ne peut être enregistré.</div></div>
-      <div class="card t-lime"><div class="card-icon">📊</div><div class="card-title">Isolation des Données</div><div class="card-body">Ventes et mouvements liés à l'exercice. Après clôture, les données sont archivées et consultables dans Archives.</div></div>
-      <div class="card t-lime"><div class="card-icon">🏷️</div><div class="card-title">Affichage dans la Top-Bar</div><div class="card-body">L'exercice actif est visible en permanence dans la barre supérieure pour tous les utilisateurs.</div></div>
-    </div>
-    <div style="margin-top:1.5rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
-      <span class="badge ba">⚠️ Requis pour les ventes et mouvements</span>
-      <span class="badge br">🔒 Réservé : Admin uniquement</span>
+
+    <div class="detail-block t-lime">
+      <h3 class="detail-title">🎯 Objectif du module</h3>
+      <p class="detail-text">
+        Délimiter dans le temps les écritures comptables (ventes, achats, mouvements de stock) afin de garantir la conformité fiscale et de faciliter la clôture des comptes annuels.
+      </p>
+
+      <h3 class="detail-title">🛠️ Fonctionnalités</h3>
+      <ul class="detail-list">
+        <li class="detail-list-item">⚡ <strong>Contrôle d'Exercice Actif Bloquant</strong> : Le système interdit formellement la validation de toute vente, proforma ou mouvement de stock si aucun exercice fiscal n'est actuellement déclaré "Actif".</li>
+        <li class="detail-list-item">⚡ <strong>Clôture Irréversible</strong> : Passer un exercice au statut "Clôturé" fige l'ensemble des données de cette année en lecture seule, interdisant toute modification rétroactive.</li>
+        <li class="detail-list-item">⚡ <strong>Raccourci Visuel Header</strong> : L'exercice actif (ex : "Exercice 2026") est affiché en permanence dans le bandeau supérieur de l'application pour informer les utilisateurs.</li>
+      </ul>
+
+      <h3 class="detail-title">🟢 Actions réalisables</h3>
+      <div class="actions-grid">
+        <div class="action-card">✨ <strong>Ouvrir un Nouvel Exercice</strong> : Saisir le nom de l'exercice (ex : 2026), définir les dates de début/fin, et l'activer.</div>
+        <div class="action-card">✨ <strong>Clôturer l'Exercice en cours</strong> : Lancer la procédure de clôture pour archiver définitivement les écritures de l'année écoulée.</div>
+      </div>
     </div>
   </section>
 
@@ -1100,18 +1102,29 @@
       <div class="section-meta">
         <div class="section-num">Module 15 · Administration</div>
         <h2 class="section-title">Archives</h2>
-        <p class="section-desc">Consultation des données des exercices fiscaux clôturés. Les archives permettent de retrouver toutes les ventes, mouvements et rapports des années précédentes.</p>
+        <p class="section-desc">Consultation sécurisée en lecture seule des données comptables et physiques des anciens exercices clôturés.</p>
       </div>
     </div>
-    <div class="card-grid">
-      <div class="card t-slate"><div class="card-icon">📁</div><div class="card-title">Données Historiques</div><div class="card-body">Accès en lecture seule à toutes les ventes, mouvements et rapports des exercices clôturés.</div></div>
-      <div class="card t-slate"><div class="card-icon">🔍</div><div class="card-title">Recherche dans les Archives</div><div class="card-body">Filtrage par exercice, période, magasin, client ou article. Navigation dans l'historique complet.</div></div>
-      <div class="card t-slate"><div class="card-icon">📊</div><div class="card-title">Bilan Annuel</div><div class="card-body">Génération du bilan de l'exercice clôturé : CA, achats, marge, stock de clôture.</div></div>
-      <div class="card t-slate"><div class="card-icon">📤</div><div class="card-title">Export</div><div class="card-body">Export Excel des données archivées pour comptabilité, audit ou rapports de direction.</div></div>
-    </div>
-    <div style="margin-top:1.5rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
-      <span class="badge bb">👁️ Lecture seule</span>
-      <span class="badge br">🔒 Réservé : Admin / Gestionnaire</span>
+
+    <div class="detail-block t-slate">
+      <h3 class="detail-title">🎯 Objectif du module</h3>
+      <p class="detail-text">
+        Permettre aux auditeurs, experts-comptables et dirigeants d'accéder à l'historique des anciennes années fiscales sans aucun risque de modification accidentelle ou frauduleuse des données passées.
+      </p>
+
+      <h3 class="detail-title">🛠️ Fonctionnalités</h3>
+      <ul class="detail-list">
+        <li class="detail-list-item">⚡ <strong>Mode Consultation Lecture Seule</strong> : Blocage complet de toute action d'écriture (pas de boutons ajouter, modifier, supprimer ou valider) sur les vues archivées.</li>
+        <li class="detail-list-item">⚡ <strong>Isolation Temporelle</strong> : Possibilité de filtrer l'ensemble de l'application (Ventes, Stocks, Mouvements) selon l'exercice archivé sélectionné.</li>
+        <li class="detail-list-item">⚡ <strong>Bilan Comptable Annuel</strong> : Résumé des totaux financiers (CA, Marge, volume de ventes) de l'année archivée.</li>
+      </ul>
+
+      <h3 class="detail-title">🟢 Actions réalisables</h3>
+      <div class="actions-grid">
+        <div class="action-card">✨ <strong>Sélectionner un Exercice Archivé</strong> : Choisir l'année souhaitée (ex : 2025) pour charger son historique complet.</div>
+        <div class="action-card">✨ <strong>Rechercher une Ancienne Facture</strong> : Retrouver une transaction ou un bordereau de livraison d'un ancien exercice.</div>
+        <div class="action-card">✨ <strong>Exporter pour Audit</strong> : Télécharger l'intégralité du grand livre ou du journal des ventes de l'année archivée au format Excel.</div>
+      </div>
     </div>
   </section>
 
@@ -1123,19 +1136,29 @@
       <div class="section-meta">
         <div class="section-num">Module 16 · Administration</div>
         <h2 class="section-title">Paramètres</h2>
-        <p class="section-desc">Configuration globale de l'application : identité de l'entreprise, règles fiscales, formats de numérotation des documents, logo et préférences d'affichage.</p>
+        <p class="section-desc">Configuration globale de l'identité de l'entreprise, des règles de facturation et de la mise en page des impressions.</p>
       </div>
     </div>
-    <div class="card-grid">
-      <div class="card t-fuchsia"><div class="card-icon">🏢</div><div class="card-title">Identité Entreprise</div><div class="card-body">Nom, adresse, BP, téléphone, RCCM, NIF/IFU, logo. Pré-rempli sur tous les documents imprimés.</div></div>
-      <div class="card t-fuchsia"><div class="card-icon">💰</div><div class="card-title">Règles Fiscales</div><div class="card-body">Taux TVA global, option arrondi des montants, système d'imposition. Appliqués à toutes les ventes.</div></div>
-      <div class="card t-fuchsia"><div class="card-icon">🔢</div><div class="card-title">Formats de Numérotation</div><div class="card-body">Format des numéros BL et BC : configurable avec variables {ID}, {DATE}, {CLIENT}, {YEAR}.</div></div>
-      <div class="card t-fuchsia"><div class="card-icon">👤</div><div class="card-title">Superviseurs par défaut</div><div class="card-body">Nom et titre du superviseur, ville, préfixe BL. Appliqués automatiquement à l'impression si non personnalisés.</div></div>
-    </div>
-    <div class="stats-strip">
-      <div class="stat-item"><span class="stat-value">18%</span><span class="stat-label">TVA par défaut</span></div>
-      <div class="stat-item"><span class="stat-value">{ID}</span><span class="stat-label">Format numérotation</span></div>
-      <div class="stat-item"><span class="stat-value">Admin</span><span class="stat-label">Accès requis</span></div>
+
+    <div class="detail-block t-fuchsia">
+      <h3 class="detail-title">🎯 Objectif du module</h3>
+      <p class="detail-text">
+        Centraliser l'ensemble des configurations de base de l'application et les informations légales de l'entreprise devant apparaître sur les factures et documents officiels.
+      </p>
+
+      <h3 class="detail-title">🛠️ Fonctionnalités</h3>
+      <ul class="detail-list">
+        <li class="detail-list-item">⚡ <strong>Identité de l'Émetteur</strong> : Saisie du Nom commercial, de l'adresse du siège social, des contacts téléphoniques, du NIF (Numéro d'Identification Fiscale) et du numéro RCCM.</li>
+        <li class="detail-list-item">⚡ <strong>Gestion de l'Arrondi Financier</strong> : Option pour tronquer ou arrondir automatiquement les décimales des montants facturés en FCFA.</li>
+        <li class="detail-list-item">⚡ <strong>Gabarits de Numérotation de Documents</strong> : Configuration des structures de numéros de factures et bons de livraison (ex : `{YEAR}-{ID}`).</li>
+      </ul>
+
+      <h3 class="detail-title">🟢 Actions réalisables</h3>
+      <div class="actions-grid">
+        <div class="action-card">✨ <strong>Mettre à jour le Profil Entreprise</strong> : Modifier le nom commercial, l'adresse, le NIF, le RCCM ou le logo.</div>
+        <div class="action-card">✨ <strong>Ajuster le taux de TVA</strong> : Modifier le pourcentage légal de TVA appliqué par défaut dans le panier de vente.</div>
+        <div class="action-card">✨ <strong>Définir les Signataires</strong> : Entrer le nom et la fonction du superviseur par défaut à faire figurer au bas des documents imprimés.</div>
+      </div>
     </div>
   </section>
 
@@ -1147,35 +1170,29 @@
       <div class="section-meta">
         <div class="section-num">Module 17 · Administration</div>
         <h2 class="section-title">Utilisateurs</h2>
-        <p class="section-desc">Gestion des comptes utilisateurs avec rôles et permissions granulaires. Chaque rôle a un accès précis aux modules et fonctionnalités du système.</p>
+        <p class="section-desc">Gestion des accès, rôles et permissions de chaque collaborateur sur l'application.</p>
       </div>
     </div>
-    <div style="margin-top:1.5rem;overflow-x:auto;">
-      <table class="dtable" style="background:var(--surface);border-radius:12px;overflow:hidden;">
-        <thead>
-          <tr>
-            <th>Rôle</th><th>Stock</th><th>Achats</th><th>Ventes</th><th>Finances</th><th>Admin</th><th>Prix</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr><td class="hl">Admin</td><td><span class="ck">✓ Tout</span></td><td><span class="ck">✓ Tout</span></td><td><span class="ck">✓ Tout</span></td><td><span class="ck">✓ Tout</span></td><td><span class="ck">✓ Tout</span></td><td><span class="ck">✓</span></td></tr>
-          <tr><td class="hl">Gestionnaire</td><td><span class="ck">✓</span></td><td><span class="ck">✓</span></td><td><span class="ck">✓</span></td><td><span class="ck">✓</span></td><td style="color:#fbbf24">⚠ Partiel</td><td><span class="ck">✓</span></td></tr>
-          <tr><td class="hl">Gestionnaire 2</td><td><span class="cx">✗</span></td><td style="color:#fbbf24">⚠ Décharge</td><td><span class="cx">✗</span></td><td><span class="cx">✗</span></td><td><span class="cx">✗</span></td><td><span class="cx">✗</span></td></tr>
-          <tr><td class="hl">Vendeur</td><td style="color:#fbbf24">⚠ Vue</td><td><span class="cx">✗</span></td><td><span class="ck">✓ Vente</span></td><td><span class="cx">✗</span></td><td><span class="cx">✗</span></td><td><span class="cx">✗ Caché</span></td></tr>
-          <tr><td class="hl">Observateur</td><td style="color:#fbbf24">⚠ Vue</td><td style="color:#fbbf24">⚠ Vue</td><td style="color:#fbbf24">⚠ Vue</td><td style="color:#fbbf24">⚠ Vue</td><td><span class="cx">✗</span></td><td><span class="cx">✗</span></td></tr>
-        </tbody>
-      </table>
-    </div>
-    <div class="card-grid" style="margin-top:1.5rem;">
-      <div class="card t-rose"><div class="card-icon">🔐</div><div class="card-title">JWT Authentification</div><div class="card-body">Tokens JWT pour chaque session. Déconnexion automatique après 30 min d'inactivité.</div></div>
-      <div class="card t-rose"><div class="card-icon">🏪</div><div class="card-title">Affectation Magasin</div><div class="card-body">Chaque utilisateur non-admin est affecté à un magasin. Isolation stricte des données.</div></div>
-      <div class="card t-rose"><div class="card-icon">🛡️</div><div class="card-title">Contrôle d'accès</div><div class="card-body">Vérification côté serveur de chaque requête API. Les permissions sont appliquées même si le frontend est contourné.</div></div>
-      <div class="card t-rose"><div class="card-icon">📝</div><div class="card-title">Gestion Profils</div><div class="card-body">Création, modification, réinitialisation du mot de passe. Désactivation sans suppression des données.</div></div>
-    </div>
-    <div class="stats-strip">
-      <div class="stat-item"><span class="stat-value">5</span><span class="stat-label">Rôles distincts</span></div>
-      <div class="stat-item"><span class="stat-value">30min</span><span class="stat-label">Timeout inactivité</span></div>
-      <div class="stat-item"><span class="stat-value">JWT</span><span class="stat-label">Authentification</span></div>
+
+    <div class="detail-block t-rose">
+      <h3 class="detail-title">🎯 Objectif du module</h3>
+      <p class="detail-text">
+        Sécuriser les données de l'entreprise en s'assurant que chaque utilisateur accède uniquement aux écrans et fonctionnalités nécessaires à sa fonction (principe du moindre privilège).
+      </p>
+
+      <h3 class="detail-title">🛠️ Fonctionnalités</h3>
+      <ul class="detail-list">
+        <li class="detail-list-item">⚡ <strong>5 Rôles Prédéfinis</strong> : Admin (accès total), Gestionnaire (achats et ventes, pas d'écriture d'administration), Gestionnaire 2 (limité aux Bordereaux de Livraison libres), Vendeur (ventes comptoir locales uniquement, prix d'achat masqués), Observateur (lecture seule sur les rapports).</li>
+        <li class="detail-list-item">⚡ <strong>Sécurité des Sessions JWT</strong> : Chiffrement des tokens de session et système de déconnexion automatique suite à 30 minutes d'inactivité de l'utilisateur.</li>
+        <li class="detail-list-item">⚡ <strong>Affectation de Magasin</strong> : Association obligatoire de chaque compte non-admin à un magasin physique pour forcer l'isolation de ses saisies.</li>
+      </ul>
+
+      <h3 class="detail-title">🟢 Actions réalisables</h3>
+      <div class="actions-grid">
+        <div class="action-card">✨ <strong>Créer un Compte Utilisateur</strong> : Renseigner l'identifiant de connexion, attribuer le rôle, associer le magasin d'affectation et définir le mot de passe initial.</div>
+        <div class="action-card">✨ <strong>Réinitialiser un Mot de Passe</strong> : Forcer le changement de mot de passe d'un collaborateur ayant perdu ses identifiants.</div>
+        <div class="action-card">✨ <strong>Désactiver / Supprimer un Compte</strong> : Bloquer l'accès d'un collaborateur ayant quitté l'entreprise sans altérer l'historique de ses anciennes actions dans les ventes ou mouvements de stock.</div>
+      </div>
     </div>
   </section>
 
@@ -1187,40 +1204,29 @@
       <div class="section-meta">
         <div class="section-num">Module 18 · Administration</div>
         <h2 class="section-title">Journal d'Activité</h2>
-        <p class="section-desc">Traçabilité complète de toutes les actions effectuées dans le système. Audit trail horodaté par utilisateur, module et type d'action.</p>
+        <p class="section-desc">Audit trail complet et horodaté de toutes les actions clés réalisées au sein du système.</p>
       </div>
     </div>
-    <div class="card-grid">
-      <div class="card t-sky"><div class="card-icon">📝</div><div class="card-title">Actions Enregistrées</div><div class="card-body">Chaque création, modification, suppression, connexion, impression est enregistrée avec l'utilisateur et la date.</div></div>
-      <div class="card t-sky"><div class="card-icon">🔍</div><div class="card-title">Recherche &amp; Filtres</div><div class="card-body">Filtrage par utilisateur, type d'action, module, plage de dates. Recherche textuelle dans les détails.</div></div>
-      <div class="card t-sky"><div class="card-icon">👤</div><div class="card-title">Qui a fait quoi ?</div><div class="card-body">Chaque log contient : utilisateur, rôle, magasin, action, détails JSON, horodatage précis.</div></div>
-      <div class="card t-sky"><div class="card-icon">🏪</div><div class="card-title">Par Magasin</div><div class="card-body">Logs filtrables par magasin. Les admins voient tous les magasins, les utilisateurs voient leur propre historique.</div></div>
-    </div>
-    <div style="margin-top:1.5rem;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem;">
-      <div style="font-size:0.78rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:1rem;">Actions types enregistrées</div>
-      <div style="display:flex;gap:0.6rem;flex-wrap:wrap;">
-        <span class="badge bg">Nouvelle vente</span>
-        <span class="badge bp">Entrée de stock</span>
-        <span class="badge ba">Sortie de stock</span>
-        <span class="badge br">Suppression</span>
-        <span class="badge bb">Connexion</span>
-        <span class="badge bg">Décharge BEG</span>
-        <span class="badge bp">Impression BC/BL</span>
-        <span class="badge ba">Clôture exercice</span>
-        <span class="badge br">Annulation</span>
-        <span class="badge bb">Transfert</span>
-        <span class="badge bg">Modification</span>
-        <span class="badge bp">Création dossier</span>
+
+    <div class="detail-block t-sky">
+      <h3 class="detail-title">🎯 Objectif du module</h3>
+      <p class="detail-text">
+        Garantir la transparence opérationnelle et permettre de retracer la responsabilité de chaque événement (qui a supprimé un client ? qui a modifié le prix d'un produit ? quand a eu lieu la dernière clôture ?).
+      </p>
+
+      <h3 class="detail-title">🛠️ Fonctionnalités</h3>
+      <ul class="detail-list">
+        <li class="detail-list-item">⚡ <strong>Immuabilité Absolue</strong> : Les lignes du journal d'activité sont générées uniquement par le système. Aucune option de modification ou de suppression des logs n'existe, même pour les administrateurs.</li>
+        <li class="detail-list-item">⚡ <strong>Enregistrement JSON Détaillé</strong> : Stockage technique des anciennes et des nouvelles valeurs pour chaque modification afin de pouvoir comparer les écarts.</li>
+        <li class="detail-list-item">⚡ <strong>Filtre par Module et par Action</strong> : Moteur de recherche permettant de trier les logs par type d'événement (Connexions, créations, modifications, suppressions, impressions, annulations).</li>
+      </ul>
+
+      <h3 class="detail-title">🟢 Actions réalisables</h3>
+      <div class="actions-grid">
+        <div class="action-card">✨ <strong>Rechercher une Action</strong> : Filtrer le journal par utilisateur (ex : "toto"), par date, ou par type d'action pour identifier l'origine d'une anomalie.</div>
+        <div class="action-card">✨ <strong>Analyser les Détails JSON</strong> : Cliquer sur un log pour inspecter la structure technique de l'action (champs modifiés).</div>
+        <div class="action-card">✨ <strong>Exporter le Journal pour Audit</strong> : Télécharger l'ensemble des logs d'activité sous format Excel.</div>
       </div>
-    </div>
-    <div style="margin-top:1rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
-      <span class="badge br">🔒 Réservé : Admin uniquement</span>
-      <span class="badge bg">✓ Immuable (lecture seule)</span>
-    </div>
-    <div class="stats-strip">
-      <div class="stat-item"><span class="stat-value">100%</span><span class="stat-label">Couverture modules</span></div>
-      <div class="stat-item"><span class="stat-value">ms</span><span class="stat-label">Précision horodatage</span></div>
-      <div class="stat-item"><span class="stat-value">JSON</span><span class="stat-label">Format détails</span></div>
     </div>
   </section>
 
@@ -1229,7 +1235,7 @@
   <section class="summary-section" id="synthese">
     <div style="max-width:900px;margin:0 auto;text-align:center;">
       <div class="hero-badge" style="justify-content:center;">✅ Synthèse Globale</div>
-      <h2 style="font-size:2.2rem;font-weight:900;margin:1rem 0;background:linear-gradient(135deg,#fff,#c7d2fe,#7dd3fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">19 Modules · 1 Écosystème Complet</h2>
+      <h2 style="font-size:2.2rem;font-weight:900;margin:1rem 0;background:linear-gradient(135deg,#fff,#c7d2fe,#7dd3fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">20 Modules · 1 Écosystème Complet</h2>
       <p style="color:var(--text2);font-size:1rem;line-height:1.7;max-width:700px;margin:0 auto;">
         Un système intégré couvrant l'ensemble du cycle opérationnel : du stock à la vente, de l'achat à la livraison, de la comptabilité à l'audit.
       </p>

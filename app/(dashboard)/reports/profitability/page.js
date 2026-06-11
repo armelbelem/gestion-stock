@@ -11,13 +11,13 @@ import {
 import { storage } from '../../../lib/storage';
 import { exportToExcel } from '../../../utils/excelExport';
 
-export default function StockValuationPage() {
+export default function ProfitabilityPage() {
   const pathname = usePathname();
   const [settings, setSettings] = useState(null);
   
   // File states
-  const [fileA, setFileA] = useState(null); // Selling prices
-  const [fileB, setFileB] = useState(null); // Stock & Purchase prices
+  const [fileA, setFileA] = useState(null); // Sales file
+  const [fileB, setFileB] = useState(null); // Purchase prices reference file
   const [fileAData, setFileAData] = useState([]);
   const [fileBData, setFileBData] = useState([]);
   const [fileAError, setFileAError] = useState('');
@@ -26,7 +26,7 @@ export default function StockValuationPage() {
   
   // Rapprochement results
   const [results, setResults] = useState(null);
-  const [activeTab, setActiveTab] = useState('matched'); // matched, unmatchedA, unmatchedB, duplicates
+  const [activeTab, setActiveTab] = useState('matched'); // matched, unmatchedA, unmatchedB, duplicates, anomalies
   const [searchTerm, setSearchTerm] = useState('');
   
   // Pagination
@@ -87,7 +87,7 @@ export default function StockValuationPage() {
         const designationPatterns = [/désignation/i, /designation/i, /article/i, /nom/i, /description/i];
         const salePricePatterns = [/prix.*vente/i, /p\.v/i, /pv/i, /vente/i, /prix/i];
         const purchasePricePatterns = [/prix.*achat/i, /p\.a/i, /pa/i, /achat/i, /prix/i];
-        const stockPatterns = [/stock.*disponible/i, /stock/i, /qté/i, /qte/i, /quantité/i, /quantite/i, /dispo/i];
+        const qtySoldPatterns = [/quantité.*vendue/i, /qte.*vendue/i, /quantite.*vendue/i, /vendue/i, /total.*vendu/i, /vendu/i, /qté/i, /qte/i, /quantité/i, /quantite/i];
 
         if (fileType === 'A') {
           setFileAData(rows);
@@ -96,8 +96,8 @@ export default function StockValuationPage() {
             const missing = [];
             if (!findColumnKey(firstRow, refPatterns)) missing.push("Référence");
             if (!findColumnKey(firstRow, designationPatterns)) missing.push("Désignation / Article");
-            if (!findColumnKey(firstRow, stockPatterns)) missing.push("Stock disponible");
-            if (!findColumnKey(firstRow, salePricePatterns)) missing.push("Prix de vente");
+            if (!findColumnKey(firstRow, qtySoldPatterns)) missing.push("Quantité vendue");
+            if (!findColumnKey(firstRow, salePricePatterns)) missing.push("Prix de vente unitaire");
             if (missing.length > 0) {
               setFileAError(`Format non respecté. Colonnes manquantes : ${missing.join(', ')}`);
             }
@@ -111,7 +111,7 @@ export default function StockValuationPage() {
             const missing = [];
             if (!findColumnKey(firstRow, refPatterns)) missing.push("Référence");
             if (!findColumnKey(firstRow, designationPatterns)) missing.push("Désignation / Article");
-            if (!findColumnKey(firstRow, purchasePricePatterns)) missing.push("Prix d'achat");
+            if (!findColumnKey(firstRow, purchasePricePatterns)) missing.push("Prix d'achat unitaire");
             if (missing.length > 0) {
               setFileBError(`Format non respecté. Colonnes manquantes : ${missing.join(', ')}`);
             }
@@ -131,7 +131,6 @@ export default function StockValuationPage() {
     reader.readAsBinaryString(file);
   };
 
-  // Find column key matching pattern
   const findColumnKey = (row, patterns) => {
     if (!row) return null;
     const keys = Object.keys(row);
@@ -142,7 +141,7 @@ export default function StockValuationPage() {
     return null;
   };
 
-  // Process mapping and matching
+  // Process profitability mapping
   const handleProcess = () => {
     if (fileAData.length === 0 || fileBData.length === 0) {
       alert("Veuillez importer les deux fichiers Excel avant de lancer le traitement.");
@@ -156,25 +155,35 @@ export default function StockValuationPage() {
     const designationPatterns = [/désignation/i, /designation/i, /article/i, /nom/i, /description/i];
     const salePricePatterns = [/prix.*vente/i, /p\.v/i, /pv/i, /vente/i, /prix/i];
     const purchasePricePatterns = [/prix.*achat/i, /p\.a/i, /pa/i, /achat/i, /prix/i];
-    const stockPatterns = [/stock.*disponible/i, /stock/i, /qté/i, /qte/i, /quantité/i, /quantite/i, /dispo/i];
+    const qtySoldPatterns = [/quantité.*vendue/i, /qte.*vendue/i, /quantite.*vendue/i, /vendue/i, /total.*vendu/i, /vendu/i, /qté/i, /qte/i, /quantité/i, /quantite/i];
 
-    // Read File A (Selling prices & Stock available)
     const listA = [];
     const duplicatesA = [];
     const seenA = new Map();
+    const anomalies = [];
     let processedRowsA = 0;
+    let errorsCorrectedOrIgnored = 0;
 
+    // Read File A (Sales)
     fileAData.forEach((row, index) => {
-      // Skip empty rows
       if (Object.keys(row).length === 0) return;
 
       const refKey = findColumnKey(row, refPatterns);
       const desKey = findColumnKey(row, designationPatterns);
       const saleKey = findColumnKey(row, salePricePatterns);
-      const stockKey = findColumnKey(row, stockPatterns);
+      const qtyKey = findColumnKey(row, qtySoldPatterns);
 
       const rawRef = refKey ? row[refKey] : null;
-      if (!rawRef) return; // Ignore row if no reference
+      if (!rawRef) {
+        anomalies.push({
+          row: index + 2,
+          file: 'Fichier A (Ventes)',
+          type: 'Erreur',
+          details: 'Référence manquante ou vide, ligne ignorée.'
+        });
+        errorsCorrectedOrIgnored++;
+        return;
+      }
 
       processedRowsA++;
       const normRef = normalizeRef(rawRef);
@@ -183,15 +192,35 @@ export default function StockValuationPage() {
       // Parse selling price
       let sellingPrice = 0;
       if (saleKey) {
-        const val = String(row[saleKey]).replace(/[^0-9.,]/g, '').replace(',', '.');
+        const rawPV = row[saleKey];
+        const val = String(rawPV).replace(/[^0-9.,]/g, '').replace(',', '.');
         sellingPrice = parseFloat(val) || 0;
+        if (isNaN(parseFloat(val))) {
+          anomalies.push({
+            row: index + 2,
+            file: 'Fichier A (Ventes)',
+            type: 'Correction',
+            details: `Prix de vente non numérique ("${rawPV}"), remplacé par 0.`
+          });
+          errorsCorrectedOrIgnored++;
+        }
       }
 
-      // Parse stock
-      let stock = 0;
-      if (stockKey) {
-        const val = String(row[stockKey]).replace(/[^0-9.-]/g, '');
-        stock = parseFloat(val) || 0;
+      // Parse quantity
+      let quantity = 0;
+      if (qtyKey) {
+        const rawQty = row[qtyKey];
+        const val = String(rawQty).replace(/[^0-9.-]/g, '');
+        quantity = parseFloat(val) || 0;
+        if (isNaN(parseFloat(val))) {
+          anomalies.push({
+            row: index + 2,
+            file: 'Fichier A (Ventes)',
+            type: 'Correction',
+            details: `Quantité vendue non numérique ("${rawQty}"), remplacée par 0.`
+          });
+          errorsCorrectedOrIgnored++;
+        }
       }
 
       const entry = {
@@ -199,7 +228,7 @@ export default function StockValuationPage() {
         normalizedRef: normRef,
         designation: String(designation).trim(),
         sellingPrice,
-        stock,
+        quantity,
         rowNumber: index + 2
       };
 
@@ -232,7 +261,16 @@ export default function StockValuationPage() {
       const purchaseKey = findColumnKey(row, purchasePricePatterns);
 
       const rawRef = refKey ? row[refKey] : null;
-      if (!rawRef) return;
+      if (!rawRef) {
+        anomalies.push({
+          row: index + 2,
+          file: 'Fichier B (Prix d\'Achat)',
+          type: 'Erreur',
+          details: 'Référence manquante ou vide, ligne ignorée.'
+        });
+        errorsCorrectedOrIgnored++;
+        return;
+      }
 
       processedRowsB++;
       const normRef = normalizeRef(rawRef);
@@ -241,8 +279,18 @@ export default function StockValuationPage() {
       // Parse purchase price
       let purchasePrice = 0;
       if (purchaseKey) {
-        const val = String(row[purchaseKey]).replace(/[^0-9.,]/g, '').replace(',', '.');
+        const rawPA = row[purchaseKey];
+        const val = String(rawPA).replace(/[^0-9.,]/g, '').replace(',', '.');
         purchasePrice = parseFloat(val) || 0;
+        if (isNaN(parseFloat(val))) {
+          anomalies.push({
+            row: index + 2,
+            file: 'Fichier B (Prix d\'Achat)',
+            type: 'Correction',
+            details: `Prix d'achat non numérique ("${rawPA}"), remplacé par 0.`
+          });
+          errorsCorrectedOrIgnored++;
+        }
       }
 
       const entry = {
@@ -268,12 +316,7 @@ export default function StockValuationPage() {
       }
     });
 
-    // Perform Match
-    const matched = [];
-    const unmatchedA = []; // In A but not in B (Missing purchase price)
-    const unmatchedB = []; // In B but not in A (Missing selling price / stock)
-
-    // Group lists by normalized reference to pair them up by order of appearance
+    // Group lists by normalized reference
     const groupsA = new Map();
     listA.forEach(item => {
       if (!groupsA.has(item.normalizedRef)) {
@@ -290,7 +333,11 @@ export default function StockValuationPage() {
       groupsB.get(item.normalizedRef).push(item);
     });
 
-    // Iterate through all unique normalized references in groupsA
+    const matched = [];
+    const unmatchedA = []; // In A but not in B
+    const unmatchedB = []; // In B but not in A
+
+    // Iterate through all unique references in groupsA
     groupsA.forEach((itemsA, normRef) => {
       const itemsB = groupsB.get(normRef) || [];
       const maxLen = Math.max(itemsA.length, itemsB.length);
@@ -299,20 +346,28 @@ export default function StockValuationPage() {
         if (i < itemsA.length && i < itemsB.length) {
           const aVal = itemsA[i];
           const bVal = itemsB[i];
-          const designation = aVal.designation || bVal.designation || "Article Sans Nom";
-          const stock = aVal.stock;
+          // Prioritize designation from File B (Referentiel des prix d'achat)
+          const designation = bVal.designation || aVal.designation || "Article Sans Nom";
+          const quantity = aVal.quantity;
           const purchasePrice = bVal.purchasePrice;
           const sellingPrice = aVal.sellingPrice;
 
+          const revenue = quantity * sellingPrice;
+          const cost = quantity * purchasePrice;
+          const margin = revenue - cost;
+          const marginRate = revenue > 0 ? (margin / revenue) * 100 : 0;
+
           matched.push({
-            reference: aVal.originalRef,
+            reference: bVal.originalRef || aVal.originalRef,
             normalizedRef: normRef,
             article: designation,
-            stock,
+            quantity,
             purchasePrice,
             sellingPrice,
-            stockValuePurchase: stock * purchasePrice,
-            stockValueSale: stock * sellingPrice
+            cost,
+            revenue,
+            margin,
+            marginRate
           });
         } else if (i < itemsA.length) {
           const aVal = itemsA[i];
@@ -320,9 +375,15 @@ export default function StockValuationPage() {
             reference: aVal.originalRef,
             normalizedRef: normRef,
             article: aVal.designation || "Inconnu",
-            stock: aVal.stock,
+            quantity: aVal.quantity,
             sellingPrice: aVal.sellingPrice,
-            details: `Présent dans Vente/Stock mais absent du fichier Prix d'Achat`
+            details: `Présent dans les ventes mais absent du fichier prix d'achat`
+          });
+          anomalies.push({
+            row: aVal.rowNumber,
+            file: 'Fichier A (Ventes)',
+            type: 'Écart',
+            details: `Référence "${aVal.originalRef}" absente du fichier des prix d'achat.`
           });
         } else {
           const bVal = itemsB[i];
@@ -331,7 +392,13 @@ export default function StockValuationPage() {
             normalizedRef: normRef,
             article: bVal.designation || "Inconnu",
             purchasePrice: bVal.purchasePrice,
-            details: `Présent dans Prix d'Achat mais absent du fichier Vente/Stock`
+            details: `Présent dans les prix d'achat mais absent du fichier ventes`
+          });
+          anomalies.push({
+            row: bVal.rowNumber,
+            file: 'Fichier B (Prix d\'Achat)',
+            type: 'Écart',
+            details: `Référence "${bVal.originalRef}" absente du fichier des ventes.`
           });
         }
       }
@@ -346,30 +413,40 @@ export default function StockValuationPage() {
             normalizedRef: normRef,
             article: bVal.designation || "Inconnu",
             purchasePrice: bVal.purchasePrice,
-            details: `Présent dans Prix d'Achat mais absent du fichier Vente/Stock`
+            details: `Présent dans les prix d'achat mais absent du fichier ventes`
+          });
+          anomalies.push({
+            row: bVal.rowNumber,
+            file: 'Fichier B (Prix d\'Achat)',
+            type: 'Écart',
+            details: `Référence "${bVal.originalRef}" absente du fichier des ventes.`
           });
         });
       }
     });
 
-    // Summarize totals
-    const totalStockValuePurchase = matched.reduce((sum, item) => sum + item.stockValuePurchase, 0);
-    const totalStockValueSale = matched.reduce((sum, item) => sum + item.stockValueSale, 0);
-    const totalPotentialMargin = totalStockValueSale - totalStockValuePurchase;
+    // Global calculations
+    const totalRevenue = matched.reduce((sum, item) => sum + item.revenue, 0);
+    const totalCost = matched.reduce((sum, item) => sum + item.cost, 0);
+    const totalMargin = totalRevenue - totalCost;
+    const globalMarginRate = totalRevenue > 0 ? (totalMargin / totalRevenue) * 100 : 0;
 
     setResults({
       matched,
       unmatchedA,
       unmatchedB,
       duplicates: [...duplicatesA, ...duplicatesB],
+      anomalies: anomalies.sort((a, b) => a.row - b.row),
       totals: {
-        totalStockValuePurchase,
-        totalStockValueSale,
-        totalPotentialMargin,
+        totalRevenue,
+        totalCost,
+        totalMargin,
+        globalMarginRate,
         totalTreated: processedRowsA + processedRowsB,
         totalFound: matched.length,
         totalNotFound: unmatchedA.length + unmatchedB.length,
-        totalDuplicates: duplicatesA.length + duplicatesB.length
+        totalDuplicates: duplicatesA.length + duplicatesB.length,
+        errorsCorrectedOrIgnored
       }
     });
 
@@ -383,34 +460,38 @@ export default function StockValuationPage() {
     const headers = [
       { key: 'reference', label: 'Référence' },
       { key: 'article', label: 'Article' },
-      { key: 'stock', label: 'Stock' },
-      { key: 'purchasePrice', label: 'Prix d\'achat' },
-      { key: 'sellingPrice', label: 'Prix de vente' },
-      { key: 'stockValuePurchase', label: 'Valeur stock achat' },
-      { key: 'stockValueSale', label: 'Valeur stock vente' }
+      { key: 'quantity', label: 'Quantité vendue' },
+      { key: 'purchasePrice', label: 'Prix achat unitaire' },
+      { key: 'sellingPrice', label: 'Prix vente unitaire' },
+      { key: 'cost', label: 'Coût achat total' },
+      { key: 'revenue', label: 'Chiffre d\'affaires' },
+      { key: 'margin', label: 'Marge bénéficiaire' },
+      { key: 'marginRate', label: 'Taux de marge (%)' }
     ];
 
     const dataToExport = results.matched.map(item => ({
       reference: item.reference,
       article: item.article,
-      stock: item.stock,
+      quantity: item.quantity,
       purchasePrice: item.purchasePrice,
       sellingPrice: item.sellingPrice,
-      stockValuePurchase: item.stockValuePurchase,
-      stockValueSale: item.stockValueSale
+      cost: item.cost,
+      revenue: item.revenue,
+      margin: item.margin,
+      marginRate: `${item.marginRate.toFixed(2)} %`
     }));
 
     // Add summary row at the end
     const summary = [
-      [], // Empty separation row
-      ["TOTAUX", "", "", "", "", results.totals.totalStockValuePurchase, results.totals.totalStockValueSale],
-      ["MARGE POTENTIELLE TOTALE", "", "", "", "", "", results.totals.totalPotentialMargin]
+      [],
+      ["TOTAUX", "", "", "", "", results.totals.totalCost, results.totals.totalRevenue, results.totals.totalMargin, `${results.totals.globalMarginRate.toFixed(2)} %`],
+      ["Nombre total d'articles analysés", results.totals.totalFound, "", "", "", "", "", "", ""]
     ];
 
-    exportToExcel(dataToExport, headers, `rapport_valorisation_stock_${new Date().toISOString().split('T')[0]}`, {
-      title: "RAPPORT DE VALORISATION DU STOCK",
+    exportToExcel(dataToExport, headers, `rapport_rentabilite_marge_${new Date().toISOString().split('T')[0]}`, {
+      title: "RAPPORT DE RENTABILITÉ ET DE MARGE BÉNÉFICIAIRE",
       companyName: settings?.companyName || "NS AUTO",
-      period: `Rapprochement généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`,
+      period: `Analyse générée le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`,
       summary
     });
   };
@@ -426,7 +507,6 @@ export default function StockValuationPage() {
     setSearchTerm('');
   };
 
-  // Filter matched items based on search term
   const getFilteredMatched = () => {
     if (!results) return [];
     return results.matched.filter(item => 
@@ -444,12 +524,12 @@ export default function StockValuationPage() {
       <div className="page-header">
         <div>
           <h1>Rapports et Analyses</h1>
-          <p>Suivez les indicateurs clés de votre activité</p>
+          <p>Rentabilité globale et performance par article</p>
         </div>
       </div>
 
       {/* Tabs Menu */}
-      <div className="toolbar" style={{ display: 'flex', gap: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0' }}>
+      <div className="toolbar" style={{ display: 'flex', gap: '1rem', borderBottom: '1px solid var(--border)', paddingBottom: '0', overflowX: 'auto' }}>
         <Link href="/reports" className={`nav-item ${pathname === '/reports' ? 'active' : ''}`} style={{ borderRadius: '0', padding: '0.75rem 1.5rem', marginBottom: '-1px' }}>
           <Coins size={18} /> Financiers
         </Link>
@@ -477,16 +557,15 @@ export default function StockValuationPage() {
         {!results ? (
           <div className="content-card" style={{ padding: '2.5rem' }}>
             <h2 style={{ fontSize: '1.25rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <FileSpreadsheet className="text-primary" /> Rapprochement & Valorisation de Stock
+              <TrendingUp className="text-primary" /> Analyse de Rentabilité et de Marge Bénéficiaire
             </h2>
             <p style={{ color: 'var(--text-muted)', marginBottom: '2rem', maxWidth: '800px' }}>
-              Importez la liste des articles avec prix de vente et stock disponible (Fichier A) et la liste des articles avec prix d'achat (Fichier B).
-              Le système effectuera un rapprochement automatique par Référence (insensible aux tirets, espaces ou minuscules)
-              et générera la valorisation complète.
+              Importez le bilan de consommation/ventes (Fichier A) contenant les quantités vendues et prix de vente, et le référentiel des prix d'achat (Fichier B).
+              Le système calculera automatiquement le chiffre d'affaires, le coût total d'achat, la marge dégagée et le taux de marge de chaque article.
             </p>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '2rem', marginBottom: '2.5rem' }}>
-              {/* File A Upload */}
+              {/* File A Upload (Sales) */}
               <div style={{
                 border: fileAError ? '2px dashed var(--danger)' : '2px dashed var(--border)',
                 borderRadius: '8px',
@@ -513,9 +592,9 @@ export default function StockValuationPage() {
                   {fileAError ? <AlertTriangle size={24} /> : fileA ? <CheckCircle2 size={24} /> : <Upload size={24} />}
                 </div>
                 <div>
-                  <h3 style={{ fontSize: '1rem', margin: '0 0 4px 0' }}>Fichier A : Prix de vente et stock disponible</h3>
+                  <h3 style={{ fontSize: '1rem', margin: '0 0 4px 0' }}>Fichier A : Bilan de consommation (Ventes)</h3>
                   <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0 }}>
-                    Doit contenir : Référence, Désignation, Stock disponible, Prix de vente
+                    Doit contenir : Référence, Désignation, Quantité totale vendue, Prix de vente unitaire
                   </p>
                 </div>
                 {fileA && !fileAError && (
@@ -544,7 +623,7 @@ export default function StockValuationPage() {
                 />
               </div>
 
-              {/* File B Upload */}
+              {/* File B Upload (Purchase prices) */}
               <div style={{
                 border: fileBError ? '2px dashed var(--danger)' : '2px dashed var(--border)',
                 borderRadius: '8px',
@@ -571,9 +650,9 @@ export default function StockValuationPage() {
                   {fileBError ? <AlertTriangle size={24} /> : fileB ? <CheckCircle2 size={24} /> : <Upload size={24} />}
                 </div>
                 <div>
-                  <h3 style={{ fontSize: '1rem', margin: '0 0 4px 0' }}>Fichier B : Liste des prix d'achat</h3>
+                  <h3 style={{ fontSize: '1rem', margin: '0 0 4px 0' }}>Fichier B : Référentiel des prix d'achat</h3>
                   <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0 }}>
-                    Doit contenir : Référence, Désignation, Prix d'achat
+                    Doit contenir : Référence, Désignation, Prix d'achat unitaire
                   </p>
                 </div>
                 {fileB && !fileBError && (
@@ -610,7 +689,7 @@ export default function StockValuationPage() {
                 disabled={loading || !fileA || !fileB || fileAError || fileBError}
                 style={{ padding: '0.75rem 2.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}
               >
-                {loading ? "Traitement en cours..." : "Lancer le rapprochement"}
+                {loading ? "Calcul en cours..." : "Générer le rapport de rentabilité"}
                 <ArrowRight size={18} />
               </button>
             </div>
@@ -619,42 +698,42 @@ export default function StockValuationPage() {
           <div>
             {/* Action Bar */}
             <div className="toolbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', gap: '1rem', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', gap: '0.75rem' }}>
-                <button className="btn btn-secondary" onClick={resetAll}>
-                  Importer d'autres fichiers
-                </button>
-              </div>
+              <button className="btn btn-secondary" onClick={resetAll}>
+                Importer d'autres fichiers
+              </button>
 
               <button className="btn btn-primary" onClick={handleExport} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Download size={18} /> Exporter le rapport Excel
+                <Download size={18} /> Exporter le bilan de rentabilité (.xlsx)
               </button>
             </div>
 
             {/* KPI Cards */}
             <div className="dashboard-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', marginBottom: '2rem' }}>
               <div className="stat-card stat-card-premium bg-gradient-blue">
-                <div className="stat-icon-bg"><Package size={48} /></div>
-                <div className="stat-label">Valeur Stock à l'Achat</div>
-                <div className="stat-value">{formatPrice(results.totals.totalStockValuePurchase)} FCFA</div>
-                <div className="card-trend"><span>Basé sur le prix d'achat</span></div>
-              </div>
-
-              <div className="stat-card stat-card-premium bg-gradient-green">
                 <div className="stat-icon-bg"><Coins size={48} /></div>
-                <div className="stat-label">Valeur Stock à la Vente</div>
-                <div className="stat-value">{formatPrice(results.totals.totalStockValueSale)} FCFA</div>
-                <div className="card-trend"><span>Basé sur le prix de vente</span></div>
+                <div className="stat-label">Chiffre d'affaires global</div>
+                <div className="stat-value">{formatPrice(results.totals.totalRevenue)} FCFA</div>
+                <div className="card-trend"><span>Total des ventes rapprochées</span></div>
               </div>
 
               <div className="stat-card stat-card-premium bg-gradient-purple">
+                <div className="stat-icon-bg"><Package size={48} /></div>
+                <div className="stat-label">Coût total d'achat</div>
+                <div className="stat-value">{formatPrice(results.totals.totalCost)} FCFA</div>
+                <div className="card-trend"><span>Coût d'achat total des ventes</span></div>
+              </div>
+
+              <div className="stat-card stat-card-premium bg-gradient-green">
                 <div className="stat-icon-bg"><TrendingUp size={48} /></div>
-                <div className="stat-label">Marge Potentielle Globale</div>
-                <div className="stat-value">{formatPrice(results.totals.totalPotentialMargin)} FCFA</div>
-                <div className="card-trend"><span>Marge théorique sur stock</span></div>
+                <div className="stat-label">Marge bénéficiaire totale</div>
+                <div className="stat-value">{formatPrice(results.totals.totalMargin)} FCFA</div>
+                <div className="card-trend" style={{ color: 'rgba(255,255,255,0.9)', fontWeight: 'bold' }}>
+                  <span>Taux de marge global : {results.totals.globalMarginRate.toFixed(2)} %</span>
+                </div>
               </div>
             </div>
 
-            {/* Treatment Summary Alert */}
+            {/* Summary details */}
             <div style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
@@ -666,51 +745,56 @@ export default function StockValuationPage() {
               marginBottom: '2rem'
             }}>
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Lignes Traitées</div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Lignes Analysées</div>
                 <div style={{ fontSize: '1.25rem', fontWeight: 'bold', marginTop: '4px' }}>{results.totals.totalTreated}</div>
               </div>
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Articles Rapprochés</div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Références Communes</div>
                 <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: 'var(--success)', marginTop: '4px' }}>{results.totals.totalFound}</div>
               </div>
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Écarts / Non Trouvés</div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Non Trouvées / Écarts</div>
                 <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: results.totals.totalNotFound > 0 ? 'var(--danger)' : 'inherit', marginTop: '4px' }}>
                   {results.totals.totalNotFound}
                 </div>
               </div>
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Doublons Références</div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Doublons Détectés</div>
                 <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: results.totals.totalDuplicates > 0 ? 'var(--warning)' : 'inherit', marginTop: '4px' }}>
                   {results.totals.totalDuplicates}
                 </div>
               </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Erreurs Ignorées / Corrigées</div>
+                <div style={{ fontSize: '1.25rem', fontWeight: 'bold', color: 'var(--primary)', marginTop: '4px' }}>
+                  {results.totals.errorsCorrectedOrIgnored}
+                </div>
+              </div>
             </div>
 
-            {/* Preview Section */}
+            {/* Result Tabs */}
             <div className="content-card">
-              {/* Internal Tabs */}
               <div className="toolbar" style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '0', marginBottom: '1.5rem', overflowX: 'auto' }}>
                 <button 
                   className={`nav-item ${activeTab === 'matched' ? 'active' : ''}`}
                   onClick={() => { setActiveTab('matched'); setCurrentPage(1); }}
                   style={{ padding: '0.75rem 1.25rem', borderBottom: activeTab === 'matched' ? '2px solid var(--primary)' : 'none', borderRadius: 0, marginBottom: '-1px' }}
                 >
-                  Articles Trouvés / Rapprochés ({filteredMatched.length})
+                  Bilan de Rentabilité ({filteredMatched.length})
                 </button>
                 <button 
                   className={`nav-item ${activeTab === 'unmatchedA' ? 'active' : ''}`}
                   onClick={() => { setActiveTab('unmatchedA'); setCurrentPage(1); }}
                   style={{ padding: '0.75rem 1.25rem', borderBottom: activeTab === 'unmatchedA' ? '2px solid var(--primary)' : 'none', borderRadius: 0, marginBottom: '-1px' }}
                 >
-                  Sans Prix d'Achat (Fichier B) ({results.unmatchedA.length})
+                  Ventes Sans Prix d'Achat ({results.unmatchedA.length})
                 </button>
                 <button 
                   className={`nav-item ${activeTab === 'unmatchedB' ? 'active' : ''}`}
                   onClick={() => { setActiveTab('unmatchedB'); setCurrentPage(1); }}
                   style={{ padding: '0.75rem 1.25rem', borderBottom: activeTab === 'unmatchedB' ? '2px solid var(--primary)' : 'none', borderRadius: 0, marginBottom: '-1px' }}
                 >
-                  Absents du Fichier A (Ventes/Stock) ({results.unmatchedB.length})
+                  Prix d'Achat Sans Ventes ({results.unmatchedB.length})
                 </button>
                 <button 
                   className={`nav-item ${activeTab === 'duplicates' ? 'active' : ''}`}
@@ -719,9 +803,16 @@ export default function StockValuationPage() {
                 >
                   Doublons ({results.duplicates.length})
                 </button>
+                <button 
+                  className={`nav-item ${activeTab === 'anomalies' ? 'active' : ''}`}
+                  onClick={() => { setActiveTab('anomalies'); setCurrentPage(1); }}
+                  style={{ padding: '0.75rem 1.25rem', borderBottom: activeTab === 'anomalies' ? '2px solid var(--primary)' : 'none', borderRadius: 0, marginBottom: '-1px' }}
+                >
+                  Journal d'Anomalies ({results.anomalies.length})
+                </button>
               </div>
 
-              {/* SEARCH BAR (Only for matched tab) */}
+              {/* SEARCH BAR */}
               {activeTab === 'matched' && (
                 <div className="search-input-wrapper" style={{ marginBottom: '1.5rem', maxWidth: '400px' }}>
                   <Search size={18} className="search-icon" />
@@ -735,7 +826,7 @@ export default function StockValuationPage() {
                 </div>
               )}
 
-              {/* TABLES */}
+              {/* Matched Data Table */}
               {activeTab === 'matched' && (
                 <>
                   <div className="table-wrapper">
@@ -743,31 +834,35 @@ export default function StockValuationPage() {
                       <thead>
                         <tr>
                           <th>Référence</th>
-                          <th>Article</th>
-                          <th style={{ textAlign: 'center' }}>Stock</th>
-                          <th style={{ textAlign: 'right' }}>Prix Achat</th>
-                          <th style={{ textAlign: 'right' }}>Prix Vente</th>
-                          <th style={{ textAlign: 'right' }}>Valeur Achat</th>
-                          <th style={{ textAlign: 'right' }}>Valeur Vente</th>
+                          <th>Article (Nom du Référentiel B)</th>
+                          <th style={{ textAlign: 'center' }}>Quantité</th>
+                          <th style={{ textAlign: 'right' }}>Prix Achat Unit.</th>
+                          <th style={{ textAlign: 'right' }}>Prix Vente Unit.</th>
+                          <th style={{ textAlign: 'right' }}>Coût Total</th>
+                          <th style={{ textAlign: 'right' }}>CA Réalisé</th>
+                          <th style={{ textAlign: 'right' }}>Marge</th>
+                          <th style={{ textAlign: 'right' }}>Taux Marge (%)</th>
                         </tr>
                       </thead>
                       <tbody>
                         {paginatedMatched.length === 0 ? (
-                          <tr><td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }}>Aucun article trouvé.</td></tr>
+                          <tr><td colSpan="9" style={{ textAlign: 'center', padding: '2rem' }}>Aucun article trouvé.</td></tr>
                         ) : (
                           paginatedMatched.map((item, index) => (
                             <tr key={index}>
                               <td style={{ fontWeight: '600' }}>{item.reference}</td>
                               <td>{item.article}</td>
-                              <td style={{ textAlign: 'center' }}>
-                                <span className={`badge ${item.stock <= 0 ? 'badge-danger' : item.stock <= 5 ? 'badge-warning' : 'badge-primary'}`}>
-                                  {item.stock}
-                                </span>
-                              </td>
+                              <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{item.quantity}</td>
                               <td style={{ textAlign: 'right' }}>{formatPrice(item.purchasePrice)}</td>
                               <td style={{ textAlign: 'right' }}>{formatPrice(item.sellingPrice)}</td>
-                              <td style={{ textAlign: 'right', fontWeight: '500' }}>{formatPrice(item.stockValuePurchase)}</td>
-                              <td style={{ textAlign: 'right', fontWeight: '500', color: 'var(--success)' }}>{formatPrice(item.stockValueSale)}</td>
+                              <td style={{ textAlign: 'right' }}>{formatPrice(item.cost)}</td>
+                              <td style={{ textAlign: 'right' }}>{formatPrice(item.revenue)}</td>
+                              <td style={{ textAlign: 'right', fontWeight: 'bold', color: item.margin >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                                {formatPrice(item.margin)}
+                              </td>
+                              <td style={{ textAlign: 'right', fontWeight: '500', color: item.marginRate >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                                {item.marginRate.toFixed(2)} %
+                              </td>
                             </tr>
                           ))
                         )}
@@ -805,118 +900,127 @@ export default function StockValuationPage() {
                 </>
               )}
 
+              {/* Sales but no Purchase Price Table */}
               {activeTab === 'unmatchedA' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  <div style={{ padding: '1rem', backgroundColor: 'rgba(var(--danger-rgb), 0.05)', borderRadius: '6px', borderLeft: '4px solid var(--danger)', display: 'flex', gap: '10px', alignItems: 'center' }}>
-                    <AlertTriangle className="text-danger" size={20} />
-                    <span style={{ fontSize: '0.9rem' }}>
-                      Ces articles sont répertoriés dans votre fichier de ventes et stocks (Fichier A) mais aucun prix d'achat n'a été trouvé dans le Fichier B. Ils sont exclus de la valorisation d'achat (valorisés à 0).
-                    </span>
-                  </div>
-                  <div className="table-wrapper">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Référence</th>
-                          <th>Article proposé</th>
-                          <th style={{ textAlign: 'center' }}>Stock</th>
-                          <th style={{ textAlign: 'right' }}>Prix de vente</th>
-                          <th>Statut / Action</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {results.unmatchedA.length === 0 ? (
-                          <tr><td colSpan="5" style={{ textAlign: 'center', padding: '2rem' }}>Aucun écart détecté.</td></tr>
-                        ) : (
-                          results.unmatchedA.map((item, idx) => (
-                            <tr key={idx}>
-                              <td style={{ fontWeight: '600' }}>{item.reference}</td>
-                              <td>{item.article}</td>
-                              <td style={{ textAlign: 'center' }}>{item.stock}</td>
-                              <td style={{ textAlign: 'right' }}>{formatPrice(item.sellingPrice)}</td>
-                              <td><span className="badge badge-warning">Prix Achat Inexistant</span></td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                <div className="table-wrapper">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Référence</th>
+                        <th>Article (Fichier Ventes)</th>
+                        <th style={{ textAlign: 'center' }}>Quantité Vendue</th>
+                        <th style={{ textAlign: 'right' }}>Prix Vente Unit.</th>
+                        <th>Détails de l'anomalie</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {results.unmatchedA.length === 0 ? (
+                        <tr><td colSpan="5" style={{ textAlign: 'center', padding: '2rem' }}>Aucun écart trouvé.</td></tr>
+                      ) : (
+                        results.unmatchedA.map((item, index) => (
+                          <tr key={index}>
+                            <td style={{ fontWeight: '600', color: 'var(--danger)' }}>{item.reference}</td>
+                            <td>{item.article}</td>
+                            <td style={{ textAlign: 'center' }}>{item.quantity}</td>
+                            <td style={{ textAlign: 'right' }}>{formatPrice(item.sellingPrice)}</td>
+                            <td style={{ color: 'var(--danger)', fontSize: '0.85rem' }}>{item.details}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               )}
 
+              {/* Purchase Price but no Sales Table */}
               {activeTab === 'unmatchedB' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  <div style={{ padding: '1rem', backgroundColor: 'rgba(var(--danger-rgb), 0.05)', borderRadius: '6px', borderLeft: '4px solid var(--danger)', display: 'flex', gap: '10px', alignItems: 'center' }}>
-                    <AlertTriangle className="text-danger" size={20} />
-                    <span style={{ fontSize: '0.9rem' }}>
-                      Ces articles possèdent un prix d'achat (Fichier B) mais sont absents du fichier principal de ventes et stock (Fichier A). Ils n'ont donc pas de stock disponible associé.
-                    </span>
-                  </div>
-                  <div className="table-wrapper">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Référence</th>
-                          <th>Article proposé</th>
-                          <th style={{ textAlign: 'right' }}>Prix d'achat</th>
-                          <th>Statut / Action</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {results.unmatchedB.length === 0 ? (
-                          <tr><td colSpan="4" style={{ textAlign: 'center', padding: '2rem' }}>Aucun écart détecté.</td></tr>
-                        ) : (
-                          results.unmatchedB.map((item, idx) => (
-                            <tr key={idx}>
-                              <td style={{ fontWeight: '600' }}>{item.reference}</td>
-                              <td>{item.article}</td>
-                              <td style={{ textAlign: 'right' }}>{formatPrice(item.purchasePrice)}</td>
-                              <td><span className="badge badge-danger">Absent du Fichier Ventes/Stock</span></td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                <div className="table-wrapper">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Référence</th>
+                        <th>Article (Fichier Prix d'Achat)</th>
+                        <th style={{ textAlign: 'right' }}>Prix Achat Unit.</th>
+                        <th>Détails de l'anomalie</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {results.unmatchedB.length === 0 ? (
+                        <tr><td colSpan="4" style={{ textAlign: 'center', padding: '2rem' }}>Aucun écart trouvé.</td></tr>
+                      ) : (
+                        results.unmatchedB.map((item, index) => (
+                          <tr key={index}>
+                            <td style={{ fontWeight: '600' }}>{item.reference}</td>
+                            <td>{item.article}</td>
+                            <td style={{ textAlign: 'right' }}>{formatPrice(item.purchasePrice)}</td>
+                            <td style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{item.details}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               )}
 
+              {/* Duplicates Table */}
               {activeTab === 'duplicates' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  <div style={{ padding: '1rem', backgroundColor: 'rgba(var(--warning-rgb), 0.05)', borderRadius: '6px', borderLeft: '4px solid var(--warning)', display: 'flex', gap: '10px', alignItems: 'center' }}>
-                    <AlertCircle className="text-warning" size={20} />
-                    <span style={{ fontSize: '0.9rem' }}>
-                      Les références suivantes apparaissent plusieurs fois dans vos fichiers. Le système a automatiquement regroupé et cumulé les stocks pour éviter les pertes d'information.
-                    </span>
-                  </div>
-                  <div className="table-wrapper">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Référence</th>
-                          <th>Désignation</th>
-                          <th>Fichier source</th>
-                          <th>Info traitement</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {results.duplicates.length === 0 ? (
-                          <tr><td colSpan="4" style={{ textAlign: 'center', padding: '2rem' }}>Aucun doublon détecté.</td></tr>
-                        ) : (
-                          results.duplicates.map((item, idx) => (
-                            <tr key={idx}>
-                              <td style={{ fontWeight: '600' }}>{item.ref}</td>
-                              <td>{item.designation}</td>
-                              <td><span className="badge badge-warning">{item.details}</span></td>
-                              <td style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                                Correspondance trouvée sur la clé normalisée <code>{item.normalizedRef}</code>
-                              </td>
-                            </tr>
-                          ))
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
+                <div className="table-wrapper">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Référence</th>
+                        <th>Article</th>
+                        <th>Source et Emplacement</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {results.duplicates.length === 0 ? (
+                        <tr><td colSpan="3" style={{ textAlign: 'center', padding: '2rem' }}>Aucun doublon détecté.</td></tr>
+                      ) : (
+                        results.duplicates.map((item, index) => (
+                          <tr key={index}>
+                            <td style={{ fontWeight: '600', color: 'var(--warning)' }}>{item.ref}</td>
+                            <td>{item.designation}</td>
+                            <td style={{ color: 'var(--warning)', fontSize: '0.85rem' }}>{item.details}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Anomalies Journal Table */}
+              {activeTab === 'anomalies' && (
+                <div className="table-wrapper">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th style={{ width: '80px', textAlign: 'center' }}>Ligne</th>
+                        <th>Source / Fichier</th>
+                        <th style={{ width: '120px' }}>Type</th>
+                        <th>Message / Renseignements</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {results.anomalies.length === 0 ? (
+                        <tr><td colSpan="4" style={{ textAlign: 'center', padding: '2rem' }}>Aucune anomalie enregistrée.</td></tr>
+                      ) : (
+                        results.anomalies.map((item, index) => (
+                          <tr key={index}>
+                            <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{item.row}</td>
+                            <td>{item.file}</td>
+                            <td>
+                              <span className={`badge ${item.type === 'Erreur' ? 'badge-danger' : item.type === 'Correction' ? 'badge-warning' : 'badge-primary'}`}>
+                                {item.type}
+                              </span>
+                            </td>
+                            <td>{item.details}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               )}
 

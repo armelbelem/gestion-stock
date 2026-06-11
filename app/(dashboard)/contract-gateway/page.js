@@ -708,18 +708,49 @@ export default function ContractGatewayPage() {
     }
   };
 
-  const exportCatalogToExcel = () => {
-    const data = catalog.map(item => ({
-      'Code': item.code,
-      [`Référence ${selectedPartner?.name || 'Partenaire'}`]: item.refCfao,
-      'Désignation': item.name,
-      'Prix Achat Contrat (FCFA)': formatPrice(item.purchasePrice)
-    }));
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    const sheetName = `Catalogue ${selectedPartner?.name || 'Partenaire'}`.substring(0, 31);
-    XLSX.utils.book_append_sheet(wb, ws, sheetName);
-    XLSX.writeFile(wb, `Catalogue_${selectedPartner?.name || 'Partenaire'}_${new Date().toISOString().split('T')[0]}.xlsx`);
+  const exportCatalogToExcel = async () => {
+    try {
+      showAlert('info', 'Exportation', 'Préparation du fichier Excel en cours...');
+      const pId = selectedPartner?.id;
+      const token = sessionStorage.getItem('token');
+      const params = new URLSearchParams({
+        _t: Date.now()
+      });
+      if (pId && pId !== 'all') params.set('partnerId', pId);
+      if (selectedCatalogClient) params.set('clientId', selectedCatalogClient);
+      if (catalogDebouncedSearch) params.set('search', catalogDebouncedSearch);
+      params.set('storeId', 'all');
+
+      const res = await fetch(`/api/contract-catalog?${params.toString()}`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        cache: 'no-store'
+      });
+      const result = await res.json();
+      
+      const items = Array.isArray(result) ? result : (result.data || []);
+      
+      if (items.length === 0) {
+        showAlert('warning', 'Exportation', 'Aucun article à exporter.');
+        return;
+      }
+
+      const data = items.map(item => ({
+        'Code': item.code,
+        [`Référence ${selectedPartner?.name || 'Partenaire'}`]: item.refCfao,
+        'Désignation': item.name,
+        'Prix Achat Contrat (FCFA)': formatPrice(item.purchasePrice)
+      }));
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      const sheetName = `Catalogue ${selectedPartner?.name || 'Partenaire'}`.substring(0, 31);
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+      XLSX.writeFile(wb, `Catalogue_${selectedPartner?.name || 'Partenaire'}_${new Date().toISOString().split('T')[0]}.xlsx`);
+      
+      showAlert('success', 'Succès', 'Exportation Excel réussie !');
+    } catch (err) {
+      console.error('Error exporting catalog:', err);
+      showAlert('error', 'Erreur Export', err.message);
+    }
   };
 
   const exportOrdersToExcel = () => {
