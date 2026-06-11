@@ -30,6 +30,41 @@ async function ensureDeliveriesTableExists(connection) {
       ALTER TABLE deliveries ADD COLUMN grouped_discharge_id VARCHAR(100) DEFAULT NULL
     `);
   }
+
+  // 3. Corriger le type ENUM corrompu sur contract_orders.status (dû aux problèmes d'encodage de caractères accentués comme É)
+  const [statusCol] = await connection.query(`
+    SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS 
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'contract_orders' AND COLUMN_NAME = 'status'
+  `);
+  if (statusCol.length > 0) {
+    const colType = statusCol[0].COLUMN_TYPE || '';
+    if (colType.includes('Ã')) {
+      // Passer en VARCHAR pour nettoyer les anciennes données
+      await connection.query(`
+        ALTER TABLE contract_orders MODIFY COLUMN status VARCHAR(100) DEFAULT 'BROUILLON'
+      `);
+      // Remplacer les chaînes corrompues
+      await connection.query(`
+        UPDATE contract_orders SET status = 'VALIDÉ' WHERE status LIKE 'VALID%' OR status = 'VALIDÃ‰'
+      `);
+      await connection.query(`
+        UPDATE contract_orders SET status = 'PARTIELLEMENT_LIVRÉ' WHERE status LIKE 'PARTIELLEMENT%' OR status = 'PARTIELLEMENT_LIVRÃ‰'
+      `);
+      await connection.query(`
+        UPDATE contract_orders SET status = 'LIVRÉ' WHERE status LIKE 'LIVR%' OR status = 'LIVRÃ‰'
+      `);
+      await connection.query(`
+        UPDATE contract_orders SET status = 'CLÔTURÉ' WHERE status LIKE 'CL%' OR status = 'CLÃ”TURÃ‰'
+      `);
+      await connection.query(`
+        UPDATE contract_orders SET status = 'ANNULÉ' WHERE status LIKE 'ANNUL%' OR status = 'ANNULÃ‰'
+      `);
+      // Rétablir l'ENUM correct
+      await connection.query(`
+        ALTER TABLE contract_orders MODIFY COLUMN status ENUM('BROUILLON','VALIDÉ','PARTIELLEMENT_LIVRÉ','LIVRÉ','CLÔTURÉ','ANNULÉ') DEFAULT 'BROUILLON'
+      `);
+    }
+  }
 }
 
 export async function GET(request) {
