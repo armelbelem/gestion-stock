@@ -131,6 +131,10 @@ export async function POST(request) {
       const sellingPrice = parseFloat(item.sellingPrice) || 0;
       const qty = parseInt(item.quantity) || 1;
 
+      if (sellingPrice <= 0) {
+        throw new Error(`Impossible de vendre l'article "${item.description || 'sélectionné'}" car son prix de vente est à 0 FCFA.`);
+      }
+
       totalHT += (sellingPrice * qty);
       totalMargin += ((sellingPrice - purchasePrice) * qty);
     }

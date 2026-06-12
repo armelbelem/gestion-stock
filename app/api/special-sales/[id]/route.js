@@ -60,6 +60,10 @@ export async function PUT(request, { params }) {
         const sellingPrice = parseFloat(item.sellingPrice) || 0;
         const qty = parseInt(item.quantity) || 1;
 
+        if (sellingPrice <= 0) {
+          throw new Error(`Impossible de modifier la vente: l'article "${item.description || 'sélectionné'}" a un prix de vente de 0 FCFA.`);
+        }
+
         totalHT += (sellingPrice * qty);
         totalMargin += ((sellingPrice - purchasePrice) * qty);
 

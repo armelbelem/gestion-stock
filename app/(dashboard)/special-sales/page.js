@@ -354,6 +354,12 @@ export default function SpecialSalesPage() {
       return;
     }
 
+    const hasZeroPriceItem = items.some(it => (parseFloat(it.sellingPrice) || 0) <= 0);
+    if (hasZeroPriceItem) {
+      showAlert('error', 'Action bloquée', "Impossible de vendre un article avec un prix à 0 FCFA.");
+      return;
+    }
+
     showConfirm(
       editingSale ? "Confirmer la modification" : "Confirmer l'enregistrement",
       "Voulez-vous enregistrer cette vente spéciale ?",

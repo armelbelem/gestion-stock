@@ -183,6 +183,12 @@ export async function POST(request) {
       if (quantity <= 0 && !isProforma) {
         throw new Error(`La quantité pour l'article "${item.description || 'ID: ' + item.articleId}" doit être supérieure à 0.`);
       }
+
+      if (unitPrice <= 0) {
+        const [artRows] = await connection.query('SELECT name FROM articles WHERE id = ?', [item.articleId]);
+        const itemName = artRows.length > 0 ? artRows[0].name : (item.description || 'Article');
+        throw new Error(`Impossible de vendre l'article "${itemName}" car son prix est à 0 FCFA.`);
+      }
       
       calculatedTotal += quantity * unitPrice;
       

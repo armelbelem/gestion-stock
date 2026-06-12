@@ -236,6 +236,12 @@ export default function NewSalePage() {
     const invalidQty = saleItems.find(item => !item.quantity || Number(item.quantity) <= 0);
     if (invalidQty && !isProforma) return showAlert('error', 'Erreur', "Toutes les quantités doivent être supérieures à 0.");
 
+    const zeroPriceItem = saleItems.find(item => !item.unitPrice || Number(item.unitPrice) <= 0);
+    if (zeroPriceItem) {
+      const itemName = zeroPriceItem.isManual ? zeroPriceItem.description : (articles.find(a => String(a.id) === String(zeroPriceItem.articleId))?.name || 'Article');
+      return showAlert('error', 'Action bloquée', `Impossible de vendre un article avec un prix à 0 FCFA (${itemName ? `"${itemName}"` : 'sélectionné'}).`);
+    }
+
     const exceedStockItem = saleItems.find(item => !item.isManual && Number(item.quantity) > Number(item.maxStock));
     if (exceedStockItem && !isProforma) return showAlert('error', 'Erreur', `Stock insuffisant pour l'article "${exceedStockItem.description || 'sélectionné'}".`);
 
