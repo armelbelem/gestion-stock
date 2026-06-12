@@ -291,7 +291,7 @@ export default function NewSalePage() {
             <h1>{successData.status === 'proforma' ? 'Proforma enregistré !' : 'Vente réussie !'}</h1>
           </div>
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-            <button onClick={() => window.print()} className="btn btn-primary"><Printer size={18} /> Reçu</button>
+            <button disabled onClick={() => window.print()} className="btn btn-primary"><Printer size={18} /> Reçu</button>
             <button onClick={() => router.push('/sales')} className="btn btn-secondary">Historique</button>
             <button onClick={() => window.location.reload()} className="btn btn-secondary">Nouvelle vente</button>
           </div>

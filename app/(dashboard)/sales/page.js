@@ -663,7 +663,7 @@ export default function SalesPage() {
                           )}
                           
                           {currentUser?.role !== 'vendeur' && (
-                            <button className="btn btn-secondary btn-sm" onClick={(e) => { e.stopPropagation(); setPrintChoiceModal({ open: true, sale: sale }); }} title="Imprimer / Exporter">
+                            <button className="btn btn-secondary btn-sm" disabled onClick={(e) => { e.stopPropagation(); setPrintChoiceModal({ open: true, sale: sale }); }} title="Imprimer / Exporter">
                               <Printer size={14} />
                             </button>
                           )}
