@@ -487,7 +487,7 @@ export default function NewSalePage() {
                   <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
                     <label className="form-label">Mode</label>
                     <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-                      <button type="button" className={`btn ${paymentType === 'complet' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1 }} onClick={() => setPaymentType('complet')}>Complet</button>
+                      <button type="button" className={`btn ${paymentType === 'complet' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1 }} onClick={() => setPaymentType('complet')} disabled>Complet</button>
                       <button type="button" className={`btn ${paymentType === 'credit' ? 'btn-primary' : 'btn-secondary'}`} style={{ flex: 1 }} onClick={() => setPaymentType('credit')}>Consommation</button>
                     </div>
                     <div className="form-group"><label className="form-label">Versement</label><input type="number" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} min="0" className="form-control" value={initialPayment} onChange={(e) => setInitialPayment(Number(e.target.value) || 0)} disabled={paymentType === 'credit'} /></div>
@@ -507,11 +507,7 @@ export default function NewSalePage() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                  {(currentUser?.role === 'admin' || currentUser?.role === 'gestionnaire') && (
-                    <button type="button" onClick={() => handleSubmit({ preventDefault: () => {}, isProforma: true })} className="btn btn-secondary btn-lg" disabled={isSubmitting || saleItems.length === 0} style={{ backgroundColor: '#fff7ed', color: '#9a3412', borderColor: '#fdba74' }}>
-                      {isSubmitting ? '...' : 'Générer Proforma'}
-                    </button>
-                  )}
+
                   <button type="submit" className="btn btn-primary btn-lg" disabled={isSubmitting || saleItems.length === 0}>
                     {isSubmitting ? '...' : 'Valider la vente'}
                   </button>
