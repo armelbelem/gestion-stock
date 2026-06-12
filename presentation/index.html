@@ -828,30 +828,30 @@
       <div class="section-meta">
         <div class="section-num">Module 09 · Finances</div>
         <h2 class="section-title">Ventes</h2>
-        <p class="section-desc">Enregistrement des ventes au comptoir avec déstockage instantané, gestion des remises, TVA, règlements partiels et proformas.</p>
+        <p class="section-desc">Enregistrement des ventes au comptoir avec déstockage instantané, gestion des remises, TVA et règlements en mode consommation.</p>
       </div>
     </div>
 
     <div class="detail-block t-pink">
       <h3 class="detail-title">🎯 Objectif du module</h3>
       <p class="detail-text">
-        Gérer le cycle de facturation des clients au comptoir du magasin, sécuriser les encaissements et mettre à jour automatiquement les stocks d'articles associés.
+        Permettre d'enregistrer facilement les ventes des pièces, mettre à jour automatiquement le stock et sécuriser la caisse en bloquant les opérations non autorisées.
       </p>
 
-      <h3 class="detail-title">🛠️ Fonctionnalités</h3>
+      <h3 class="detail-title">🛠️ Règles et Fonctionnalités</h3>
       <ul class="detail-list">
-        <li class="detail-list-item">⚡ <strong>Déstockage Temps Réel Intégré</strong> : La validation d'une vente soustrait immédiatement les quantités vendues du stock du magasin concerné.</li>
-        <li class="detail-list-item">⚡ <strong>Masquage des Prix d'Achat (Sécurité Vendeurs)</strong> : Les comptes de rôle `vendeur` voient les prix masqués par des étoiles (***) afin de protéger la confidentialité des marges commerciales de l'entreprise.</li>
-        <li class="detail-list-item">⚡ <strong>Règlements Multi-Modes</strong> : Gestion des factures payées entièrement, à crédit (Consommation) ou avec versement partiel (créance restante).</li>
-        <li class="detail-list-item">⚡ <strong>Factures Proforma</strong> : Édition de devis / proformas n'ayant aucun impact sur les stocks physiques, convertibles ultérieurement en ventes fermes.</li>
+        <li class="detail-list-item">⚡ <strong>Déstockage automatique</strong> : Valider une vente diminue tout de suite les quantités dans le stock du magasin.</li>
+        <li class="detail-list-item">⚡ <strong>Sécurité sur les prix d'achat</strong> : Les vendeurs ne voient pas les prix d'achat (remplacés par ***) pour protéger les secrets de l'entreprise.</li>
+        <li class="detail-list-item">⚡ <strong>Pas de vente à 0 FCFA</strong> : Il est totalement impossible de vendre un article qui a un prix à 0 FCFA. C'est bloqué pour tout le monde (admin, vendeur ou autre).</li>
+        <li class="detail-list-item">⚡ <strong>Paiement en mode Consommation</strong> : Le bouton "Complet" est désactivé. Les ventes se font maintenant en mode Consommation (crédit/compte) par défaut.</li>
+        <li class="detail-list-item">⚡ <strong>Pas de facture Proforma</strong> : Le bouton pour générer une facture proforma a été supprimé de cet écran.</li>
       </ul>
 
-      <h3 class="detail-title">🟢 Actions réalisables</h3>
+      <h3 class="detail-title">🟢 Actions possibles</h3>
       <div class="actions-grid">
-        <div class="action-card">✨ <strong>Saisir une Vente Comptoir</strong> : Sélectionner le client, ajouter les articles (via scan code-barres ou moteur de recherche), saisir la quantité, choisir le mode de paiement et valider.</div>
-        <div class="action-card">✨ <strong>Appliquer des remises</strong> : Saisir une remise fixe en FCFA ou ajuster le taux de TVA (par défaut à 18%).</div>
-        <div class="action-card">✨ <strong>Générer une Facture Proforma</strong> : Enregistrer un devis sans décrémenter le stock et l'imprimer pour le client.</div>
-        <div class="action-card">✨ <strong>Imprimer le reçu de caisse</strong> : Générer un format de ticket de caisse thermique optimisé.</div>
+        <div class="action-card">✨ <strong>Saisir une Vente</strong> : Choisir le client, scanner le code-barres ou chercher l'article, entrer la quantité, saisir un versement si nécessaire et valider.</div>
+        <div class="action-card">✨ <strong>Appliquer une remise ou modifier la TVA</strong> : Mettre une réduction en FCFA ou changer le taux de la TVA (à 18% par défaut).</div>
+        <div class="action-card">✨ <strong>Imprimer le ticket</strong> : Imprimer directement un reçu propre pour le client.</div>
       </div>
     </div>
   </section>

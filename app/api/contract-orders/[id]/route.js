@@ -119,60 +119,7 @@ export async function PUT(request, { params }) {
         );
       }
 
-      // 2. Si le statut passe à 'CLÔTURÉ', on enregistre la vente officiellement
-      if (finalStatus === 'CLÔTURÉ' && current.status !== 'CLÔTURÉ') {
-        const [orderRows] = await connection.query('SELECT * FROM contract_orders WHERE id = ?', [id]);
-        const order = orderRows[0];
-        const [items] = await connection.query('SELECT * FROM contract_order_items WHERE orderId = ?', [id]);
-        
-        // Récupérer l'exercice actif pour la vente
-        const [fyRows] = await connection.query("SELECT id FROM fiscal_years WHERE status = 'active'");
-        const activeYearId = fyRows[0]?.id;
 
-        const saleId = `C-${id.substring(0, 8)}`;
-        const tvaRate = Number(order.tva_rate || 18);
-        const tvaAmount = Math.round(order.totalAmount * (tvaRate / 100));
-        const totalTTC = order.totalAmount + tvaAmount;
-        
-        // Créer la vente avec tous les champs nécessaires
-        await connection.query(
-          'INSERT INTO sales (id, clientId, userId, totalAmount, discount, tvaAmount, amountPaid, paymentType, status, dueDate, notes, date, storeId, fiscalYearId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-          [
-            saleId, 
-            order.clientId, 
-            auth.user.id, 
-            totalTTC, 
-            0, // discount
-            tvaAmount, 
-            totalTTC, // amountPaid
-            'complet', // paymentType
-            'payé', // status
-            null, // dueDate
-            `Vente Magasin Virtuel (Ref: ${id.substring(0,8)})`, 
-            new Date().toISOString(),
-            0, 
-            activeYearId
-          ]
-        );
-
-        // Ajouter les articles à la vente
-        for (const item of items) {
-          let realArticleId = null;
-          if (item.code || item.refCfao) {
-            const [artRows] = await connection.query(
-              'SELECT id FROM articles WHERE code = ? OR barcode = ? LIMIT 1',
-              [item.code || '', item.refCfao || '']
-            );
-            if (artRows.length > 0) {
-              realArticleId = artRows[0].id;
-            }
-          }
-          await connection.query(
-            'INSERT INTO sale_items (id, saleId, articleId, quantity, unitPrice, description) VALUES (?, ?, ?, ?, ?, ?)',
-            [uuidv4(), saleId, realArticleId, item.quantity, item.sellPrice, item.description]
-          );
-        }
-      }
 
       await connection.commit();
       
