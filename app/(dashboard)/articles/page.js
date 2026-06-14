@@ -321,7 +321,7 @@ export default function ArticlesPage() {
                   <li><strong>Nombres :</strong> Pas de séparateur de milliers (ex: <code>15000</code> et non <code>15 000</code>).</li>
                   <li><strong>Virgules :</strong> Utilisez le point pour les décimales (ex: <code>12.5</code>).</li>
                   <li><strong>Monnaie :</strong> Ne mettez pas "FCFA" dans les cases de prix.</li>
-                  <li><strong>Colonnes :</strong> Nom, Code, Prix, Stock, Seuil (en ligne 1).</li>
+                  <li><strong>Colonnes :</strong> Nom, Code, Code-barres, Prix, Stock, Seuil (en ligne 1).</li>
                 </ul>
                 <div style={{ marginTop: '0.75rem', fontSize: '0.8rem', fontStyle: 'italic', color: 'var(--success)', fontWeight: 600 }}>
                   💡 Note : Si vous faites une erreur (ex: 15 000 ou 15,5), le système nettoiera automatiquement la donnée pour vous.
@@ -371,27 +371,74 @@ export default function ArticlesPage() {
                             keys[k.toLowerCase().trim()] = row[k];
                           });
 
-                          return {
-                            id: keys.id,
-                            code: String(keys.code || keys.référence || keys.reference || keys.ref || '').trim(),
-                            name: String(keys.name || keys.nom || keys.article || '').trim(),
-                            price: keys.price || keys.prix || keys.tarif,
-                            currentStock: keys.currentstock || keys.stock || keys.quantité || keys['stock actuel'],
-                            minStock: keys.minstock || keys['seuil alerte'] || keys.seuil,
-                            barcode: String(keys.barcode || keys['code-barres'] || keys.codebarre || '').trim()
-                          };
-                        }).filter(row => row.name);
+                          const resultRow = { id: keys.id };
+
+                          const codeKey = Object.keys(keys).find(k => k === 'code' || k === 'référence' || k === 'reference' || k === 'ref');
+                          if (codeKey !== undefined) resultRow.code = String(keys[codeKey] || '').trim();
+
+                          const nameKey = Object.keys(keys).find(k => k === 'name' || k === 'nom' || k === 'article');
+                          if (nameKey !== undefined) resultRow.name = String(keys[nameKey] || '').trim();
+
+                          const priceKey = Object.keys(keys).find(k => k === 'price' || k === 'prix' || k === 'tarif');
+                          if (priceKey !== undefined) resultRow.price = keys[priceKey];
+
+                          const stockKey = Object.keys(keys).find(k => k === 'currentstock' || k === 'stock' || k === 'quantité' || k === 'quantite' || k === 'stock actuel');
+                          if (stockKey !== undefined) resultRow.currentStock = keys[stockKey];
+
+                          const minStockKey = Object.keys(keys).find(k => k === 'minstock' || k === 'seuil' || k === 'seuil alerte');
+                          if (minStockKey !== undefined) resultRow.minStock = keys[minStockKey];
+
+                          const barcodeKey = Object.keys(keys).find(k => k === 'barcode' || k === 'code-barres' || k === 'codebarre');
+                          if (barcodeKey !== undefined) resultRow.barcode = String(keys[barcodeKey] || '').trim();
+
+                          return resultRow;
+                        }).filter(row => row.barcode || row.name);
 
                         if (mappedData.length === 0) throw new Error("Aucune donnée valide trouvée.");
+
+                        // Validation locale des colonnes
+                        const localWarnings = [];
+                        if (data.length > 0) {
+                          const keys = Object.keys(data[0]).map(k => k.toLowerCase().trim());
+                          const expected = [
+                            { name: 'Nom / Désignation', match: ['nom', 'name', 'article', 'designation', 'désignation'] },
+                            { name: 'Code / Référence', match: ['code', 'référence', 'reference', 'ref'] },
+                            { name: 'Code-barres', match: ['code-barres', 'codebarre', 'barcode', 'barres'] },
+                            { name: 'Prix', match: ['prix', 'price', 'tarif'] },
+                            { name: 'Stock', match: ['stock', 'quantité', 'quantite', 'qte', 'qté', 'stock actuel'] },
+                            { name: 'Seuil d\'alerte', match: ['seuil', 'alert', 'minstock', 'min'] }
+                          ];
+                          expected.forEach(exp => {
+                            const found = keys.some(k => exp.match.some(m => k.includes(m)));
+                            if (!found) {
+                              localWarnings.push(`La colonne standard pour "${exp.name}" semble manquante.`);
+                            }
+                          });
+                        }
 
                         const res = await storage.create('articles/import', { 
                           data: mappedData, 
                           storeId: importStoreId 
                         });
                         
-                        showAlert('success', 'Import réussi !', `${res.updated} articles mis à jour, ${res.created} nouveaux créés dans le magasin sélectionné.`);
+                        const allWarnings = [...localWarnings, ...(res.warnings || [])];
+                        let msg = `${res.updated} articles mis à jour, ${res.created} nouveaux créés dans le magasin sélectionné.`;
+                        
+                        if (allWarnings.length > 0) {
+                          const displayed = allWarnings.slice(0, 10);
+                          const remaining = allWarnings.length - 10;
+                          msg += `\n\n⚠️ Règles d'importation non respectées :\n` + displayed.map(w => `• ${w}`).join('\n');
+                          if (remaining > 0) {
+                            msg += `\n• ... et ${remaining} autres anomalies détectées.`;
+                          }
+                          showAlert('warning', 'Import terminé avec avertissements', msg);
+                        } else {
+                          showAlert('success', 'Import réussi !', msg);
+                        }
+
                         setIsImportModalOpen(false);
                         loadData();
+                        loadArticles();
                       } catch (err) {
                         showAlert('error', 'Erreur d\'import', err.message);
                       }

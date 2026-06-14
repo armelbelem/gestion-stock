@@ -1754,6 +1754,17 @@ export default function ContractGatewayPage() {
 
     try {
       setLoading(true);
+      
+      // Fetch full catalog without pagination to ensure robust offline matching
+      const pId = selectedPartner.id;
+      const token = sessionStorage.getItem('token');
+      const catUrl = `/api/contract-catalog?partnerId=${pId}&_t=${Date.now()}`;
+      const catRes = await fetch(catUrl, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+        cache: 'no-store'
+      });
+      const fullCatalog = await catRes.json();
+
       const reader = new FileReader();
       reader.onload = async (evt) => {
         const bstr = evt.target.result;
@@ -1764,8 +1775,25 @@ export default function ContractGatewayPage() {
 
         let createdCount = 0;
         let updatedCount = 0;
+        const warnings = [];
 
-        for (const row of data) {
+        // Validation locale des colonnes
+        const localWarnings = [];
+        if (data.length > 0) {
+          const firstKeys = Object.keys(data[0]);
+          const normalize = (s) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[\s\n\r]/g, '');
+          const hasKeyword = (keywords) => firstKeys.some(k => keywords.some(kw => normalize(k).includes(normalize(kw))));
+          
+          if (!hasKeyword(['designation', 'nom', 'article', 'libelle'])) localWarnings.push("La colonne standard pour 'Désignation' semble manquante.");
+          if (!hasKeyword(['refcfao', 'reference', 'ref'])) localWarnings.push("La colonne standard pour 'Réf CFAO' semble manquante.");
+          if (!hasKeyword(['code'])) localWarnings.push("La colonne standard pour 'Code' semble manquante.");
+          if (!hasKeyword(['prixachatcontrat', 'prixachat', 'pa', 'prix', 'montant', 'achatcontrat'])) localWarnings.push("La colonne standard pour 'Prix Achat Contrat' semble manquante.");
+          if (!hasKeyword(['mine', 'site', 'client'])) localWarnings.push("La colonne standard pour 'Mine' semble manquante.");
+        }
+
+        for (let i = 0; i < data.length; i++) {
+          const row = data[i];
+          const rowNum = i + 2;
           const keys = Object.keys(row);
           const getVal = (keywords) => {
             const normalize = (s) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[\s\n\r]/g, '');
@@ -1773,49 +1801,105 @@ export default function ContractGatewayPage() {
               const cleanKey = normalize(k);
               return keywords.some(kw => cleanKey.includes(normalize(kw)));
             });
-            return key ? String(row[key] || '').trim() : '';
+            return key ? String(row[key] || '').trim() : undefined;
           };
 
           const code = getVal(['code']);
-          const refCfao = getVal(['refcfao', 'référence', 'ref']);
+          const refCfao = getVal(['refcfao', 'référence', 'reference', 'ref']);
           const name = getVal(['désignation', 'designation', 'designiation', 'nom', 'article', 'libellé']);
           const rawPrice = getVal(['prixachatcontrat', 'prixachat', 'pa', 'prix', 'montant', 'achatcontrat']);
           const mineName = getVal(['mine', 'site', 'client']);
 
-          const price = Math.round(parseFloat(rawPrice.replace(/\s/g, '').replace(',', '.')) || 0);
-
-          if (!name) continue;
-
-          // Trouver le client par son nom si présent
-          let clientId = '';
-          if (mineName) {
-            const client = clients.find(c => c.name.toLowerCase().includes(mineName.toLowerCase()));
-            if (client) clientId = client.id;
+          // Rule violation check on Price
+          if (rawPrice !== undefined) {
+            const strVal = String(rawPrice).trim();
+            if (/\d\s+\d/.test(strVal)) {
+              warnings.push(`Ligne ${rowNum} (Prix) : Présence d'un espace comme séparateur de milliers (ex: "${strVal}").`);
+            }
+            if (strVal.includes(',')) {
+              warnings.push(`Ligne ${rowNum} (Prix) : Utilisation d'une virgule au lieu d'un point pour les décimales (ex: "${strVal}").`);
+            }
+            if (/(fcfa|xof|[$€])/i.test(strVal)) {
+              warnings.push(`Ligne ${rowNum} (Prix) : Présence du symbole monétaire (ex: "${strVal}").`);
+            }
           }
 
-          // Rechercher si l'article existe déjà (même Réf CFAO ou même Code pour CE client spécifique)
-          const existingItem = catalog.find(item =>
-            (
-              (refCfao && String(item.refCfao).trim() === refCfao) ||
-              (code && String(item.code).trim() === code)
-            ) &&
-            String(item.clientId || '') === String(clientId || '')
+          const price = rawPrice !== undefined ? Math.round(parseFloat(rawPrice.replace(/\s/g, '').replace(',', '.')) || 0) : undefined;
+
+          // We need at least Réf CFAO or Designation to process
+          if (refCfao === undefined || refCfao === '') {
+            warnings.push(`Ligne ${rowNum} : Réf CFAO manquante. Ligne ignorée.`);
+            continue;
+          }
+
+          // Trouver le client par son nom si présent
+          let clientId = undefined;
+          if (mineName !== undefined) {
+            clientId = '';
+            if (mineName) {
+              const client = clients.find(c => c.name.toLowerCase().includes(mineName.toLowerCase()));
+              if (client) clientId = client.id;
+            }
+          }
+
+          const targetClientId = clientId !== undefined ? clientId : '';
+          const existingItem = fullCatalog.find(item =>
+            refCfao && String(item.refCfao).trim() === refCfao &&
+            String(item.clientId || '') === String(targetClientId)
           );
 
-          const itemData = {
-            code: code,
-            refCfao: refCfao,
-            name: name,
-            purchasePrice: price,
-            clientId: clientId,
-            partnerId: selectedPartner.id
-          };
-
           if (existingItem) {
-            await storage.update('contract-catalog', existingItem.id, itemData);
-            updatedCount++;
+            const updateFields = {};
+            let hasChanged = false;
+
+            if (name !== undefined) {
+              const finalName = name || 'Sans nom';
+              if (String(existingItem.name || '') !== finalName) {
+                updateFields.name = finalName;
+                hasChanged = true;
+              }
+            }
+            if (code !== undefined) {
+              if (String(existingItem.code || '') !== code) {
+                updateFields.code = code;
+                hasChanged = true;
+              }
+            }
+            if (price !== undefined) {
+              if (existingItem.purchasePrice !== price) {
+                updateFields.purchasePrice = price;
+                hasChanged = true;
+              }
+            }
+            if (clientId !== undefined) {
+              if (String(existingItem.clientId || '') !== String(clientId)) {
+                updateFields.clientId = clientId;
+                hasChanged = true;
+              }
+            }
+
+            if (hasChanged) {
+              const updatedItem = {
+                ...existingItem,
+                ...updateFields,
+                partnerId: selectedPartner.id
+              };
+              await storage.update('contract-catalog', existingItem.id, updatedItem);
+              Object.assign(existingItem, updatedItem);
+              updatedCount++;
+            }
           } else {
-            await storage.create('contract-catalog', itemData);
+            const newItem = {
+              code: code !== undefined ? code : '',
+              refCfao: refCfao,
+              name: name !== undefined ? (name || 'Sans nom') : 'Sans nom',
+              purchasePrice: price !== undefined ? price : 0,
+              clientId: targetClientId,
+              partnerId: selectedPartner.id
+            };
+            const res = await storage.create('contract-catalog', newItem);
+            const createdItem = { ...newItem, id: res.id };
+            fullCatalog.push(createdItem);
             createdCount++;
           }
         }
@@ -1824,7 +1908,20 @@ export default function ContractGatewayPage() {
         setIsImportModalOpen(false);
         loadData();
         loadCatalogData();
-        showAlert('success', 'Importation Terminée', `${createdCount} nouveaux articles ajoutés, ${updatedCount} articles mis à jour.`);
+
+        const allWarnings = [...localWarnings, ...warnings];
+        let msg = `${createdCount} nouveaux articles ajoutés, ${updatedCount} articles mis à jour.`;
+        if (allWarnings.length > 0) {
+          const displayed = allWarnings.slice(0, 10);
+          const remaining = allWarnings.length - 10;
+          msg += `\n\n⚠️ Règles d'importation non respectées :\n` + displayed.map(w => `• ${w}`).join('\n');
+          if (remaining > 0) {
+            msg += `\n• ... et ${remaining} autres anomalies détectées.`;
+          }
+          showAlert('warning', 'Importation terminée avec avertissements', msg);
+        } else {
+          showAlert('success', 'Importation Terminée', msg);
+        }
       };
       reader.readAsBinaryString(file);
     } catch (err) {
@@ -5503,8 +5600,9 @@ export default function ContractGatewayPage() {
                 <div style={{ marginBottom: '1rem' }}>
                   <p style={{ fontWeight: '700', marginBottom: '0.4rem', fontSize: '0.85rem' }}>1. Colonnes reconnues :</p>
                   <ul style={{ paddingLeft: '1.25rem', margin: 0, lineHeight: '1.5' }}>
+                    <li><strong>Code</strong></li>
+                    <li><strong>Réf CFAO</strong></li>
                     <li><strong>Désignation</strong> (Obligatoire)</li>
-                    <li><strong>Code</strong> / <strong>Réf CFAO</strong></li>
                     <li><strong>Prix Achat Contrat</strong></li>
                     <li><strong>Mine</strong> (Facultatif : nom du client)</li>
                   </ul>

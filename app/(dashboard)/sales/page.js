@@ -618,7 +618,7 @@ export default function SalesPage() {
                 {(currentUser?.role === 'admin' || currentUser?.role === 'gestionnaire') && <th>Vendeur</th>}
                 <th>Date</th>
                 {(currentUser?.role === 'admin' || currentUser?.role === 'gestionnaire') && <th>Montant</th>}
-                {currentUser?.role !== 'vendeur' && <th>Statut</th>}
+                <th>Statut</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -644,7 +644,7 @@ export default function SalesPage() {
                       {(currentUser?.role === 'admin' || currentUser?.role === 'gestionnaire') && <td>{sale.sellerName}</td>}
                       <td>{formatDate(sale.date)}</td>
                       {(currentUser?.role === 'admin' || currentUser?.role === 'gestionnaire') && <td style={{ fontWeight: 600 }}>{formatPrice(sale.totalAmount)} FCFA</td>}
-                      {currentUser?.role !== 'vendeur' && <td>{getStatusBadge(sale.status)}</td>}
+                      <td>{getStatusBadge(sale.status)}</td>
                       <td>
                         <div style={{ display: 'flex', gap: '4px' }}>
                           <button className="btn btn-secondary btn-sm" onClick={(e) => { e.stopPropagation(); toggleExpand(sale.id); }}><Eye size={14} /></button>
