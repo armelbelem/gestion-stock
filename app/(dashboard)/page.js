@@ -162,7 +162,7 @@ export default function DashboardPage() {
               <div className="welcome-icon">👋</div>
             )}
             <h1 className="welcome-title" style={{ color: 'var(--text-main)', marginBottom: '0.5rem' }}>
-              Bienvenue chez <span style={{color: '#991b1b'}}>{settings?.companyName || 'NS AUTO'}</span> !
+              Bienvenue chez <span style={{color: '#991b1b'}}>{settings?.companyName ? settings.companyName.replace('SARL', 'PART') : 'NS AUTO PART'}</span> !
             </h1>
             <p className="welcome-text">
               Ravi de vous revoir, <strong>{user?.name || user?.username || 'armel'}</strong>. <br />

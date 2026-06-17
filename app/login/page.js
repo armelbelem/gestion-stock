@@ -73,10 +73,10 @@ export default function LoginPage() {
           <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em', textTransform: 'uppercase' }}>
             {publicSettings?.companyName ? (
               <>
-                <span style={{color: '#991b1b'}}>{publicSettings.companyName.split(' ').slice(0, 2).join(' ')}</span> {publicSettings.companyName.split(' ').slice(2).join(' ')}
+                <span style={{color: '#991b1b'}}>{publicSettings.companyName.replace('SARL', 'PART').split(' ').slice(0, 2).join(' ')}</span> {publicSettings.companyName.replace('SARL', 'PART').split(' ').slice(2).join(' ')}
               </>
             ) : (
-              <span style={{color: '#991b1b'}}>NS AUTO</span>
+              <span style={{color: '#991b1b'}}>NS AUTO PART</span>
             )}
           </h1>
           <p style={{ color: 'var(--text-muted)', marginTop: '0.25rem' }}>Accédez à votre logiciel</p>
@@ -151,7 +151,7 @@ export default function LoginPage() {
         </form>
 
         <div style={{ textAlign: 'center', marginTop: '2rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-          Gestion de Stock v1.1
+          solution ERP V1.1
         </div>
       </div>
     </div>

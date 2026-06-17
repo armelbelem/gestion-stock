@@ -349,6 +349,7 @@
   <a class="nav-item" href="#performance-vendeur"><span class="nav-icon">📊</span><span class="nav-label">Perf. Vendeurs</span></a>
   <a class="nav-item" href="#intelligence"><span class="nav-icon">🧠</span><span class="nav-label">Intelligence</span></a>
   <a class="nav-item" href="#valorisation-stock"><span class="nav-icon">📈</span><span class="nav-label">Valorisation Stock</span></a>
+  <a class="nav-item" href="#analyse-rentabilite"><span class="nav-icon">📊</span><span class="nav-label">Analyse Rentabilité</span></a>
   
   <div class="sidebar-divider"></div>
   <div class="sidebar-group-label">Administration</div>
@@ -391,6 +392,7 @@
         <a class="mpill" href="#performance-vendeur">📊 Perf. Vendeurs</a>
         <a class="mpill" href="#intelligence">🧠 Intelligence</a>
         <a class="mpill" href="#valorisation-stock">📈 Valorisation Stock</a>
+        <a class="mpill" href="#analyse-rentabilite">📊 Analyse Rentabilité</a>
         <a class="mpill" href="#clients">👥 Clients</a>
         <a class="mpill" href="#magasins">🏪 Magasins</a>
         <a class="mpill" href="#exercices">📅 Exercices</a>
@@ -993,6 +995,103 @@
     </div>
   </section>
 
+  <!-- ===== MODULE 11-ter : ANALYSE RENTABILITÉ ===== -->
+  <div class="divider"></div>
+  <section class="section fade-in t-emerald" id="analyse-rentabilite">
+    <div class="section-header">
+      <div class="section-icon-box">📊</div>
+      <div class="section-meta">
+        <div class="section-num">Module 11-ter · Intelligence &amp; Rapports</div>
+        <h2 class="section-title">Analyse Rentabilité</h2>
+        <p class="section-desc">Tableau de bord financier consolidé croisant Chiffre d'Affaires, encaissements, achats partenaires et dettes pour mesurer la performance réelle de l'entreprise sur toute période souhaitée.</p>
+      </div>
+    </div>
+
+    <div class="detail-block t-emerald">
+      <h3 class="detail-title">🎯 Objectif du module</h3>
+      <p class="detail-text">
+        Offrir aux décideurs une lecture immédiate et synthétique de la santé financière de l'entreprise en croisant les flux entrants (ventes, encaissements) avec les flux sortants (achats partenaires), sur n'importe quelle plage de dates définie par l'utilisateur.
+      </p>
+
+      <!-- KPI STRIP -->
+      <div class="stats-strip" style="margin-top:1rem;margin-bottom:1.5rem;">
+        <div class="stat-item">
+          <span class="stat-value" style="background:linear-gradient(135deg,#34d399,#6ee7b7);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">CA</span>
+          <div class="stat-label">Chiffre d'Affaires</div>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value" style="background:linear-gradient(135deg,#38bdf8,#7dd3fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">ENC</span>
+          <div class="stat-label">Total Encaissé</div>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value" style="background:linear-gradient(135deg,#f87171,#fca5a5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">DETTE</span>
+          <div class="stat-label">Dette Globale</div>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value" style="background:linear-gradient(135deg,#a78bfa,#c4b5fd);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">ACH</span>
+          <div class="stat-label">Achats Partenaires</div>
+        </div>
+      </div>
+
+      <h3 class="detail-title">🛠️ Fonctionnalités</h3>
+      <ul class="detail-list">
+        <li class="detail-list-item">⚡ <strong>4 KPIs Financiers en Temps Réel</strong> : Affichage instantané du Chiffre d'Affaires (CA total des ventes), du Total Encaissé (paiements réellement reçus), de la Dette Globale (reste à recouvrer = CA − Encaissé) et du montant total des Achats Partenaires (approvisionnements) sur la période sélectionnée.</li>
+        <li class="detail-list-item">⚡ <strong>Filtres Temporels Flexibles</strong> : Raccourcis rapides (Semaine, Mois, 30 jours) et sélecteur de plage de dates personnalisée (date de début et date de fin) avec bouton «&nbsp;Actualiser&nbsp;» pour recharger les chiffres à la demande.</li>
+        <li class="detail-list-item">⚡ <strong>Taux d'Encaissement</strong> : Calcul automatique du ratio Encaissé / CA exprimé en pourcentage, permettant de mesurer l'efficacité de la collecte des créances clients.</li>
+        <li class="detail-list-item">⚡ <strong>Marge Brute Estimée</strong> : Indicateur complémentaire calculant la différence entre le Chiffre d'Affaires et les Achats Partenaires pour estimer la marge commerciale brute générée sur la période.</li>
+        <li class="detail-list-item">⚡ <strong>Alertes Visuelles de Stock Critique</strong> : Bannière dynamique affichant le nombre d'articles sous le seuil d'alerte, avec lien direct vers le module de gestion des stocks pour prise d'action immédiate.</li>
+        <li class="detail-list-item">⚡ <strong>Export Excel</strong> : Possibilité de télécharger le rapport de rentabilité de la période sous format tableur pour partage avec la direction ou les auditeurs externes.</li>
+      </ul>
+
+      <!-- Tableau de démonstration des indicateurs -->
+      <h3 class="detail-title" style="margin-top:1.25rem;">📋 Indicateurs affichés</h3>
+      <table class="dtable">
+        <thead>
+          <tr>
+            <th>Indicateur</th>
+            <th>Calcul / Source</th>
+            <th>Interprétation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="hl">💰 Chiffre d'Affaires</td>
+            <td>Σ montants des ventes validées de la période</td>
+            <td>Revenus bruts générés sur la période</td>
+          </tr>
+          <tr>
+            <td class="hl">✅ Total Encaissé</td>
+            <td>Σ paiements effectivement reçus des clients</td>
+            <td>Liquidités réelles rentrées dans la caisse</td>
+          </tr>
+          <tr>
+            <td class="hl">⚠️ Dette Globale</td>
+            <td>CA − Total Encaissé</td>
+            <td>Créances restant à recouvrer auprès des clients</td>
+          </tr>
+          <tr>
+            <td class="hl">📦 Achats Partenaires</td>
+            <td>Σ montants des bons de livraison (BL) reçus</td>
+            <td>Coût d'approvisionnement total sur la période</td>
+          </tr>
+          <tr>
+            <td class="hl">📈 Taux d'Encaissement</td>
+            <td>(Total Encaissé ÷ CA) × 100</td>
+            <td>Efficacité de la collecte des créances (%)</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 class="detail-title" style="margin-top:1.25rem;">🟢 Actions réalisables</h3>
+      <div class="actions-grid">
+        <div class="action-card">✨ <strong>Choisir une Période</strong> : Utiliser les boutons raccourcis (Semaine / Mois / 30j) ou saisir manuellement une plage de dates de début et de fin pour cibler l'analyse.</div>
+        <div class="action-card">✨ <strong>Actualiser les Données</strong> : Cliquer sur le bouton «&nbsp;Actualiser&nbsp;» pour recharger tous les KPIs depuis la base de données MySQL en temps réel.</div>
+        <div class="action-card">✨ <strong>Exporter le Rapport</strong> : Télécharger le bilan financier de la période sélectionnée au format Excel pour partage ou archivage comptable.</div>
+        <div class="action-card">✨ <strong>Gérer le Stock Critique</strong> : Depuis la bannière d'alerte, naviguer directement vers le module Articles pour réapprovisionner les produits sous le seuil d'alerte.</div>
+      </div>
+    </div>
+  </section>
+
   <!-- ===== MODULE 12 : CLIENTS ===== -->
   <div class="divider"></div>
   <section class="section fade-in t-emerald" id="clients">
@@ -1235,7 +1334,7 @@
   <section class="summary-section" id="synthese">
     <div style="max-width:900px;margin:0 auto;text-align:center;">
       <div class="hero-badge" style="justify-content:center;">✅ Synthèse Globale</div>
-      <h2 style="font-size:2.2rem;font-weight:900;margin:1rem 0;background:linear-gradient(135deg,#fff,#c7d2fe,#7dd3fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">20 Modules · 1 Écosystème Complet</h2>
+      <h2 style="font-size:2.2rem;font-weight:900;margin:1rem 0;background:linear-gradient(135deg,#fff,#c7d2fe,#7dd3fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">21 Modules · 1 Écosystème Complet</h2>
       <p style="color:var(--text2);font-size:1rem;line-height:1.7;max-width:700px;margin:0 auto;">
         Un système intégré couvrant l'ensemble du cycle opérationnel : du stock à la vente, de l'achat à la livraison, de la comptabilité à l'audit.
       </p>
@@ -1254,6 +1353,7 @@
       <div class="scard"><div class="scard-icon">📊</div><div class="scard-title">Perf. Vendeurs</div><div class="scard-desc">Analyse comparative</div></div>
       <div class="scard"><div class="scard-icon">🧠</div><div class="scard-title">Intelligence</div><div class="scard-desc">KPIs et insights</div></div>
       <div class="scard"><div class="scard-icon">📈</div><div class="scard-title">Valorisation Stock</div><div class="scard-desc">Rapprochement &amp; calcul de marges</div></div>
+      <div class="scard"><div class="scard-icon">📊</div><div class="scard-title">Analyse Rentabilité</div><div class="scard-desc">KPIs financiers &amp; taux d'encaissement</div></div>
       <div class="scard"><div class="scard-icon">👥</div><div class="scard-title">Clients</div><div class="scard-desc">Répertoire + créances</div></div>
       <div class="scard"><div class="scard-icon">🏪</div><div class="scard-title">Magasins</div><div class="scard-desc">Multi-sites isolés</div></div>
       <div class="scard"><div class="scard-icon">📅</div><div class="scard-title">Exercices</div><div class="scard-desc">Gestion comptable</div></div>
@@ -1264,7 +1364,7 @@
     </div>
 
     <div style="max-width:1150px;margin:2.5rem auto 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1rem;">
-      <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:1.1rem;text-align:center;"><div style="font-size:1.8rem;font-weight:900;color:#a5b4fc;">20</div><div style="font-size:0.7rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-top:0.2rem;">Modules</div></div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:1.1rem;text-align:center;"><div style="font-size:1.8rem;font-weight:900;color:#a5b4fc;">21</div><div style="font-size:0.7rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-top:0.2rem;">Modules</div></div>
       <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:1.1rem;text-align:center;"><div style="font-size:1.8rem;font-weight:900;color:#6ee7b7;">5</div><div style="font-size:0.7rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-top:0.2rem;">Rôles</div></div>
       <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:1.1rem;text-align:center;"><div style="font-size:1.8rem;font-weight:900;color:#fcd34d;">JWT</div><div style="font-size:0.7rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-top:0.2rem;">Authentification</div></div>
       <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:1.1rem;text-align:center;"><div style="font-size:1.8rem;font-weight:900;color:#fca5a5;">MySQL</div><div style="font-size:0.7rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-top:0.2rem;">Base de données</div></div>
