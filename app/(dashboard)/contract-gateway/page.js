@@ -3257,7 +3257,7 @@ export default function ContractGatewayPage() {
                                 <Package size={16} /> Livrer
                               </button>
                             )}
-                            {user?.role !== 'observateur' && <button className="btn btn-secondary btn-sm" style={{ color: 'var(--success)' }} title="Générer BL" onClick={() => handleOpenBLModal(order.id)}>
+                            {user?.role !== 'observateur' && <button className="btn btn-secondary btn-sm" style={{ color: 'var(--success)' }} title="Générer BL" onClick={() => handleOpenBLModal(order.id)} disabled>
                               <Truck size={16} /> BL
                             </button>}
                             <button className="btn btn-secondary btn-sm" title="Historique BL" onClick={() => loadDeliveries(order.id)}><History size={16} /></button>
