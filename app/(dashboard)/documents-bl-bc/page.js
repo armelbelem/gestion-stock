@@ -706,12 +706,14 @@ export default function DocumentsCentralizedPage() {
               </thead>
               <tbody>
                 {documents.map(doc => {
-                  const itemsSummary = doc.items.map(i => {
-                    const parts = [`${i.quantity}x ${i.description.split('\n')[0]}`];
+                  const items = doc.items || [];
+                  const itemsSummary = items.map(i => {
+                    const desc = i.description || '';
+                    const parts = [`${i.quantity}x ${desc.split('\n')[0]}`];
                     if (i.code) parts.push(`(${i.code})`);
                     return parts.join(' ');
                   }).join(', ');
-                  const itemsLength = doc.items.length;
+                  const itemsLength = items.length;
                   const displaySummary = itemsSummary.length > 55 ? itemsSummary.slice(0, 55) + '...' : itemsSummary;
 
                   return (
@@ -927,7 +929,7 @@ export default function DocumentsCentralizedPage() {
 
               {/* Titre Articles */}
               <h4 style={{ margin: '1.5rem 0 0.5rem 0', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Info size={16} className="text-primary" /> Liste des articles contenus ({selectedDoc.items.length})
+                <Info size={16} className="text-primary" /> Liste des articles contenus ({(selectedDoc.items || []).length})
               </h4>
 
               {/* Table des articles du document */}
@@ -946,7 +948,7 @@ export default function DocumentsCentralizedPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {selectedDoc.items.map((item, idx) => (
+                  {(selectedDoc.items || []).map((item, idx) => (
                     <tr key={idx}>
                       <td style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{idx + 1}</td>
                       <td style={{ fontWeight: 600 }}>
@@ -973,10 +975,10 @@ export default function DocumentsCentralizedPage() {
                     <tr style={{ backgroundColor: 'var(--bg-muted)', fontWeight: 'bold' }}>
                       <td colSpan={2} style={{ textAlign: 'right' }}>Total Général HT :</td>
                       <td style={{ textAlign: 'center' }}>
-                        {selectedDoc.items.reduce((sum, it) => sum + it.quantity, 0)}
+                        {(selectedDoc.items || []).reduce((sum, it) => sum + it.quantity, 0)}
                       </td>
                       <td colSpan={2} style={{ textAlign: 'right', fontSize: '1.05rem', color: '#1e40af' }}>
-                        {formatPrice(selectedDoc.items.reduce((sum, it) => sum + (it.purchasePrice * it.quantity), 0))}
+                        {formatPrice((selectedDoc.items || []).reduce((sum, it) => sum + (it.purchasePrice * it.quantity), 0))}
                       </td>
                     </tr>
                   )}
