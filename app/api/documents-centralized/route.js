@@ -13,6 +13,30 @@ export async function GET(request) {
     return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
   }
 
+  // Ensure 'grouped_discharges' table exists
+  try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS grouped_discharges (
+        id VARCHAR(100) NOT NULL PRIMARY KEY,
+        discharge_number VARCHAR(50) NOT NULL,
+        client_id INT NOT NULL,
+        client_name VARCHAR(255) DEFAULT NULL,
+        partner_id VARCHAR(100) DEFAULT NULL,
+        partner_name VARCHAR(255) DEFAULT NULL,
+        delivery_ids JSON DEFAULT NULL,
+        items JSON DEFAULT NULL,
+        notes TEXT DEFAULT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        created_by VARCHAR(100) DEFAULT NULL,
+        attachment VARCHAR(255) DEFAULT NULL,
+        KEY idx_gd_client (client_id),
+        KEY idx_gd_created (created_at)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+  } catch (err) {
+    console.error('Error ensuring grouped_discharges table exists:', err);
+  }
+
   // Ensure 'attachment' column exists on grouped_discharges
   try {
     await db.query("SELECT attachment FROM grouped_discharges LIMIT 1");
