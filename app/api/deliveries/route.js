@@ -100,7 +100,7 @@ export async function POST(request) {
     await ensureDeliveriesTableExists(connection);
     await connection.beginTransaction();
 
-    const [orderItems] = await connection.query('SELECT * FROM contract_order_items WHERE orderId = ?', [orderId]);
+    const [orderItems] = await connection.query('SELECT * FROM contract_order_items WHERE orderId = ? ORDER BY id ASC', [orderId]);
     const deliveryArticles = items.filter(it => !it.isMetadata);
 
     // Validation de sécurité : Empêcher les dépassements de quantité et valeurs négatives
@@ -221,7 +221,7 @@ export async function DELETE(request) {
     const orderId = delivery.order_id;
     const items = typeof delivery.items === 'string' ? JSON.parse(delivery.items) : delivery.items;
 
-    const [orderItems] = await connection.query('SELECT * FROM contract_order_items WHERE orderId = ?', [orderId]);
+    const [orderItems] = await connection.query('SELECT * FROM contract_order_items WHERE orderId = ? ORDER BY id ASC', [orderId]);
     const deliveryArticles = items.filter(it => !it.isMetadata);
 
     for (const delItem of deliveryArticles) {

@@ -28,7 +28,7 @@ export async function GET(request, { params }) {
     if (access.error) return NextResponse.json({ error: access.error }, { status: access.status });
     const order = access.order;
 
-    const [items] = await db.query('SELECT * FROM contract_order_items WHERE orderId = ?', [id]);
+    const [items] = await db.query('SELECT * FROM contract_order_items WHERE orderId = ? ORDER BY id ASC', [id]);
     
     // Récupérer l'historique
     const [history] = await db.query(`

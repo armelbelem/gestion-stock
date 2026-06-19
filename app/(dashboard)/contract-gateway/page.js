@@ -5528,6 +5528,7 @@ export default function ContractGatewayPage() {
                       <th>Désignation / Article</th>
                       <th style={{ width: '100px' }}>Qté</th>
                       <th style={{ width: '130px' }}>P.A (HT)</th>
+                      <th style={{ width: '50px' }}></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -5558,6 +5559,14 @@ export default function ContractGatewayPage() {
                           newItems[idx].purchasePrice = e.target.value === '' ? '' : Number(e.target.value);
                           setPrintData({ ...printData, items: newItems });
                         }} min="0" /></td>
+                        <td style={{ width: '50px', textAlign: 'center', verticalAlign: 'middle' }}>
+                          <button type="button" className="btn btn-link text-danger p-0" style={{ border: 'none', background: 'none', cursor: 'pointer' }} onClick={() => {
+                            const newItems = printData.items.filter((_, i) => i !== idx);
+                            setPrintData({ ...printData, items: newItems });
+                          }} title="Supprimer la ligne">
+                            <Trash2 size={16} />
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
