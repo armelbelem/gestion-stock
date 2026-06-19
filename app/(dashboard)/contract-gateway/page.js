@@ -586,7 +586,7 @@ export default function ContractGatewayPage() {
     const data = purchasesReport.map(item => ({
       'Mine (Client)': item.clientName || 'N/A',
       'N° BC': item.bcNumber,
-      'Date Commande': item.orderDate ? new Date(item.orderDate).toLocaleDateString('fr-FR') : '-',
+      'Date Livraison': item.orderDate ? new Date(item.orderDate).toLocaleDateString('fr-FR') : '-',
       'Code Article': item.code || '-',
       'Référence': item.refCfao || '-',
       'Désignation': item.description,
@@ -4067,7 +4067,7 @@ export default function ContractGatewayPage() {
                         <tr style={{ backgroundColor: 'var(--bg-light)' }}>
                           <th>Mine (Client)</th>
                           <th style={{ width: '130px' }}>N° BC</th>
-                          <th style={{ width: '90px' }}>Date</th>
+                          <th style={{ width: '120px' }}>Date Livraison</th>
                           <th>Code / Réf</th>
                           <th>Désignation (Pièce)</th>
                           <th style={{ textAlign: 'right', width: '90px' }}>P.A (HT)</th>
