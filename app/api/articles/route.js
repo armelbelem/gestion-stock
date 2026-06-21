@@ -29,11 +29,18 @@ export async function GET(request) {
       params.push(storeId);
     }
 
+    // Exclure les articles sans prix (ex: 0 FCFA) si demandé (utile pour la création de ventes)
+    if (searchParams.get('excludeZeroPrice') === 'true') {
+      whereConditions.push('a.price > 0');
+    }
+
     // Filtre recherche
     if (search) {
-      whereConditions.push('(a.name LIKE ? OR a.code LIKE ? OR a.barcode LIKE ?)');
+      const cleanSearch = search.replace(/-/g, '');
+      whereConditions.push('(a.name LIKE ? OR REPLACE(a.code, \'-\', \'\') LIKE ? OR REPLACE(a.barcode, \'-\', \'\') LIKE ?)');
       const searchPattern = `%${search}%`;
-      params.push(searchPattern, searchPattern, searchPattern);
+      const cleanSearchPattern = `%${cleanSearch}%`;
+      params.push(searchPattern, cleanSearchPattern, cleanSearchPattern);
     }
 
     const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
@@ -80,6 +87,7 @@ export async function GET(request) {
 
     const cleanedArticles = articles.map(art => {
       const cleaned = { ...art };
+      cleaned.isZeroPrice = (parseFloat(art.price) <= 0);
       if (auth.user.role === 'vendeur' || auth.user.role === 'vendeurs') {
         cleaned.price = '***';
       }

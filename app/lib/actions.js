@@ -22,7 +22,8 @@ export const getStoreConstraint = (user, queryStoreId) => {
     user.role === 'admin' || 
     user.role === 'gestionnaire' || 
     user.role === 'gestionnaire2' || 
-    user.role === 'gestionnaire 2'
+    user.role === 'gestionnaire 2' ||
+    user.role === 'comptable'
   ) {
     if (!queryStoreId || queryStoreId === 'all') return null;
     return queryStoreId; 

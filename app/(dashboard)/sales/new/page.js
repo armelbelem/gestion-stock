@@ -115,6 +115,7 @@ export default function NewSalePage() {
           if (article) {
             newItem.unitPrice = article.price;
             newItem.maxStock = article.currentStock;
+            newItem.isZeroPrice = article.isZeroPrice;
             newItem.quantity = '';
           }
         }
@@ -158,11 +159,13 @@ export default function NewSalePage() {
   const handleSearchChange = (val) => {
     setBarcodeInput(val);
     if (val.length > 1) {
-      const filtered = articles.filter(a => 
-        a.name.toLowerCase().includes(val.toLowerCase()) || 
-        a.code?.toLowerCase().includes(val.toLowerCase()) ||
-        a.barcode?.toLowerCase().includes(val.toLowerCase())
-      ).slice(0, 10);
+      const cleanVal = val.toLowerCase().replace(/-/g, '');
+      const filtered = articles.filter(a => {
+        const nameMatch = a.name.toLowerCase().includes(val.toLowerCase());
+        const codeMatch = a.code ? a.code.toLowerCase().replace(/-/g, '').includes(cleanVal) : false;
+        const barcodeMatch = a.barcode ? a.barcode.toLowerCase().replace(/-/g, '').includes(cleanVal) : false;
+        return nameMatch || codeMatch || barcodeMatch;
+      }).slice(0, 10);
       setSuggestions(filtered);
     } else {
       setSuggestions([]);
@@ -191,6 +194,7 @@ export default function NewSalePage() {
         quantity: '',
         unitPrice: article.price,
         maxStock: article.currentStock,
+        isZeroPrice: article.isZeroPrice,
         isManual: false
       }]);
     }
@@ -209,7 +213,12 @@ export default function NewSalePage() {
         return;
       }
 
-      const article = articles.find(a => a.barcode === code || a.code === code);
+      const cleanCode = code.toLowerCase().replace(/-/g, '');
+      const article = articles.find(a => {
+        const matchBarcode = a.barcode ? a.barcode.toLowerCase().replace(/-/g, '') === cleanCode : false;
+        const matchCode = a.code ? a.code.toLowerCase().replace(/-/g, '') === cleanCode : false;
+        return matchBarcode || matchCode;
+      });
       if (article) {
         handleSelectArticle(article);
       } else {
@@ -236,7 +245,11 @@ export default function NewSalePage() {
     const invalidQty = saleItems.find(item => !item.quantity || Number(item.quantity) <= 0);
     if (invalidQty && !isProforma) return showAlert('error', 'Erreur', "Toutes les quantités doivent être supérieures à 0.");
 
-    const zeroPriceItem = saleItems.find(item => !item.unitPrice || Number(item.unitPrice) <= 0);
+    const zeroPriceItem = saleItems.find(item => {
+      if (item.isZeroPrice) return true;
+      if (item.isManual) return !item.unitPrice || Number(item.unitPrice) <= 0;
+      return !item.unitPrice || (item.unitPrice !== '***' && Number(item.unitPrice) <= 0);
+    });
     if (zeroPriceItem) {
       const itemName = zeroPriceItem.isManual ? zeroPriceItem.description : (articles.find(a => String(a.id) === String(zeroPriceItem.articleId))?.name || 'Article');
       return showAlert('error', 'Action bloquée', `Impossible de vendre un article avec un prix à 0 FCFA (${itemName ? `"${itemName}"` : 'sélectionné'}).`);
@@ -373,7 +386,9 @@ export default function NewSalePage() {
                           <div style={{ fontWeight: 600 }}>{a.name}</div>
                           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Ref: {a.code || '-'} | Stock: {a.currentStock}</div>
                         </div>
-                        <div style={{ fontWeight: 600, color: 'var(--primary)' }}>{formatPrice(a.price)} FCFA</div>
+                        {currentUser?.role !== 'vendeur' && currentUser?.role !== 'vendeurs' && (
+                          <div style={{ fontWeight: 600, color: 'var(--primary)' }}>{formatPrice(a.price)} FCFA</div>
+                        )}
                       </div>
                     ))}
                   </div>

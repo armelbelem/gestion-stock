@@ -33,9 +33,11 @@ export async function GET(request) {
     }
 
     if (search) {
-      conditions.push('(name LIKE ? OR refCfao LIKE ? OR code LIKE ?)');
+      const cleanSearch = search.replace(/-/g, '');
+      conditions.push('(name LIKE ? OR REPLACE(refCfao, \'-\', \'\') LIKE ? OR REPLACE(code, \'-\', \'\') LIKE ?)');
       const pat = `%${search}%`;
-      params.push(pat, pat, pat);
+      const cleanPat = `%${cleanSearch}%`;
+      params.push(pat, cleanPat, cleanPat);
     }
 
     const whereClause = `WHERE ${conditions.join(' AND ')}`;

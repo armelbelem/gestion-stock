@@ -55,9 +55,15 @@ export default function DashboardPage() {
 
 
   useEffect(() => {
-    if (user?.role === 'vendeur' || user?.role === 'vendeurs') {
+    if (!user) return; // Attendre que l'utilisateur soit chargé
+    
+    if (user.role === 'vendeur' || user.role === 'vendeurs') {
       router.push('/sales');
+      return;
     }
+    
+    loadStats();
+    setIsMounted(true);
   }, [user, router]);
 
   useEffect(() => {
@@ -87,15 +93,6 @@ export default function DashboardPage() {
     };
     loadSettings();
   }, [user]);
-
-  useEffect(() => {
-    if (user?.role === 'vendeur') {
-      window.location.href = '/sales';
-      return;
-    }
-    loadStats();
-    setIsMounted(true);
-  }, []);
 
   const loadStats = async (page = 1) => {
     const targetPage = typeof page === 'number' ? page : 1;

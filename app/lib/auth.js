@@ -94,6 +94,14 @@ export function hasPermission(user, category, action) {
     return true; // Autorise view, move (pour voir l'historique), etc.
   }
   
+  // 5. Le comptable a un accès limité à la lecture des finances, rapports, commandes spéciales et achats
+  if (user.role === 'comptable') {
+    if (category === 'finances' && (action === 'view' || action === 'view_cost_price')) return true;
+    if (category === 'procurement' && action === 'view') return true;
+    if (category === 'stock' && action === 'view_cost_price') return true;
+    return false;
+  }
+  
   return false;
 }
 

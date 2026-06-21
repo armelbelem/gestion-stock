@@ -354,7 +354,18 @@ export default function GroupedDischargePage() {
   // Add suggestion item to the list
   const handleSelectSuggestion = (suggestion) => {
     // Check if item already exists
-    const exists = prepData.items.some(it => it.code === suggestion.code || (it.refCfao && it.refCfao === suggestion.refCfao));
+    const cleanSugCode = (suggestion.code || '').replace(/-/g, '').toLowerCase();
+    const cleanSugRef = (suggestion.refCfao || '').replace(/-/g, '').toLowerCase();
+
+    const exists = prepData.items.some(it => {
+      const cleanItCode = (it.code || '').replace(/-/g, '').toLowerCase();
+      const cleanItRef = (it.refCfao || '').replace(/-/g, '').toLowerCase();
+      
+      const codeMatch = cleanItCode && cleanSugCode && cleanItCode === cleanSugCode;
+      const refMatch = cleanItRef && cleanSugRef && cleanItRef === cleanSugRef;
+      return codeMatch || refMatch;
+    });
+
     if (exists) {
       showAlert('warning', 'Doublon', 'Cet article est déjà présent dans la liste.');
       setShowSuggestions(false);
@@ -1457,7 +1468,7 @@ export default function GroupedDischargePage() {
                                 className="form-control form-control-sm"
                                 style={{ fontWeight: 'bold', borderColor: '#b91c1c' }}
                                 value={item.quantity}
-                                onChange={e => handleItemChange(idx, 'quantity', Math.max(1, parseInt(e.target.value) || 1))}
+                                onChange={e => handleItemChange(idx, 'quantity', e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value) || 1))}
                               />
                             </td>
                             <td style={{ textAlign: 'center' }}>

@@ -2064,7 +2064,7 @@ export default function ExternalOrdersPage() {
                         }} placeholder="Nom de l'article" /></td>
                         <td style={{ width: '100px' }}><input type="number" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} min="1" className="form-control" style={{ textAlign: 'center', fontWeight: 'bold' }} value={item.quantity} onChange={e => {
                           const newItems = [...printData.items];
-                          newItems[idx].quantity = parseInt(e.target.value) || 1;
+                          newItems[idx].quantity = e.target.value === '' ? '' : (parseInt(e.target.value) || 1);
                           setPrintData({ ...printData, items: newItems });
                         }} /></td>
                         <td style={{ width: '120px' }}><input type="number" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} min="0" className="form-control form-control-sm" style={{ textAlign: 'right' }} value={item.purchasePrice} onChange={e => {

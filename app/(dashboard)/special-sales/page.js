@@ -174,12 +174,14 @@ export default function SpecialSalesPage() {
 
   // Filtered sales
   const filteredSales = (sales || []).filter(sale => {
+    const cleanSearch = searchTerm.toLowerCase().replace(/-/g, '');
     const clientMatch = sale.clientName?.toLowerCase().includes(searchTerm.toLowerCase());
     const notesMatch = sale.notes?.toLowerCase().includes(searchTerm.toLowerCase());
-    const itemMatch = sale.items?.some(it => 
-      it.ref?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      it.description?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const itemMatch = sale.items?.some(it => {
+      const matchRef = it.ref ? it.ref.toLowerCase().replace(/-/g, '').includes(cleanSearch) : false;
+      const matchDesc = it.description ? it.description.toLowerCase().includes(searchTerm.toLowerCase()) : false;
+      return matchRef || matchDesc;
+    });
     return clientMatch || notesMatch || itemMatch;
   });
 

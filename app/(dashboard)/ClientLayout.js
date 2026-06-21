@@ -225,6 +225,9 @@ export default function ClientLayout({ children }) {
     if (user.role === 'gestionnaire2' || user.role === 'gestionnaire 2') {
       return pathname.startsWith('/grouped-discharge');
     }
+    if (user.role === 'comptable') {
+      return pathname === '/' || pathname.startsWith('/reports') || pathname.startsWith('/external-orders') || pathname.startsWith('/contract-gateway');
+    }
     const route = routePermissions.find(rp => pathname === rp.path || (rp.path !== '/' && pathname.startsWith(rp.path)));
     if (route) {
       return hasPermission(user, route.category, route.action);
@@ -238,6 +241,8 @@ export default function ClientLayout({ children }) {
       console.warn(`Access denied for ${user.role} on ${pathname}. Redirecting...`);
       if (user.role === 'gestionnaire2' || user.role === 'gestionnaire 2') {
         router.push('/grouped-discharge');
+      } else if (user.role === 'comptable') {
+        router.push('/');
       } else {
         router.push('/sales');
       }
@@ -318,7 +323,7 @@ export default function ClientLayout({ children }) {
           </button>
         </div>
         <nav className="sidebar-nav">
-          {hasPermission(user, 'finances', 'view') && (
+          {(hasPermission(user, 'finances', 'view') || user?.role === 'comptable') && (
             <NavItem href="/" icon={LayoutDashboard} label="Tableau de Bord" badge={lowStockCount > 0} end />
           )}
 
@@ -333,24 +338,24 @@ export default function ClientLayout({ children }) {
             </>
           )}
 
-          {(hasPermission(user, 'procurement', 'view') || hasPermission(user, 'stock', 'view_cost_price') || user?.role === 'gestionnaire2' || user?.role === 'gestionnaire 2') && (
+          {(hasPermission(user, 'procurement', 'view') || hasPermission(user, 'stock', 'view_cost_price') || user?.role === 'gestionnaire2' || user?.role === 'gestionnaire 2' || user?.role === 'comptable') && (
             <>
-              {(user?.role !== 'gestionnaire2' && user?.role !== 'gestionnaire 2') && <NavItem href="/fournisseurs" icon={Truck} label="Fournisseurs" />}
+              {(user?.role !== 'gestionnaire2' && user?.role !== 'gestionnaire 2' && user?.role !== 'comptable') && <NavItem href="/fournisseurs" icon={Truck} label="Fournisseurs" />}
               {(user?.role !== 'gestionnaire2' && user?.role !== 'gestionnaire 2') && <NavItem href="/external-orders" icon={PackageOpen} label="Commandes Spéciales" />}
               {(user?.role !== 'gestionnaire2' && user?.role !== 'gestionnaire 2') && <NavItem href="/contract-gateway" icon={Globe} label="Achats et Bon de Commande" />}
-              {(user?.role !== 'gestionnaire2' && user?.role !== 'gestionnaire 2') && <NavItem href="/documents-bl-bc" icon={FileText} label="Centralisation BL/BC" />}
-              <NavItem href="/grouped-discharge" icon={PackageCheck} label="Bordereau de Livraison" />
+              {(user?.role !== 'gestionnaire2' && user?.role !== 'gestionnaire 2' && user?.role !== 'comptable') && <NavItem href="/documents-bl-bc" icon={FileText} label="Centralisation BL/BC" />}
+              {(user?.role !== 'comptable') && <NavItem href="/grouped-discharge" icon={PackageCheck} label="Bordereau de Livraison" />}
             </>
           )}
 
-          {hasPermission(user, 'finances', 'view') && (
+          {(hasPermission(user, 'finances', 'view') || user?.role === 'comptable') && (
             <>
               {/* <NavItem href="/finances" icon={Coins} label="Finances" /> */}
-              <NavItem href="/special-sales" icon={Coins} label="Ventes Spéciales" />
-              <NavItem href="/payments" icon={Wallet} label="Règlements" />
+              {(user?.role !== 'comptable') && <NavItem href="/special-sales" icon={Coins} label="Ventes Spéciales" />}
+              {(user?.role !== 'comptable') && <NavItem href="/payments" icon={Wallet} label="Règlements" />}
               <NavItem href="/reports" icon={BarChart3} label="Rapports" />
-              <NavItem href="/reporting-vendeurs" icon={TrendingUp} label="Perf. Vendeurs" />
-              <NavItem href="/intelligence" icon={Brain} label="Intelligence" />
+              {(user?.role !== 'comptable') && <NavItem href="/reporting-vendeurs" icon={TrendingUp} label="Perf. Vendeurs" />}
+              {(user?.role !== 'comptable') && <NavItem href="/intelligence" icon={Brain} label="Intelligence" />}
             </>
           )}
 
@@ -365,7 +370,7 @@ export default function ClientLayout({ children }) {
           {hasPermission(user, 'clients', 'view') && (
             <NavItem href="/clients" icon={Users} label="Clients" />
           )}
-          {(user?.role !== 'gestionnaire2' && user?.role !== 'gestionnaire 2') && <NavItem href="/sales" icon={ShoppingCart} label="Ventes" />}
+          {(user?.role !== 'gestionnaire2' && user?.role !== 'gestionnaire 2' && user?.role !== 'comptable') && <NavItem href="/sales" icon={ShoppingCart} label="Ventes" />}
 
           {hasPermission(user, 'admin', 'settings') && (
             <NavItem href="/settings" icon={Settings} label="Paramètres" />

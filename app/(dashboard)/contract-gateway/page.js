@@ -59,6 +59,12 @@ const blinkingStyle = `
 export default function ContractGatewayPage() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('dossiers');
+
+  useEffect(() => {
+    if (user?.role === 'comptable') {
+      setActiveTab('rapports');
+    }
+  }, [user]);
   const [orders, setOrders] = useState([]);
   const [globalStats, setGlobalStats] = useState({ achatsEnCours: 0, achatsClotures: 0, enDemande: 0, retardLivraison: 0 });
   const [orderSearch, setOrderSearch] = useState('');
@@ -1996,6 +2002,27 @@ export default function ContractGatewayPage() {
   }, [itemDebouncedSearch, selectedPartner, newOrder.clientId]);
 
   const addItemFromCatalog = (article) => {
+    if (article) {
+      const cleanSugCode = (article.code || '').replace(/-/g, '').toLowerCase();
+      const cleanSugRef = (article.refCfao || '').replace(/-/g, '').toLowerCase();
+
+      const exists = newOrder.items.some(it => {
+        const cleanItCode = (it.code || '').replace(/-/g, '').toLowerCase();
+        const cleanItRef = (it.refCfao || '').replace(/-/g, '').toLowerCase();
+        
+        const codeMatch = cleanItCode && cleanSugCode && cleanItCode === cleanSugCode;
+        const refMatch = cleanItRef && cleanSugRef && cleanItRef === cleanSugRef;
+        return codeMatch || refMatch;
+      });
+
+      if (exists) {
+        showAlert('warning', 'Doublon', 'Cet article est déjà présent dans la liste.');
+        setItemSearch('');
+        setSuggestions([]);
+        return;
+      }
+    }
+
     const item = {
       articleId: article ? article.id : null,
       code: article ? article.code : '',
@@ -3022,27 +3049,31 @@ export default function ContractGatewayPage() {
           <p>Gestion indépendante du catalogue et des flux ({selectedPartner?.name || 'Chargement...'})</p>
         </div>
         <div className="header-actions">
-          <button
-            className={`btn ${activeTab === 'dossiers' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ boxShadow: activeTab === 'dossiers' ? '0 4px 12px rgba(59, 130, 246, 0.4)' : 'none' }}
-            onClick={() => setActiveTab('dossiers')}
-          >
-            <LayoutList size={18} /> Dossiers
-          </button>
-          <button
-            className={`btn ${activeTab === 'special' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ boxShadow: activeTab === 'special' ? '0 4px 12px rgba(59, 130, 246, 0.4)' : 'none' }}
-            onClick={() => setActiveTab('special')}
-          >
-            <FileText size={18} /> Documents Libres
-          </button>
-          <button
-            className={`btn ${activeTab === 'catalogue' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ boxShadow: activeTab === 'catalogue' ? '0 4px 12px rgba(59, 130, 246, 0.4)' : 'none' }}
-            onClick={() => setActiveTab('catalogue')}
-          >
-            <BookOpen size={18} /> Catalogue
-          </button>
+          {user?.role !== 'comptable' && (
+            <>
+              <button
+                className={`btn ${activeTab === 'dossiers' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ boxShadow: activeTab === 'dossiers' ? '0 4px 12px rgba(59, 130, 246, 0.4)' : 'none' }}
+                onClick={() => setActiveTab('dossiers')}
+              >
+                <LayoutList size={18} /> Dossiers
+              </button>
+              <button
+                className={`btn ${activeTab === 'special' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ boxShadow: activeTab === 'special' ? '0 4px 12px rgba(59, 130, 246, 0.4)' : 'none' }}
+                onClick={() => setActiveTab('special')}
+              >
+                <FileText size={18} /> Documents Libres
+              </button>
+              <button
+                className={`btn ${activeTab === 'catalogue' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ boxShadow: activeTab === 'catalogue' ? '0 4px 12px rgba(59, 130, 246, 0.4)' : 'none' }}
+                onClick={() => setActiveTab('catalogue')}
+              >
+                <BookOpen size={18} /> Catalogue
+              </button>
+            </>
+          )}
           <button
             className={`btn ${activeTab === 'rapports' ? 'btn-primary' : 'btn-secondary'}`}
             style={{ boxShadow: activeTab === 'rapports' ? '0 4px 12px rgba(59, 130, 246, 0.4)' : 'none' }}
@@ -3050,13 +3081,15 @@ export default function ContractGatewayPage() {
           >
             <ShoppingCart size={18} /> Rapports Achats
           </button>
-          <button
-            className={`btn ${activeTab === 'planning' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ boxShadow: activeTab === 'planning' ? '0 4px 12px rgba(16, 185, 129, 0.4)' : 'none' }}
-            onClick={() => setActiveTab('planning')}
-          >
-            <Clock size={18} /> Planning Livraisons
-          </button>
+          {user?.role !== 'comptable' && (
+            <button
+              className={`btn ${activeTab === 'planning' ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ boxShadow: activeTab === 'planning' ? '0 4px 12px rgba(16, 185, 129, 0.4)' : 'none' }}
+              onClick={() => setActiveTab('planning')}
+            >
+              <Clock size={18} /> Planning Livraisons
+            </button>
+          )}
         </div>
       </div>
 
