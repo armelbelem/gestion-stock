@@ -29,6 +29,7 @@ export default function MouvementsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState({ total: 0, totalPages: 1, page: 1, limit: 10 });
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const itemsPerPage = 10;
 
   const [formData, setFormData] = useState({
@@ -176,6 +177,7 @@ export default function MouvementsPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSaving) return;
     if (!hasActiveYear) return showAlert('error', 'Action bloquée', "Aucun exercice fiscal n'est ouvert. Veuillez ouvrir un exercice dans les réglages avant de pouvoir enregistrer des mouvements de stock.");
     const quantity = parseInt(formData.quantity) || 0;
     if (quantity <= 0) return showAlert('error', 'Erreur', "La quantité doit être > 0.");
@@ -194,12 +196,18 @@ export default function MouvementsPage() {
 
     showConfirm('Confirmer ?', `Voulez-vous enregistrer cette ${modalType === 'IN' ? 'entrée' : 'sortie'} de ${quantity} "${article.name}" ?`, async () => {
       closeAlert();
+      setIsSaving(true);
       try {
         await storage.create('mouvements', { ...formData, type: modalType, storeId, quantity });
         await loadMouvements(); // Recharger depuis l'API
+        await loadData();       // Recharger les articles et les stocks
         setIsModalOpen(false);
         showAlert('success', 'Succès', "Mouvement enregistré !");
-      } catch (err) { showAlert('error', 'Erreur', err.message); }
+      } catch (err) { 
+        showAlert('error', 'Erreur', err.message); 
+      } finally {
+        setIsSaving(false);
+      }
     });
   };
 
@@ -260,11 +268,13 @@ export default function MouvementsPage() {
   const handleArticleSearch = (val) => {
     setArticleSearch(val);
     if (val.length > 1) {
-      const filtered = articles.filter(a => 
-        a.name.toLowerCase().includes(val.toLowerCase()) || 
-        (a.code && a.code.toLowerCase().includes(val.toLowerCase())) ||
-        (a.barcode && a.barcode.toLowerCase().includes(val.toLowerCase()))
-      ).slice(0, 10);
+      const cleanVal = val.toLowerCase().replace(/-/g, '');
+      const filtered = articles.filter(a => {
+        const nameMatch = a.name.toLowerCase().includes(val.toLowerCase());
+        const codeMatch = a.code ? a.code.toLowerCase().replace(/-/g, '').includes(cleanVal) : false;
+        const barcodeMatch = a.barcode ? a.barcode.toLowerCase().replace(/-/g, '').includes(cleanVal) : false;
+        return nameMatch || codeMatch || barcodeMatch;
+      }).slice(0, 10);
       setSuggestions(filtered);
     } else {
       setSuggestions([]);
@@ -459,7 +469,12 @@ export default function MouvementsPage() {
                 </select></div>}
                 <div className="form-group"><label className="form-label">Notes</label><input type="text" className="form-control" value={formData.notes} onChange={(e) => setFormData({...formData, notes: e.target.value})} /></div>
               </div>
-              <div className="modal-footer"><button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(false)}>Annuler</button><button type="submit" className={modalType === 'IN' ? 'btn btn-success' : 'btn btn-danger'}>Enregistrer</button></div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" disabled={isSaving} onClick={() => setIsModalOpen(false)}>Annuler</button>
+                <button type="submit" className={modalType === 'IN' ? 'btn btn-success' : 'btn btn-danger'} disabled={isSaving}>
+                  {isSaving ? 'Enregistrement...' : 'Enregistrer'}
+                </button>
+              </div>
             </form>
           </div>
         </div>
