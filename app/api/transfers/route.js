@@ -35,7 +35,7 @@ export async function POST(request) {
   try {
     await connection.beginTransaction();
     const [sourceInv] = await connection.query(
-      'SELECT IFNULL(quantity, 0) as quantity FROM inventory WHERE storeId = ? AND articleId = ?', 
+      'SELECT IFNULL(quantity, 0) as quantity FROM inventory WHERE storeId = ? AND articleId = ? FOR UPDATE', 
       [fromStoreId, articleId]
     );
     const availableQty = sourceInv.length > 0 ? sourceInv[0].quantity : 0;

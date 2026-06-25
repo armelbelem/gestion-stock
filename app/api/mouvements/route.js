@@ -120,7 +120,7 @@ export async function POST(request) {
       [movId, articleId, type, quantity, new Date().toISOString(), notes || null, supplierId || null, activeYear?.id || null, storeId]
     );
     
-    const [inv] = await connection.query('SELECT * FROM inventory WHERE storeId = ? AND articleId = ?', [storeId, articleId]);
+    const [inv] = await connection.query('SELECT * FROM inventory WHERE storeId = ? AND articleId = ? FOR UPDATE', [storeId, articleId]);
     if (inv.length === 0) {
       await connection.query('INSERT INTO inventory (id, storeId, articleId, quantity) VALUES (?, ?, ?, ?)', 
         [uuidv4(), storeId, articleId, type === 'IN' ? quantity : -quantity]);

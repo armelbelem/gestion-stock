@@ -195,7 +195,7 @@ export async function POST(request) {
       if (item.articleId) {
         // Si c'est un proforma, on ne déstocke pas
         if (!isProforma) {
-          const [inv] = await connection.query('SELECT quantity FROM inventory WHERE articleId = ? AND storeId = ?', [item.articleId, storeId]);
+          const [inv] = await connection.query('SELECT quantity FROM inventory WHERE articleId = ? AND storeId = ? FOR UPDATE', [item.articleId, storeId]);
           if (inv.length === 0 || inv[0].quantity < quantity) throw new Error(`Stock insuffisant pour l'article ID ${item.articleId}`);
           await connection.query('UPDATE inventory SET quantity = quantity - ? WHERE articleId = ? AND storeId = ?', [quantity, item.articleId, storeId]);
           await connection.query('INSERT INTO mouvements (id, articleId, type, quantity, date, storeId, fiscalYearId) VALUES (?, ?, ?, ?, ?, ?, ?)', 

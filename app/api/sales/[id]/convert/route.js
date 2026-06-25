@@ -38,7 +38,7 @@ export async function POST(request, { params }) {
       // 2. Vérifier et déduire le stock pour chaque article
       for (const item of items) {
         if (item.articleId) {
-          const [inv] = await connection.query('SELECT quantity FROM inventory WHERE articleId = ? AND storeId = ?', [item.articleId, storeId]);
+          const [inv] = await connection.query('SELECT quantity FROM inventory WHERE articleId = ? AND storeId = ? FOR UPDATE', [item.articleId, storeId]);
           if (inv.length === 0 || inv[0].quantity < item.quantity) {
              // Récupérer le nom de l'article pour le message d'erreur
              const [art] = await connection.query('SELECT name FROM articles WHERE id = ?', [item.articleId]);
