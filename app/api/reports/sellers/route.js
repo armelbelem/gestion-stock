@@ -67,7 +67,11 @@ export async function GET(request) {
           COALESCE(SUM(si.quantity), 0) AS totalProductsSold
       FROM users u
       JOIN sales s ON u.id = s.userId
-      JOIN sale_items si ON s.id = si.saleId
+      LEFT JOIN (
+          SELECT saleId, SUM(quantity) as quantity
+          FROM sale_items
+          GROUP BY saleId
+      ) si ON s.id = si.saleId
       WHERE u.role = 'Vendeur' 
         AND s.status != 'annulée'
         ${dateWhere}
