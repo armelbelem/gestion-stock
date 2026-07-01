@@ -269,7 +269,7 @@ export default function GroupedDischargePage() {
       ...prev,
       blTitleOverride: `BORDEREAU NSA-${clientName.toUpperCase()}`,
       sectionTitle: 'FOURNITURE DE PIECES DE RECHANGE',
-      requestRef: `URGENT REQUEST ${clientName.toUpperCase()} OPERATION`,
+      requestRef: `URGENT REQUEST ${clientName.toUpperCase()}`,
       customSenderDetails: senderDetails,
       customRecipientDetails: recipientDetails,
       customDate: new Date().toISOString().split('T')[0],

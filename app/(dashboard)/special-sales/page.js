@@ -1278,65 +1278,32 @@ export default function SpecialSalesPage() {
                           <input 
                             type="number" 
                             className="form-control" 
-                            style={{ padding: '4px', textAlign: 'center' }} 
-                            min="1"
+                            style={{ padding: '4px', textAlign: 'center', backgroundColor: '#f3f4f6', cursor: 'not-allowed' }} 
                             value={item.quantity === 0 ? 0 : (item.quantity || '')}
-                            onChange={(e) => {
-                              const newItems = [...printFormData.items];
-                              newItems[idx].quantity = e.target.value === '' ? '' : (parseInt(e.target.value) || 0);
-                              setPrintFormData({ ...printFormData, items: newItems });
-                            }}
+                            disabled
+                            readOnly
                           />
                         </td>
                         <td style={{ padding: '6px' }}>
                           <input 
                             type="number" 
                             className="form-control" 
-                            style={{ padding: '4px', textAlign: 'right' }} 
-                            placeholder="0"
-                            min="0"
+                            style={{ padding: '4px', textAlign: 'right', backgroundColor: '#f3f4f6', cursor: 'not-allowed' }} 
                             value={item.sellingPrice || ''}
-                            onChange={(e) => {
-                              const newItems = [...printFormData.items];
-                              newItems[idx].sellingPrice = parseFloat(e.target.value) || 0;
-                              setPrintFormData({ ...printFormData, items: newItems });
-                            }}
+                            disabled
+                            readOnly
                           />
                         </td>
                         <td style={{ padding: '6px', textAlign: 'right', fontWeight: 'bold', fontSize: '0.9rem' }}>
                           {formatPrice((parseInt(item.quantity) || 0) * (parseFloat(item.sellingPrice) || 0))}
                         </td>
                         <td style={{ padding: '6px', textAlign: 'center' }}>
-                          <button 
-                            type="button" 
-                            style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}
-                            onClick={() => {
-                              const newItems = [...printFormData.items];
-                              newItems.splice(idx, 1);
-                              setPrintFormData({ ...printFormData, items: newItems });
-                            }}
-                          >
-                            <Trash2 size={16} />
-                          </button>
+                          {/* Supprimer la ligne disabled/hidden per requirements */}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-                <div style={{ marginTop: '10px' }}>
-                  <button 
-                    type="button" 
-                    className="btn btn-secondary btn-sm" 
-                    onClick={() => {
-                      setPrintFormData({
-                        ...printFormData,
-                        items: [...printFormData.items, { code: '', ref: '', description: '', quantity: '', sellingPrice: '', purchasePrice: '' }]
-                      });
-                    }}
-                  >
-                    + Ajouter une ligne
-                  </button>
-                </div>
               </div>
             </div>
 

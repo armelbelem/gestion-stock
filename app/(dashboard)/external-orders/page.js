@@ -2062,36 +2062,34 @@ export default function ExternalOrdersPage() {
                           newItems[idx].description = e.target.value;
                           setPrintData({ ...printData, items: newItems });
                         }} placeholder="Nom de l'article" /></td>
-                        <td style={{ width: '100px' }}><input type="number" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} min="1" className="form-control" style={{ textAlign: 'center', fontWeight: 'bold' }} value={item.quantity} onChange={e => {
-                          const newItems = [...printData.items];
-                          newItems[idx].quantity = e.target.value === '' ? '' : (parseInt(e.target.value) || 1);
-                          setPrintData({ ...printData, items: newItems });
-                        }} /></td>
-                        <td style={{ width: '120px' }}><input type="number" onKeyDown={(e) => { if(e.key.length === 1 && !/^[0-9.]$/.test(e.key) && !e.ctrlKey && !e.metaKey) e.preventDefault(); }} min="0" className="form-control form-control-sm" style={{ textAlign: 'right' }} value={item.purchasePrice} onChange={e => {
-                          const newItems = [...printData.items];
-                          newItems[idx].purchasePrice = parseFloat(e.target.value) || 0;
-                          setPrintData({ ...printData, items: newItems });
-                        }} /></td>
+                        <td style={{ width: '100px' }}>
+                          <input
+                            type="number"
+                            className="form-control"
+                            style={{ textAlign: 'center', fontWeight: 'bold', backgroundColor: '#f3f4f6', cursor: 'not-allowed' }}
+                            value={item.quantity}
+                            disabled
+                            readOnly
+                          />
+                        </td>
+                        <td style={{ width: '120px' }}>
+                          <input
+                            type="number"
+                            className="form-control form-control-sm"
+                            style={{ textAlign: 'right', backgroundColor: '#f3f4f6', cursor: 'not-allowed' }}
+                            value={item.purchasePrice}
+                            disabled
+                            readOnly
+                          />
+                        </td>
                         <td style={{ width: '50px', textAlign: 'center', verticalAlign: 'middle' }}>
-                          <button type="button" className="btn btn-link text-danger p-0" style={{ border: 'none', background: 'none', cursor: 'pointer' }} onClick={() => {
-                            const newItems = printData.items.filter((_, i) => i !== idx);
-                            setPrintData({ ...printData, items: newItems });
-                          }} title="Supprimer la ligne">
-                            <Trash2 size={16} />
-                          </button>
+                          {/* Supprimer la ligne disabled/hidden per requirements */}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-
-              <button className="btn btn-secondary btn-sm" style={{ marginTop: '1rem' }} onClick={() => {
-                const newItems = [...printData.items, { id: Math.random().toString(), code: '', description: '', refCfao: '', quantity: 1, purchasePrice: 0, sellPrice: 0 }];
-                setPrintData({ ...printData, items: newItems });
-              }}>
-                <Plus size={14} /> Ajouter une ligne
-              </button>
 
               <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '1.5rem' }}>
                 Les calculs de TVA et totaux seront effectués automatiquement sur le document final.
