@@ -33,9 +33,14 @@ export async function GET(request) {
     }
 
     if (search) {
-      const cleanSearch = search.replace(/-/g, '');
-      conditions.push('(name LIKE ? OR REPLACE(refCfao, \'-\', \'\') LIKE ? OR REPLACE(code, \'-\', \'\') LIKE ?)');
-      const pat = `%${search}%`;
+      const trimmedSearch = search.trim();
+      const cleanSearch = trimmedSearch.replace(/[\s-]/g, '');
+      conditions.push(
+        `(name LIKE ? 
+         OR REPLACE(REPLACE(refCfao, '-', ''), ' ', '') LIKE ? 
+         OR REPLACE(REPLACE(code, '-', ''), ' ', '') LIKE ?)`
+      );
+      const pat = `%${trimmedSearch}%`;
       const cleanPat = `%${cleanSearch}%`;
       params.push(pat, cleanPat, cleanPat);
     }

@@ -158,12 +158,15 @@ export default function NewSalePage() {
 
   const handleSearchChange = (val) => {
     setBarcodeInput(val);
-    if (val.length > 1) {
-      const cleanVal = val.toLowerCase().replace(/-/g, '');
+    const trimmedVal = val.trim();
+    if (trimmedVal.length > 1) {
+      const cleanVal = trimmedVal.toLowerCase().replace(/[\s-]/g, '');
       const filtered = articles.filter(a => {
-        const nameMatch = a.name.toLowerCase().includes(val.toLowerCase());
-        const codeMatch = a.code ? a.code.toLowerCase().replace(/-/g, '').includes(cleanVal) : false;
-        const barcodeMatch = a.barcode ? a.barcode.toLowerCase().replace(/-/g, '').includes(cleanVal) : false;
+        const nameMatch = a.name.toLowerCase().includes(trimmedVal.toLowerCase());
+        const codeClean = a.code ? a.code.toLowerCase().replace(/[\s-]/g, '') : '';
+        const barcodeClean = a.barcode ? a.barcode.toLowerCase().replace(/[\s-]/g, '') : '';
+        const codeMatch = codeClean.includes(cleanVal);
+        const barcodeMatch = barcodeClean.includes(cleanVal);
         return nameMatch || codeMatch || barcodeMatch;
       }).slice(0, 10);
       setSuggestions(filtered);
@@ -213,10 +216,12 @@ export default function NewSalePage() {
         return;
       }
 
-      const cleanCode = code.toLowerCase().replace(/-/g, '');
+      const cleanCode = code.toLowerCase().replace(/[\s-]/g, '');
       const article = articles.find(a => {
-        const matchBarcode = a.barcode ? a.barcode.toLowerCase().replace(/-/g, '') === cleanCode : false;
-        const matchCode = a.code ? a.code.toLowerCase().replace(/-/g, '') === cleanCode : false;
+        const barcodeClean = a.barcode ? a.barcode.toLowerCase().replace(/[\s-]/g, '') : '';
+        const codeClean = a.code ? a.code.toLowerCase().replace(/[\s-]/g, '') : '';
+        const matchBarcode = barcodeClean === cleanCode;
+        const matchCode = codeClean === cleanCode;
         return matchBarcode || matchCode;
       });
       if (article) {

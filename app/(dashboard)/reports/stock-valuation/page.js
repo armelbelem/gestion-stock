@@ -26,6 +26,7 @@ export default function StockValuationPage() {
   
   // Rapprochement results
   const [results, setResults] = useState(null);
+  const [reportMeta, setReportMeta] = useState(null);
   const [activeTab, setActiveTab] = useState('matched'); // matched, unmatchedA, unmatchedB, duplicates
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -35,7 +36,28 @@ export default function StockValuationPage() {
 
   useEffect(() => {
     loadSettings();
+    loadSavedReport();
   }, []);
+
+  const loadSavedReport = async () => {
+    setLoading(true);
+    try {
+      const response = await storage.get('reports/saved?type=stock-valuation');
+      if (response && response.data) {
+        setResults(response.data);
+        setReportMeta({
+          fileAName: response.fileAName,
+          fileBName: response.fileBName,
+          generatedBy: response.generatedBy,
+          updatedAt: response.updatedAt
+        });
+      }
+    } catch (err) {
+      console.error("Erreur lors du chargement du rapport sauvegardé:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const loadSettings = async () => {
     try {
@@ -357,7 +379,7 @@ export default function StockValuationPage() {
     const totalStockValueSale = matched.reduce((sum, item) => sum + item.stockValueSale, 0);
     const totalPotentialMargin = totalStockValueSale - totalStockValuePurchase;
 
-    setResults({
+    const reportData = {
       matched,
       unmatchedA,
       unmatchedB,
@@ -371,6 +393,21 @@ export default function StockValuationPage() {
         totalNotFound: unmatchedA.length + unmatchedB.length,
         totalDuplicates: duplicatesA.length + duplicatesB.length
       }
+    };
+
+    setResults(reportData);
+    
+    // Save report to database
+    storage.create('reports/saved', {
+      type: 'stock-valuation',
+      fileAName: fileA?.name || 'Fichier A',
+      fileBName: fileB?.name || 'Fichier B',
+      data: reportData
+    }).then(() => {
+      // Reload metadata
+      loadSavedReport();
+    }).catch(err => {
+      console.error("Erreur lors de la sauvegarde du rapport :", err);
     });
 
     setCurrentPage(1);
@@ -415,15 +452,30 @@ export default function StockValuationPage() {
     });
   };
 
-  const resetAll = () => {
-    setFileA(null);
-    setFileB(null);
-    setFileAData([]);
-    setFileBData([]);
-    setFileAError('');
-    setFileBError('');
-    setResults(null);
-    setSearchTerm('');
+  const resetAll = async () => {
+    if (confirm("Voulez-vous vraiment réinitialiser ce rapport ? Cela le supprimera également pour tous les autres utilisateurs.")) {
+      try {
+        const response = await fetch('/api/reports/saved?type=stock-valuation', {
+          method: 'DELETE'
+        });
+        if (response.ok) {
+          setFileA(null);
+          setFileB(null);
+          setFileAData([]);
+          setFileBData([]);
+          setFileAError('');
+          setFileBError('');
+          setResults(null);
+          setSearchTerm('');
+          setReportMeta(null);
+        } else {
+          alert("Erreur lors de la suppression du rapport.");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Erreur de connexion au serveur.");
+      }
+    }
   };
 
   // Filter matched items based on search term
@@ -629,6 +681,29 @@ export default function StockValuationPage() {
                 <Download size={18} /> Exporter le rapport Excel
               </button>
             </div>
+
+            {reportMeta && (
+              <div style={{
+                backgroundColor: 'rgba(59, 130, 246, 0.05)',
+                border: '1px solid rgba(59, 130, 246, 0.2)',
+                padding: '0.75rem 1.25rem',
+                borderRadius: '8px',
+                marginBottom: '1.5rem',
+                fontSize: '0.85rem',
+                display: 'flex',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '0.5rem',
+                color: 'var(--text-muted)'
+              }}>
+                <div>
+                  <strong>Fichiers sources :</strong> {reportMeta.fileAName} et {reportMeta.fileBName}
+                </div>
+                <div>
+                  Généré par <strong>{reportMeta.generatedBy}</strong> le {new Date(reportMeta.updatedAt).toLocaleString('fr-FR')}
+                </div>
+              </div>
+            )}
 
             {/* KPI Cards */}
             <div className="dashboard-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', marginBottom: '2rem' }}>

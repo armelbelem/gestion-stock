@@ -34,11 +34,16 @@ export async function GET(request) {
       whereConditions.push('a.price > 0');
     }
 
-    // Filtre recherche
+    // Filtre recherche (insensible aux tirets, espaces de début/fin ou du milieu)
     if (search) {
-      const cleanSearch = search.replace(/-/g, '');
-      whereConditions.push('(a.name LIKE ? OR REPLACE(a.code, \'-\', \'\') LIKE ? OR REPLACE(a.barcode, \'-\', \'\') LIKE ?)');
-      const searchPattern = `%${search}%`;
+      const trimmedSearch = search.trim();
+      const cleanSearch = trimmedSearch.replace(/[\s-]/g, '');
+      whereConditions.push(
+        `(a.name LIKE ? 
+         OR REPLACE(REPLACE(a.code, '-', ''), ' ', '') LIKE ? 
+         OR REPLACE(REPLACE(a.barcode, '-', ''), ' ', '') LIKE ?)`
+      );
+      const searchPattern = `%${trimmedSearch}%`;
       const cleanSearchPattern = `%${cleanSearch}%`;
       params.push(searchPattern, cleanSearchPattern, cleanSearchPattern);
     }
