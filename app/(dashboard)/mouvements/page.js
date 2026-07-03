@@ -9,6 +9,7 @@ import {
 import { exportToExcel } from '../../utils/excelExport';
 import AlertModal from '../../components/AlertModal';
 import { useAuth } from '../../providers';
+import { hasPermission } from '../../lib/auth';
 
 export default function MouvementsPage() {
   const { user: currentUser } = useAuth();
@@ -122,27 +123,35 @@ export default function MouvementsPage() {
   const handleExport = async () => {
     showAlert('info', 'Exportation', 'Préparation du fichier Excel en cours...');
     const allData = await fetchAllForExport();
+    const isVendor = currentUser?.role === 'vendeur' || currentUser?.role === 'vendeurs';
     
     const headers = [
       { key: 'dateFormatted', label: 'Date' },
       { key: 'typeLabel', label: 'Type' },
+      { key: 'articleCode', label: 'Code' },
       { key: 'articleName', label: 'Article' },
-      { key: 'articleCode', label: 'Référence' },
-      { key: 'articlePrice', label: 'Prix Unitaire (FCFA)' },
+      { key: 'articleBarcode', label: 'Référence' },
+      ...(hasPermission(currentUser, 'sales', 'view_prices') ? [{ key: 'articlePrice', label: 'Prix Unitaire (FCFA)' }] : []),
       { key: 'quantity', label: 'Quantité' },
       { key: 'notes', label: 'Notes' }
     ];
-    const dataToExport = allData.map(mov => ({
+    let dataToExport = allData.map(mov => ({
       ...mov,
       dateFormatted: formatDate(mov.date),
       typeLabel: mov.type === 'IN' ? 'Entrée' : 'Sortie',
+      articleCode: mov.articleCode || getArticleCodeOnly(mov.articleId),
       articleName: mov.articleName || getArticleName(mov.articleId),
-      articleCode: mov.articleCode || getArticleCode(mov.articleId),
+      articleBarcode: mov.articleBarcode || getArticleBarcode(mov.articleId),
       articlePrice: mov.articlePrice !== undefined ? mov.articlePrice : getArticlePrice(mov.articleId)
     }));
+
+    if (isVendor) {
+      dataToExport = dataToExport.filter(mov => mov.type === 'OUT');
+    }
+
     closeAlert();
-    exportToExcel(dataToExport, headers, 'rapport_mouvements', {
-      title: "RAPPORT DES MOUVEMENTS DE STOCK",
+    exportToExcel(dataToExport, headers, isVendor ? 'rapport_sorties' : 'rapport_mouvements', {
+      title: isVendor ? "RAPPORT DES SORTIES DE STOCK" : "RAPPORT DES MOUVEMENTS DE STOCK",
       companyName: settings?.companyName || "NS AUTO",
       period: `${startDate || 'Début'} au ${endDate || 'Fin'}`
     });
@@ -230,6 +239,14 @@ export default function MouvementsPage() {
     const art = articles.find(x => x.id === id);
     return art ? (art.code || art.barcode || '') : '';
   };
+  const getArticleCodeOnly = (id) => {
+    const art = articles.find(x => x.id === id);
+    return art ? (art.code || '') : '';
+  };
+  const getArticleBarcode = (id) => {
+    const art = articles.find(x => x.id === id);
+    return art ? (art.barcode || '') : '';
+  };
   const getArticlePrice = (id) => {
     const art = articles.find(x => x.id === id);
     return art ? art.price : 0;
@@ -291,12 +308,14 @@ export default function MouvementsPage() {
   };
 
   if (isReporting) {
+    const isVendor = currentUser?.role === 'vendeur' || currentUser?.role === 'vendeurs';
+    const displayedMouvements = mouvements.filter(mov => isVendor ? mov.type === 'OUT' : true);
     return (
       <div className="receipt-print-only" style={{ display: 'block', padding: '20px' }}>
         <div style={{ textAlign: 'center', marginBottom: '20px', borderBottom: '2px solid black', paddingBottom: '10px' }}>
           <h1 style={{ margin: '0', fontSize: '24px', fontWeight: '800', textTransform: 'uppercase' }}>{settings?.companyName || 'NS AUTOFLOW'}</h1>
           {settings?.address && <p style={{ margin: '2px 0' }}>{settings.address}</p>}
-          <h2 style={{ marginTop: '15px' }}>RAPPORT DES MOUVEMENTS</h2>
+          <h2 style={{ marginTop: '15px' }}>{isVendor ? 'RAPPORT DES SORTIES' : 'RAPPORT DES MOUVEMENTS'}</h2>
           <p>Période : {startDate || 'Début'} au {endDate || 'Fin'}</p>
         </div>
         
@@ -311,7 +330,7 @@ export default function MouvementsPage() {
             </tr>
           </thead>
           <tbody>
-            {mouvements.map((mov) => (
+            {displayedMouvements.map((mov) => (
               <tr key={mov.id} style={{ borderBottom: '1px solid #eee' }}>
                 <td style={{ padding: '8px' }}>{formatDate(mov.date)}</td>
                 <td style={{ padding: '8px' }}>{mov.type === 'IN' ? 'Entrée' : 'Sortie'}</td>
@@ -347,8 +366,12 @@ export default function MouvementsPage() {
           <button className="btn btn-secondary" onClick={handlePrintReport} title="Imprimer / PDF">
             <FileText size={18} /> PDF
           </button>
-          {currentUser?.role !== 'observateur' && (<button className="btn btn-success" onClick={() => { handleOpenModal('IN'); setArticleSearch(''); }}><ArrowDownRight size={16} /> Entrée</button>)}
-          {currentUser?.role !== 'observateur' && (<button className="btn btn-danger" onClick={() => { handleOpenModal('OUT'); setArticleSearch(''); }}><ArrowUpRight size={16} /> Sortie</button>)}
+          {currentUser?.role !== 'observateur' && currentUser?.role !== 'vendeur' && currentUser?.role !== 'vendeurs' && (
+            <>
+              <button className="btn btn-success" onClick={() => { handleOpenModal('IN'); setArticleSearch(''); }}><ArrowDownRight size={16} /> Entrée</button>
+              <button className="btn btn-danger" onClick={() => { handleOpenModal('OUT'); setArticleSearch(''); }}><ArrowUpRight size={16} /> Sortie</button>
+            </>
+          )}
         </div>
       </div>
 
@@ -408,9 +431,9 @@ export default function MouvementsPage() {
                   <td><span className={`badge ${mov.type === 'IN' ? 'badge-success' : 'badge-danger'}`}>{mov.type === 'IN' ? 'Entrée' : 'Sortie'}</span></td>
                   <td style={{ fontWeight: 500 }}>
                     {mov.articleName || getArticleName(mov.articleId)}
-                    {(mov.articleCode || getArticleCode(mov.articleId)) && (
+                    {(mov.articleBarcode || getArticleBarcode(mov.articleId) || mov.articleCode || getArticleCodeOnly(mov.articleId)) && (
                       <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                        Ref: {mov.articleCode || getArticleCode(mov.articleId)}
+                        Ref: {mov.articleBarcode || getArticleBarcode(mov.articleId) || mov.articleCode || getArticleCodeOnly(mov.articleId) || '-'}
                       </span>
                     )}
                   </td>

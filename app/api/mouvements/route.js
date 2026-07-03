@@ -99,6 +99,10 @@ export async function POST(request) {
   const auth = authenticateToken(request);
   if (auth.error) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
+  if (auth.user.role === 'vendeur' || auth.user.role === 'vendeurs') {
+    return NextResponse.json({ error: 'Accès interdit : Mode lecture seule.' }, { status: 403 });
+  }
+
   const { articleId, type, quantity, notes, supplierId, storeId: bodyStoreId } = await request.json();
   if (parseInt(quantity) <= 0) {
     return NextResponse.json({ error: "La quantité doit être supérieure à 0" }, { status: 400 });

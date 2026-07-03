@@ -17,7 +17,7 @@ import GlobalSearch from '../components/GlobalSearch';
 
 const routePermissions = [
   { path: '/articles', category: 'stock', action: 'view' },
-  { path: '/mouvements', category: 'stock', action: 'move' },
+  { path: '/mouvements', category: 'stock', action: 'view' },
   { path: '/transfers', category: 'stock', action: 'move' },
   { path: '/fournisseurs', category: 'procurement', action: 'view' },
   { path: '/external-orders', category: 'procurement', action: 'view' },
@@ -331,11 +331,11 @@ export default function ClientLayout({ children }) {
             <NavItem href="/articles" icon={Package} label="Articles" badge={lowStockCount} />
           )}
 
+          {(hasPermission(user, 'stock', 'move') || user?.role === 'vendeur' || user?.role === 'vendeurs') && (
+            <NavItem href="/mouvements" icon={ArrowRightLeft} label="Mouvements" />
+          )}
           {hasPermission(user, 'stock', 'move') && (
-            <>
-              <NavItem href="/mouvements" icon={ArrowRightLeft} label="Mouvements" />
-              <NavItem href="/transfers" icon={ArrowRightLeft} label="Transferts" />
-            </>
+            <NavItem href="/transfers" icon={ArrowRightLeft} label="Transferts" />
           )}
 
           {(hasPermission(user, 'procurement', 'view') || hasPermission(user, 'stock', 'view_cost_price') || user?.role === 'gestionnaire2' || user?.role === 'gestionnaire 2' || user?.role === 'comptable') && (

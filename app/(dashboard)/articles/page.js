@@ -138,7 +138,7 @@ export default function ArticlesPage() {
         { key: 'code', label: 'Code' },
         { key: 'name', label: 'Désignation' },
         { key: 'barcode', label: 'Code-barres' },
-        { key: 'price', label: 'Prix (XOF)' },
+        ...(hasPermission(user, 'sales', 'view_prices') ? [{ key: 'price', label: 'Prix (XOF)' }] : []),
         { key: 'currentStock', label: 'Stock Actuel' },
         { key: 'minStock', label: 'Seuil d\'Alerte' }
       ];
@@ -285,14 +285,14 @@ export default function ArticlesPage() {
         </div>
         <div className="header-actions">
           {hasPermission(user, 'stock', 'edit') && (
-            <>
-              <button className="btn btn-secondary" onClick={() => setIsImportModalOpen(true)}>
-                <Plus size={18} /> Importer
-              </button>
-              <button className="btn btn-secondary" onClick={handleExport} title="Exporter Excel">
-                <Download size={18} /> Excel
-              </button>
-            </>
+            <button className="btn btn-secondary" onClick={() => setIsImportModalOpen(true)}>
+              <Plus size={18} /> Importer
+            </button>
+          )}
+          {hasPermission(user, 'stock', 'view') && (
+            <button className="btn btn-secondary" onClick={handleExport} title="Exporter Excel">
+              <Download size={18} /> Excel
+            </button>
           )}
           <button className="btn btn-secondary" onClick={handlePrintReport} title="Imprimer / PDF">
             <FileText size={18} /> PDF

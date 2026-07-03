@@ -389,7 +389,7 @@ export default function NewSalePage() {
                       >
                         <div>
                           <div style={{ fontWeight: 600 }}>{a.name}</div>
-                          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Ref: {a.code || '-'} | Stock: {a.currentStock}</div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Ref: {a.barcode || a.code || '-'} | Stock: {a.currentStock}</div>
                         </div>
                         {currentUser?.role !== 'vendeur' && currentUser?.role !== 'vendeurs' && (
                           <div style={{ fontWeight: 600, color: 'var(--primary)' }}>{formatPrice(a.price)} FCFA</div>
