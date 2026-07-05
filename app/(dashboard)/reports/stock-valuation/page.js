@@ -400,6 +400,7 @@ export default function StockValuationPage() {
     // Save report to database
     storage.create('reports/saved', {
       type: 'stock-valuation',
+      storeId: typeof window !== 'undefined' ? (localStorage.getItem('selectedStore') || 'all') : 'all',
       fileAName: fileA?.name || 'Fichier A',
       fileBName: fileB?.name || 'Fichier B',
       data: reportData
@@ -455,7 +456,8 @@ export default function StockValuationPage() {
   const resetAll = async () => {
     if (confirm("Voulez-vous vraiment réinitialiser ce rapport ? Cela le supprimera également pour tous les autres utilisateurs.")) {
       try {
-        const response = await fetch('/api/reports/saved?type=stock-valuation', {
+        const storeId = typeof window !== 'undefined' ? (localStorage.getItem('selectedStore') || 'all') : 'all';
+        const response = await fetch(`/api/reports/saved?type=stock-valuation&storeId=${storeId}`, {
           method: 'DELETE'
         });
         if (response.ok) {

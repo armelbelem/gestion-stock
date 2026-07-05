@@ -477,6 +477,7 @@ export default function ProfitabilityPage() {
     // Save report to database
     storage.create('reports/saved', {
       type: 'profitability',
+      storeId: typeof window !== 'undefined' ? (localStorage.getItem('selectedStore') || 'all') : 'all',
       fileAName: fileA?.name || 'Fichier A',
       fileBName: fileB?.name || 'Fichier B',
       data: reportData
@@ -536,7 +537,8 @@ export default function ProfitabilityPage() {
   const resetAll = async () => {
     if (confirm("Voulez-vous vraiment réinitialiser ce rapport ? Cela le supprimera également pour tous les autres utilisateurs.")) {
       try {
-        const response = await fetch('/api/reports/saved?type=profitability', {
+        const storeId = typeof window !== 'undefined' ? (localStorage.getItem('selectedStore') || 'all') : 'all';
+        const response = await fetch(`/api/reports/saved?type=profitability&storeId=${storeId}`, {
           method: 'DELETE'
         });
         if (response.ok) {
