@@ -184,11 +184,7 @@ export default function NewSalePage() {
     }
     const existingItem = saleItems.find(item => String(item.articleId) === String(article.id));
     if (existingItem) {
-      if (existingItem.quantity < article.currentStock) {
-        updateItem(existingItem.id, 'quantity', existingItem.quantity + 1);
-      } else {
-        showAlert('error', 'Erreur', `Pas plus de stock pour ${article.name}`);
-      }
+      showAlert('error', 'Déjà dans le panier', `L'article "${article.name}" est déjà présent dans le panier. Veuillez modifier sa quantité directement.`);
     } else {
       setSaleItems([...saleItems, {
         id: Math.random().toString(36).substr(2, 9),
@@ -389,7 +385,7 @@ export default function NewSalePage() {
                       >
                         <div>
                           <div style={{ fontWeight: 600 }}>{a.name}</div>
-                          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Ref: {a.barcode || a.code || '-'} | Stock: {a.currentStock}</div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Code: {a.code || '-'} {a.barcode ? `| Référence: ${a.barcode}` : ''} | Stock: {a.currentStock}</div>
                         </div>
                         {currentUser?.role !== 'vendeur' && currentUser?.role !== 'vendeurs' && (
                           <div style={{ fontWeight: 600, color: 'var(--primary)' }}>{formatPrice(a.price)} FCFA</div>
@@ -414,7 +410,9 @@ export default function NewSalePage() {
             <div className="content-card">
               <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
                 <h3>Panier</h3>
-                <button type="button" className="btn btn-secondary btn-sm" onClick={() => addItem(false)}><Plus size={14} /> Ajouter</button>
+                {currentUser?.role !== 'vendeur' && currentUser?.role !== 'vendeurs' && (
+                  <button type="button" className="btn btn-secondary btn-sm" onClick={() => addItem(false)}><Plus size={14} /> Ajouter</button>
+                )}
               </div>
               <div className="table-wrapper">
                 <table>

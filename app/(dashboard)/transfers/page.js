@@ -257,7 +257,7 @@ export default function TransfersPage() {
                         <div key={a.id} className="suggestion-item" onClick={() => selectArticle(a)}>
                           <div style={{ fontWeight: 600 }}>{a.name}</div>
                           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                            Code: {a.code || '-'} | Stock Global: <span style={{ fontWeight: 'bold' }}>{a.currentStock}</span>
+                            Code: {a.code || '-'} {a.barcode ? `| Référence: ${a.barcode}` : ''} | Stock Global: <span style={{ fontWeight: 'bold' }}>{a.currentStock}</span>
                           </div>
                         </div>
                       ))}

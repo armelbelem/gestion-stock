@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { storage } from '../../lib/storage';
 import { UserPlus, Trash2, User, Edit2, X, Search } from 'lucide-react';
 import { useAuth } from '../../providers';
+import { hasPermission } from '../../lib/auth';
 import AlertModal from '../../components/AlertModal';
 
 export default function UsersPage() {
@@ -25,9 +26,15 @@ export default function UsersPage() {
   const showConfirm = (title, message, onConfirm) => setAlertModal({ open: true, type: 'confirm', title, message, onConfirm });
 
   useEffect(() => {
-    loadUsers();
-    loadStores();
-  }, []);
+    if (currentUser) {
+      if (!hasPermission(currentUser, 'admin', 'users')) {
+        setAccessError('Accès interdit : Administrateur requis');
+      } else {
+        loadUsers();
+        loadStores();
+      }
+    }
+  }, [currentUser]);
 
   const loadUsers = async () => {
     try {

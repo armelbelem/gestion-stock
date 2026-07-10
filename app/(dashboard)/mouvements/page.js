@@ -481,7 +481,7 @@ export default function MouvementsPage() {
                         <div key={a.id} className="suggestion-item" onClick={() => selectArticle(a)}>
                           <div style={{ fontWeight: 600 }}>{a.name}</div>
                           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                            Code: {a.code || '-'} | Stock: <span style={{ fontWeight: 'bold', color: a.currentStock <= a.minStock ? 'var(--danger)' : 'var(--success)' }}>{a.currentStock}</span>
+                            Code: {a.code || '-'} {a.barcode ? `| Référence: ${a.barcode}` : ''} | Stock: <span style={{ fontWeight: 'bold', color: a.currentStock <= a.minStock ? 'var(--danger)' : 'var(--success)' }}>{a.currentStock}</span>
                           </div>
                         </div>
                       ))}
