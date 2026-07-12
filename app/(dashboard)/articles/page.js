@@ -11,10 +11,12 @@ import { hasPermission } from '../../lib/auth';
 
 export default function ArticlesPage() {
   const [articles, setArticles] = useState([]);
-  const [categories, setCategories] = useState([]);
   const [stores, setStores] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importReport, setImportReport] = useState(null);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [stockFilter, setStockFilter] = useState('all');
   const [importStoreId, setImportStoreId] = useState('');
   const [isReporting, setIsReporting] = useState(false);
   const [settings, setSettings] = useState(null);
@@ -71,10 +73,10 @@ export default function ArticlesPage() {
     loadSettings();
   }, []);
 
-  // Recharge les articles quand la page ou la recherche change
+  // Recharge les articles quand la page, la recherche ou le filtre de stock change
   useEffect(() => {
     loadArticles();
-  }, [currentPage, debouncedSearch]);
+  }, [currentPage, debouncedSearch, stockFilter]);
 
   const loadSettings = async () => {
     try {
@@ -95,6 +97,7 @@ export default function ArticlesPage() {
       });
       if (debouncedSearch) params.set('search', debouncedSearch);
       if (selectedStore) params.set('storeId', selectedStore);
+      if (stockFilter !== 'all') params.set('stockFilter', stockFilter);
 
       const res = await fetch(`/api/articles?${params.toString()}`, {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {},
@@ -127,6 +130,8 @@ export default function ArticlesPage() {
       const token = sessionStorage.getItem('token');
       const params = new URLSearchParams({ page: 1, limit: 9999, _t: Date.now() });
       if (selectedStore) params.set('storeId', selectedStore);
+      if (debouncedSearch) params.set('search', debouncedSearch);
+      if (stockFilter !== 'all') params.set('stockFilter', stockFilter);
       const res = await fetch(`/api/articles?${params.toString()}`, {
         headers: token ? { 'Authorization': `Bearer ${token}` } : {},
         cache: 'no-store'
@@ -149,6 +154,7 @@ export default function ArticlesPage() {
       });
       showAlert('success', 'Succès !', 'Exportation Excel réussie !');
     } catch (err) {
+      console.error(err);
       showAlert('error', 'Erreur', 'Impossible d\'exporter les articles.');
     }
   };
@@ -258,7 +264,7 @@ export default function ArticlesPage() {
             </tr>
           </thead>
           <tbody>
-            {filteredArticles.map((article) => (
+            {currentArticles.map((article) => (
               <tr key={article.id} style={{ borderBottom: '1px solid #eee' }}>
                 <td style={{ padding: '8px' }}>{article.code || '-'}</td>
                 <td style={{ padding: '8px', fontWeight: 500 }}>{article.name}</td>
@@ -270,7 +276,7 @@ export default function ArticlesPage() {
           </tbody>
         </table>
         <div style={{ marginTop: '30px', fontSize: '0.8rem', textAlign: 'right' }}>
-          Nombre total d'articles : {filteredArticles.length}
+          Nombre total d'articles : {currentArticles.length}
         </div>
       </div>
     );
@@ -422,21 +428,19 @@ export default function ArticlesPage() {
                         });
                         
                         const allWarnings = [...localWarnings, ...(res.warnings || [])];
-                        let msg = `${res.updated} articles mis à jour, ${res.created} nouveaux créés dans le magasin sélectionné.`;
-                        
-                        if (allWarnings.length > 0) {
-                          const displayed = allWarnings.slice(0, 10);
-                          const remaining = allWarnings.length - 10;
-                          msg += `\n\n⚠️ Règles d'importation non respectées :\n` + displayed.map(w => `• ${w}`).join('\n');
-                          if (remaining > 0) {
-                            msg += `\n• ... et ${remaining} autres anomalies détectées.`;
-                          }
-                          showAlert('warning', 'Import terminé avec avertissements', msg);
-                        } else {
-                          showAlert('success', 'Import réussi !', msg);
-                        }
-
+                        setImportReport({
+                          summary: res.summary || {
+                            total: mappedData.length,
+                            created: res.created || 0,
+                            updated: res.updated || 0,
+                            ignored: 0,
+                            valuationChange: 0
+                          },
+                          details: res.details || [],
+                          warnings: allWarnings
+                        });
                         setIsImportModalOpen(false);
+                        setIsReportModalOpen(true);
                         loadData();
                         loadArticles();
                       } catch (err) {
@@ -456,8 +460,8 @@ export default function ArticlesPage() {
         </div>
       )}
 
-      <div className="toolbar">
-        <div className="search-input-wrapper">
+      <div className="toolbar" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+        <div className="search-input-wrapper" style={{ flex: 1 }}>
           <Search size={18} className="search-icon" />
           <input 
             type="text" 
@@ -466,6 +470,20 @@ export default function ArticlesPage() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
+        </div>
+        <div style={{ minWidth: '220px' }}>
+          <select
+            className="form-control"
+            value={stockFilter}
+            onChange={(e) => {
+              setStockFilter(e.target.value);
+              setCurrentPage(1);
+            }}
+          >
+            <option value="all">📦 Tous les stocks</option>
+            <option value="empty">⚠️ En rupture (Stock = 0)</option>
+            <option value="available">✅ En stock (Stock ≥ 1)</option>
+          </select>
         </div>
       </div>
 
@@ -601,6 +619,157 @@ export default function ArticlesPage() {
                 <button type="submit" className="btn btn-primary">Enregistrer</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {isReportModalOpen && importReport && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '800px', width: '90%' }}>
+            <div className="modal-header">
+              <h3>Rapport d'importation Excel</h3>
+              <button className="modal-close" onClick={() => setIsReportModalOpen(false)}><X size={20} /></button>
+            </div>
+            <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+              
+              {/* Summary KPIs */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                <div style={{ background: '#f8f9fa', border: '1px solid #dee2e6', padding: '1rem', borderRadius: '8px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.85rem', color: '#6c757d', fontWeight: 600 }}>Total traité</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#212529', marginTop: '0.25rem' }}>{importReport.summary?.total || 0}</div>
+                </div>
+                <div style={{ background: '#e8f5e9', border: '1px solid #c8e6c9', padding: '1rem', borderRadius: '8px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.85rem', color: '#2e7d32', fontWeight: 600 }}>Créés</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#1b5e20', marginTop: '0.25rem' }}>{importReport.summary?.created || 0}</div>
+                </div>
+                <div style={{ background: '#e3f2fd', border: '1px solid #bbdefb', padding: '1rem', borderRadius: '8px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.85rem', color: '#1565c0', fontWeight: 600 }}>Mis à jour</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#0d47a1', marginTop: '0.25rem' }}>{importReport.summary?.updated || 0}</div>
+                </div>
+                <div style={{ background: '#fff3e0', border: '1px solid #ffe0b2', padding: '1rem', borderRadius: '8px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.85rem', color: '#ef6c00', fontWeight: 600 }}>Ignorés / Vides</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#e65100', marginTop: '0.25rem' }}>{importReport.summary?.ignored || 0}</div>
+                </div>
+              </div>
+
+              {/* Financial Valuation Impact */}
+              <div style={{ 
+                background: (importReport.summary?.valuationChange || 0) >= 0 ? '#e8f5e9' : '#ffebee', 
+                borderLeft: `5px solid ${(importReport.summary?.valuationChange || 0) >= 0 ? '#4caf50' : '#f44336'}`,
+                padding: '1rem', 
+                borderRadius: '6px', 
+                marginBottom: '1.5rem',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <div>
+                  <span style={{ fontWeight: 600, color: '#333' }}>Impact financier sur la valeur du stock :</span>
+                  <p style={{ margin: '4px 0 0 0', fontSize: '0.85rem', color: '#666' }}>Calculé sur les prix et quantités ajoutés ou mis à jour</p>
+                </div>
+                <div style={{ 
+                  fontSize: '1.25rem', 
+                  fontWeight: 'bold', 
+                  color: (importReport.summary?.valuationChange || 0) >= 0 ? '#2e7d32' : '#c62828' 
+                }}>
+                  {(importReport.summary?.valuationChange || 0) >= 0 ? '+' : ''}
+                  {formatPrice(importReport.summary?.valuationChange || 0)} FCFA
+                </div>
+              </div>
+
+              {/* Warnings / anomalies */}
+              {importReport.warnings && importReport.warnings.length > 0 && (
+                <div style={{ background: '#fff3cd', border: '1px solid #ffeeba', color: '#856404', padding: '1rem', borderRadius: '6px', marginBottom: '1.5rem' }}>
+                  <div style={{ fontWeight: 'bold', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <AlertTriangle size={16} /> Avertissements détectés ({importReport.warnings.length}) :
+                  </div>
+                  <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.85rem' }}>
+                    {importReport.warnings.slice(0, 10).map((warn, index) => (
+                      <li key={index}>{warn}</li>
+                    ))}
+                    {importReport.warnings.length > 10 && (
+                      <li>... et {importReport.warnings.length - 10} autres anomalies de formatage.</li>
+                    )}
+                  </ul>
+                </div>
+              )}
+
+              {/* Detailed Modification Log */}
+              {importReport.details && importReport.details.length > 0 ? (
+                <div>
+                  <h4 style={{ marginBottom: '0.75rem', color: '#333' }}>Détails des modifications</h4>
+                  <div style={{ border: '1px solid #dee2e6', borderRadius: '6px', overflow: 'hidden' }}>
+                    <table style={{ width: '100%', margin: 0, fontSize: '0.85rem', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ background: '#f8f9fa', borderBottom: '1px solid #dee2e6' }}>
+                          <th style={{ padding: '10px', textAlign: 'left' }}>Article</th>
+                          <th style={{ padding: '10px', textAlign: 'left' }}>Action / Modifications</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {importReport.details.map((detail, idx) => (
+                          <tr key={idx} style={{ borderBottom: '1px solid #dee2e6' }}>
+                            <td style={{ padding: '10px', verticalAlign: 'top' }}>
+                              <div style={{ fontWeight: 600 }}>
+                                {detail.action === 'error' ? `Ligne ${detail.row} : ${detail.name}` : detail.name}
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: '#6c757d' }}>
+                                {detail.action === 'error' ? '' : `Code-barres : ${detail.barcode || 'N/A'}`}
+                              </div>
+                            </td>
+                            <td style={{ padding: '10px', verticalAlign: 'top' }}>
+                              {detail.action === 'create' ? (
+                                <span style={{ background: '#e8f5e9', color: '#2e7d32', padding: '2px 6px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>
+                                  Créé (Stock: {detail.stock} | Prix: {formatPrice(detail.price)} FCFA)
+                                </span>
+                              ) : detail.action === 'error' ? (
+                                <div>
+                                  <span style={{ background: '#ffebee', color: '#c62828', padding: '2px 6px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, display: 'inline-block', marginBottom: '4px' }}>
+                                    Rejeté
+                                  </span>
+                                  <div style={{ fontSize: '0.8rem', color: '#c62828', fontWeight: 600 }}>
+                                    ⚠️ {detail.reason}
+                                  </div>
+                                </div>
+                              ) : (
+                                <div>
+                                  <span style={{ background: '#e3f2fd', color: '#1565c0', padding: '2px 6px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, display: 'inline-block', marginBottom: '4px' }}>
+                                    Mis à jour
+                                  </span>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', fontSize: '0.8rem', color: '#333' }}>
+                                    {detail.changes.name && (
+                                      <div>Nom : <s>{detail.changes.name.old}</s> ➔ <strong>{detail.changes.name.new}</strong></div>
+                                    )}
+                                    {detail.changes.code && (
+                                      <div>Réf : <s>{detail.changes.code.old}</s> ➔ <strong>{detail.changes.code.new}</strong></div>
+                                    )}
+                                    {detail.changes.price && (
+                                      <div>Prix : <s>{formatPrice(detail.changes.price.old)} FCFA</s> ➔ <strong>{formatPrice(detail.changes.price.new)} FCFA</strong></div>
+                                    )}
+                                    {detail.changes.stock && (
+                                      <div>Stock : <s>{detail.changes.stock.old}</s> ➔ <strong>{detail.changes.stock.new}</strong></div>
+                                    )}
+                                    {detail.changes.minStock && (
+                                      <div>Seuil : <s>{detail.changes.minStock.old}</s> ➔ <strong>{detail.changes.minStock.new}</strong></div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                <p style={{ textAlign: 'center', color: '#6c757d', margin: '2rem 0' }}>Aucun article n'a subi de modification de valeur.</p>
+              )}
+
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-primary" onClick={() => setIsReportModalOpen(false)}>Fermer</button>
+            </div>
           </div>
         </div>
       )}

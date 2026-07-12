@@ -17,6 +17,9 @@ export async function POST(request) {
     const storeId = targetStoreId || auth.user.storeId || 1;
     let updatedCount = 0;
     let createdCount = 0;
+    let ignoredCount = 0;
+    let valuationChange = 0;
+    const details = [];
     const warnings = [];
 
     const cleanNum = (val) => {
@@ -26,6 +29,30 @@ export async function POST(request) {
       const cleaned = String(val).replace(/\s/g, '').replace(/,/g, '.').replace(/[^0-9.]/g, '');
       return parseFloat(cleaned) || 0;
     };
+
+    const normalizeBarcode = (bc) => {
+      if (!bc) return '';
+      return String(bc).replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+    };
+
+    // Charger tous les articles existants du magasin avec leur inventaire pour matcher en mémoire (plus rapide et gère la normalisation)
+    const [dbArticles] = await connection.query(
+      `SELECT a.id, a.name, a.code, a.price, a.minStock, a.barcode, i.quantity AS dbQuantity
+       FROM articles a
+       LEFT JOIN inventory i ON a.id = i.articleId AND i.storeId = a.storeId
+       WHERE a.storeId = ?`,
+      [storeId]
+    );
+
+    const articlesMap = new Map();
+    for (const art of dbArticles) {
+      if (art.barcode) {
+        const norm = normalizeBarcode(art.barcode);
+        if (norm && !articlesMap.has(norm)) {
+          articlesMap.set(norm, art);
+        }
+      }
+    }
 
     // Rule violation checks
     const checkRuleViolations = (row, rowIndex) => {
@@ -54,31 +81,34 @@ export async function POST(request) {
 
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
-      let { id, code, name, price, currentStock, minStock, barcode } = row;
+      let { code, name, price, currentStock, minStock, barcode } = row;
       
       // We need at least a name or barcode/code to proceed
-      if (!name && !barcode && !code) continue;
+      if (!name && !barcode && !code) {
+        ignoredCount++;
+        details.push({
+          action: 'error',
+          row: i + 2,
+          name: 'Ligne vide ou incomplète',
+          reason: 'Le Nom, le Code-barres et la Référence/Code sont tous manquants ou vides.'
+        });
+        continue;
+      }
 
       checkRuleViolations(row, i);
 
       if (barcode) {
-        // Query database by barcode and storeId
-        const [existing] = await connection.query(
-          'SELECT id, name, code, price, minStock, barcode FROM articles WHERE barcode = ? AND storeId = ? LIMIT 1',
-          [barcode, storeId]
-        );
+        const normalized = normalizeBarcode(barcode);
+        const dbArticle = articlesMap.get(normalized);
 
-        if (existing.length > 0) {
-          const dbArticle = existing[0];
-          const [invExists] = await connection.query(
-            'SELECT quantity FROM inventory WHERE articleId = ? AND storeId = ?',
-            [dbArticle.id, storeId]
-          );
-          const dbQuantity = invExists.length > 0 ? invExists[0].quantity : 0;
+        if (dbArticle) {
+          const dbQuantity = (dbArticle.dbQuantity !== null && dbArticle.dbQuantity !== undefined) ? dbArticle.dbQuantity : 0;
+          const invExists = dbArticle.dbQuantity !== null && dbArticle.dbQuantity !== undefined;
 
           const updateFields = [];
           const updateParams = [];
           let hasChanged = false;
+          const changes = {};
 
           if ('name' in row && name !== undefined) {
             const cleanName = String(name || '').trim();
@@ -86,6 +116,7 @@ export async function POST(request) {
               updateFields.push('name = ?');
               updateParams.push(cleanName);
               hasChanged = true;
+              changes.name = { old: dbArticle.name, new: cleanName };
             }
           }
           if ('code' in row && code !== undefined) {
@@ -94,14 +125,19 @@ export async function POST(request) {
               updateFields.push('code = ?');
               updateParams.push(cleanCode || null);
               hasChanged = true;
+              changes.code = { old: dbArticle.code || '', new: cleanCode };
             }
           }
+
+          let cleanPrice = parseFloat(dbArticle.price) || 0;
           if ('price' in row && price !== undefined && price !== null) {
-            const cleanPrice = cleanNum(price);
-            if (parseFloat(dbArticle.price) !== cleanPrice) {
+            const parsedPrice = cleanNum(price);
+            if (cleanPrice !== parsedPrice) {
               updateFields.push('price = ?');
-              updateParams.push(cleanPrice);
+              updateParams.push(parsedPrice);
               hasChanged = true;
+              changes.price = { old: cleanPrice, new: parsedPrice };
+              cleanPrice = parsedPrice;
             }
           }
           if ('minStock' in row && minStock !== undefined && minStock !== null) {
@@ -110,6 +146,7 @@ export async function POST(request) {
               updateFields.push('minStock = ?');
               updateParams.push(cleanMinStock);
               hasChanged = true;
+              changes.minStock = { old: parseInt(dbArticle.minStock) || 0, new: cleanMinStock };
             }
           }
 
@@ -120,6 +157,7 @@ export async function POST(request) {
             if (dbQuantity !== cleanStock) {
               inventoryChanged = true;
               hasChanged = true;
+              changes.stock = { old: dbQuantity, new: cleanStock };
             }
           }
 
@@ -133,7 +171,7 @@ export async function POST(request) {
             }
 
             if (inventoryChanged || ('minStock' in row && minStock !== undefined && minStock !== null)) {
-              if (invExists.length > 0) {
+              if (invExists) {
                 const finalMinStock = ('minStock' in row && minStock !== undefined && minStock !== null)
                   ? cleanNum(minStock)
                   : dbArticle.minStock;
@@ -152,10 +190,33 @@ export async function POST(request) {
               }
             }
             updatedCount++;
+
+            // Calcul de la valorisation de stock
+            const oldVal = dbQuantity * (parseFloat(dbArticle.price) || 0);
+            const newVal = cleanStock * cleanPrice;
+            valuationChange += (newVal - oldVal);
+
+            details.push({
+              action: 'update',
+              name: dbArticle.name,
+              barcode: dbArticle.barcode || code || '',
+              changes
+            });
           }
         } else {
-          // Barcode does not exist -> Create new article
-          const finalName = 'name' in row ? String(name || '').trim() : 'Sans nom';
+          // Barcode does not exist -> Create new article (requires name)
+          const finalName = String(name || '').trim();
+          if (!finalName) {
+            ignoredCount++;
+            details.push({
+              action: 'error',
+              row: i + 2,
+              name: barcode || 'Sans Code-barres',
+              reason: 'Impossible de créer un nouvel article sans Nom/Désignation.'
+            });
+            continue;
+          }
+
           const finalCode = 'code' in row ? String(code || '').trim() : null;
           const finalPrice = 'price' in row ? cleanNum(price) : 0;
           const finalStock = 'currentStock' in row ? cleanNum(currentStock) : 0;
@@ -171,10 +232,30 @@ export async function POST(request) {
             [uuidv4(), storeId, newId, finalStock, finalMinStock]
           );
           createdCount++;
+
+          valuationChange += (finalStock * finalPrice);
+          details.push({
+            action: 'create',
+            name: finalName,
+            barcode: barcode || finalCode || '',
+            price: finalPrice,
+            stock: finalStock
+          });
         }
       } else {
-        // No barcode -> Create new article
-        const finalName = 'name' in row ? String(name || '').trim() : 'Sans nom';
+        // No barcode -> Create new article (requires name)
+        const finalName = String(name || '').trim();
+        if (!finalName) {
+          ignoredCount++;
+          details.push({
+            action: 'error',
+            row: i + 2,
+            name: 'Sans Nom',
+            reason: 'Impossible de créer un nouvel article sans Nom/Désignation.'
+          });
+          continue;
+        }
+
         const finalCode = 'code' in row ? String(code || '').trim() : null;
         const finalPrice = 'price' in row ? cleanNum(price) : 0;
         const finalStock = 'currentStock' in row ? cleanNum(currentStock) : 0;
@@ -190,13 +271,35 @@ export async function POST(request) {
           [uuidv4(), storeId, newId, finalStock, finalMinStock]
         );
         createdCount++;
+
+        valuationChange += (finalStock * finalPrice);
+        details.push({
+          action: 'create',
+          name: finalName,
+          barcode: finalCode || '',
+          price: finalPrice,
+          stock: finalStock
+        });
       }
     }
 
     await logAction(auth.user.id, storeId, 'Import Excel de masse', { updated: updatedCount, created: createdCount });
     await connection.commit();
     
-    return NextResponse.json({ success: true, updated: updatedCount, created: createdCount, warnings });
+    return NextResponse.json({
+      success: true,
+      updated: updatedCount,
+      created: createdCount,
+      summary: {
+        total: data.length,
+        created: createdCount,
+        updated: updatedCount,
+        ignored: ignoredCount,
+        valuationChange
+      },
+      details,
+      warnings
+    });
   } catch (err) {
     await connection.rollback();
     return NextResponse.json({ error: err.message }, { status: 500 });

@@ -107,6 +107,8 @@ export default function ContractGatewayPage() {
   const [isBCPrintModalOpen, setIsBCPrintModalOpen] = useState(false);
   const [isBCHistoryOpen, setIsBCHistoryOpen] = useState(false);
   const [currentBCs, setCurrentBCs] = useState([]);
+  const [importReport, setImportReport] = useState(null);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [currentDeliveries, setCurrentDeliveries] = useState([]);
@@ -1781,6 +1783,8 @@ export default function ContractGatewayPage() {
 
         let createdCount = 0;
         let updatedCount = 0;
+        let ignoredCount = 0;
+        const details = [];
         const warnings = [];
 
         // Validation locale des colonnes
@@ -1795,6 +1799,20 @@ export default function ContractGatewayPage() {
           if (!hasKeyword(['code'])) localWarnings.push("La colonne standard pour 'Code' semble manquante.");
           if (!hasKeyword(['prixachatcontrat', 'prixachat', 'pa', 'prix', 'montant', 'achatcontrat'])) localWarnings.push("La colonne standard pour 'Prix Achat Contrat' semble manquante.");
           if (!hasKeyword(['mine', 'site', 'client'])) localWarnings.push("La colonne standard pour 'Mine' semble manquante.");
+        }
+
+        const normalizeRef = (val) => {
+          if (!val) return '';
+          return String(val).replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        };
+
+        // Créer un index du catalogue existant pour O(1) et gérer la tolérance
+        const catalogMap = new Map();
+        for (const item of fullCatalog) {
+          if (item.refCfao) {
+            const key = `${normalizeRef(item.refCfao)}_${item.clientId || ''}`;
+            catalogMap.set(key, item);
+          }
         }
 
         for (let i = 0; i < data.length; i++) {
@@ -1832,9 +1850,15 @@ export default function ContractGatewayPage() {
 
           const price = rawPrice !== undefined ? Math.round(parseFloat(rawPrice.replace(/\s/g, '').replace(',', '.')) || 0) : undefined;
 
-          // We need at least Réf CFAO or Designation to process
+          // We need at least Réf CFAO to process
           if (refCfao === undefined || refCfao === '') {
-            warnings.push(`Ligne ${rowNum} : Réf CFAO manquante. Ligne ignorée.`);
+            ignoredCount++;
+            details.push({
+              action: 'error',
+              row: rowNum,
+              name: name || 'Article sans Réf CFAO',
+              reason: 'La Réf CFAO est manquante ou vide. Ligne ignorée.'
+            });
             continue;
           }
 
@@ -1849,38 +1873,45 @@ export default function ContractGatewayPage() {
           }
 
           const targetClientId = clientId !== undefined ? clientId : '';
-          const existingItem = fullCatalog.find(item =>
-            refCfao && String(item.refCfao).trim() === refCfao &&
-            String(item.clientId || '') === String(targetClientId)
-          );
+          const normRefCfao = normalizeRef(refCfao);
+          const mapKey = `${normRefCfao}_${targetClientId}`;
+          const existingItem = catalogMap.get(mapKey);
 
           if (existingItem) {
             const updateFields = {};
             let hasChanged = false;
+            const changes = {};
 
             if (name !== undefined) {
               const finalName = name || 'Sans nom';
               if (String(existingItem.name || '') !== finalName) {
                 updateFields.name = finalName;
                 hasChanged = true;
+                changes.name = { old: existingItem.name, new: finalName };
               }
             }
             if (code !== undefined) {
               if (String(existingItem.code || '') !== code) {
                 updateFields.code = code;
                 hasChanged = true;
+                changes.code = { old: existingItem.code || '', new: code };
               }
             }
             if (price !== undefined) {
               if (existingItem.purchasePrice !== price) {
                 updateFields.purchasePrice = price;
                 hasChanged = true;
+                changes.price = { old: existingItem.purchasePrice, new: price };
               }
             }
             if (clientId !== undefined) {
               if (String(existingItem.clientId || '') !== String(clientId)) {
                 updateFields.clientId = clientId;
                 hasChanged = true;
+                changes.client = { 
+                  old: clients.find(c => String(c.id) === String(existingItem.clientId))?.name || 'Aucun', 
+                  new: clients.find(c => String(c.id) === String(clientId))?.name || 'Aucun' 
+                };
               }
             }
 
@@ -1893,12 +1924,31 @@ export default function ContractGatewayPage() {
               await storage.update('contract-catalog', existingItem.id, updatedItem);
               Object.assign(existingItem, updatedItem);
               updatedCount++;
+              details.push({
+                action: 'update',
+                name: existingItem.name,
+                barcode: refCfao || code || '',
+                changes
+              });
             }
           } else {
+            // Creation requires name
+            const finalName = name !== undefined ? (name || '').trim() : '';
+            if (!finalName) {
+              ignoredCount++;
+              details.push({
+                action: 'error',
+                row: rowNum,
+                name: refCfao || 'Sans Réf',
+                reason: 'Impossible de créer un nouvel article de catalogue sans Désignation.'
+              });
+              continue;
+            }
+
             const newItem = {
               code: code !== undefined ? code : '',
               refCfao: refCfao,
-              name: name !== undefined ? (name || 'Sans nom') : 'Sans nom',
+              name: finalName,
               purchasePrice: price !== undefined ? price : 0,
               clientId: targetClientId,
               partnerId: selectedPartner.id
@@ -1907,6 +1957,12 @@ export default function ContractGatewayPage() {
             const createdItem = { ...newItem, id: res.id };
             fullCatalog.push(createdItem);
             createdCount++;
+            details.push({
+              action: 'create',
+              name: finalName,
+              barcode: refCfao || code || '',
+              price: price !== undefined ? price : 0
+            });
           }
         }
 
@@ -1916,18 +1972,18 @@ export default function ContractGatewayPage() {
         loadCatalogData();
 
         const allWarnings = [...localWarnings, ...warnings];
-        let msg = `${createdCount} nouveaux articles ajoutés, ${updatedCount} articles mis à jour.`;
-        if (allWarnings.length > 0) {
-          const displayed = allWarnings.slice(0, 10);
-          const remaining = allWarnings.length - 10;
-          msg += `\n\n⚠️ Règles d'importation non respectées :\n` + displayed.map(w => `• ${w}`).join('\n');
-          if (remaining > 0) {
-            msg += `\n• ... et ${remaining} autres anomalies détectées.`;
-          }
-          showAlert('warning', 'Importation terminée avec avertissements', msg);
-        } else {
-          showAlert('success', 'Importation Terminée', msg);
-        }
+        setImportReport({
+          summary: {
+            total: data.length,
+            created: createdCount,
+            updated: updatedCount,
+            ignored: ignoredCount,
+            valuationChange: 0 // Pas de stock pour le catalogue contrat
+          },
+          details,
+          warnings: allWarnings
+        });
+        setIsReportModalOpen(true);
       };
       reader.readAsBinaryString(file);
     } catch (err) {
@@ -2073,6 +2129,9 @@ export default function ContractGatewayPage() {
     for (const item of newOrder.items) {
       if (item.quantity === undefined || item.quantity === null || String(item.quantity).trim() === '' || Number(item.quantity) <= 0) {
         return showAlert('error', 'Quantité manquante', `Veuillez saisir une quantité supérieure à 0 pour l'article "${item.description || 'sans désignation'}".`);
+      }
+      if (item.purchasePrice === undefined || item.purchasePrice === null || String(item.purchasePrice).trim() === '' || Number(item.purchasePrice) <= 0) {
+        return showAlert('error', 'Prix d\'achat manquant', `Veuillez saisir un P.A CFAO supérieur à 0 pour l'article "${item.description || 'sans désignation'}".`);
       }
     }
     
@@ -5670,6 +5729,129 @@ export default function ContractGatewayPage() {
             </div>
             <div className="modal-footer">
               <button className="btn btn-secondary" style={{ width: '100%' }} onClick={() => setIsImportModalOpen(false)}>Fermer</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isReportModalOpen && importReport && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '800px', width: '95%' }}>
+            <div className="modal-header">
+              <h3>Rapport d'importation Catalogue Contrat</h3>
+              <button className="modal-close" onClick={() => setIsReportModalOpen(false)}><X size={20} /></button>
+            </div>
+            <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+              
+              {/* Summary KPIs */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                <div style={{ background: '#f8f9fa', border: '1px solid #dee2e6', padding: '1rem', borderRadius: '8px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.85rem', color: '#6c757d', fontWeight: 600 }}>Total traité</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#212529', marginTop: '0.25rem' }}>{importReport.summary?.total || 0}</div>
+                </div>
+                <div style={{ background: '#e8f5e9', border: '1px solid #c8e6c9', padding: '1rem', borderRadius: '8px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.85rem', color: '#2e7d32', fontWeight: 600 }}>Créés</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#1b5e20', marginTop: '0.25rem' }}>{importReport.summary?.created || 0}</div>
+                </div>
+                <div style={{ background: '#e3f2fd', border: '1px solid #bbdefb', padding: '1rem', borderRadius: '8px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.85rem', color: '#1565c0', fontWeight: 600 }}>Mis à jour</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#0d47a1', marginTop: '0.25rem' }}>{importReport.summary?.updated || 0}</div>
+                </div>
+                <div style={{ background: '#fff3e0', border: '1px solid #ffe0b2', padding: '1rem', borderRadius: '8px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.85rem', color: '#ef6c00', fontWeight: 600 }}>Ignorés / Rejetés</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#e65100', marginTop: '0.25rem' }}>{importReport.summary?.ignored || 0}</div>
+                </div>
+              </div>
+
+              {/* Warnings / anomalies */}
+              {importReport.warnings && importReport.warnings.length > 0 && (
+                <div style={{ background: '#fff3cd', border: '1px solid #ffeeba', color: '#856404', padding: '1rem', borderRadius: '6px', marginBottom: '1.5rem' }}>
+                  <div style={{ fontWeight: 'bold', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <AlertTriangle size={16} /> Avertissements détectés ({importReport.warnings.length}) :
+                  </div>
+                  <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.85rem' }}>
+                    {importReport.warnings.slice(0, 10).map((warn, index) => (
+                      <li key={index}>{warn}</li>
+                    ))}
+                    {importReport.warnings.length > 10 && (
+                      <li>... et {importReport.warnings.length - 10} autres anomalies de formatage.</li>
+                    )}
+                  </ul>
+                </div>
+              )}
+
+              {/* Detailed Modification Log */}
+              {importReport.details && importReport.details.length > 0 ? (
+                <div>
+                  <h4 style={{ marginBottom: '0.75rem', color: '#333' }}>Détails des modifications</h4>
+                  <div style={{ border: '1px solid #dee2e6', borderRadius: '6px', overflow: 'hidden' }}>
+                    <table style={{ width: '100%', margin: 0, fontSize: '0.85rem', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ background: '#f8f9fa', borderBottom: '1px solid #dee2e6' }}>
+                          <th style={{ padding: '10px', textAlign: 'left' }}>Article</th>
+                          <th style={{ padding: '10px', textAlign: 'left' }}>Action / Modifications</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {importReport.details.map((detail, idx) => (
+                          <tr key={idx} style={{ borderBottom: '1px solid #dee2e6' }}>
+                            <td style={{ padding: '10px', verticalAlign: 'top' }}>
+                              <div style={{ fontWeight: 600 }}>
+                                {detail.action === 'error' ? `Ligne ${detail.row} : ${detail.name}` : detail.name}
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: '#6c757d' }}>
+                                {detail.action === 'error' ? '' : `Réf CFAO : ${detail.barcode || 'N/A'}`}
+                              </div>
+                            </td>
+                            <td style={{ padding: '10px', verticalAlign: 'top' }}>
+                              {detail.action === 'create' ? (
+                                <span style={{ background: '#e8f5e9', color: '#2e7d32', padding: '2px 6px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600 }}>
+                                  Créé (Prix Achat : {formatPrice(detail.price)} FCFA)
+                                </span>
+                              ) : detail.action === 'error' ? (
+                                <div>
+                                  <span style={{ background: '#ffebee', color: '#c62828', padding: '2px 6px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, display: 'inline-block', marginBottom: '4px' }}>
+                                    Rejeté
+                                  </span>
+                                  <div style={{ fontSize: '0.8rem', color: '#c62828', fontWeight: 600 }}>
+                                    ⚠️ {detail.reason}
+                                  </div>
+                                </div>
+                              ) : (
+                                <div>
+                                  <span style={{ background: '#e3f2fd', color: '#1565c0', padding: '2px 6px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 600, display: 'inline-block', marginBottom: '4px' }}>
+                                    Mis à jour
+                                  </span>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', fontSize: '0.8rem', color: '#333' }}>
+                                    {detail.changes.name && (
+                                      <div>Nom : <s>{detail.changes.name.old}</s> ➔ <strong>{detail.changes.name.new}</strong></div>
+                                    )}
+                                    {detail.changes.code && (
+                                      <div>Code : <s>{detail.changes.code.old}</s> ➔ <strong>{detail.changes.code.new}</strong></div>
+                                    )}
+                                    {detail.changes.price && (
+                                      <div>Prix Achat : <s>{formatPrice(detail.changes.price.old)} FCFA</s> ➔ <strong>{formatPrice(detail.changes.price.new)} FCFA</strong></div>
+                                    )}
+                                    {detail.changes.client && (
+                                      <div>Client/Mine : <s>{detail.changes.client.old}</s> ➔ <strong>{detail.changes.client.new}</strong></div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                <p style={{ textAlign: 'center', color: '#6c757d', margin: '2rem 0' }}>Aucun article n'a subi de modification de valeur.</p>
+              )}
+
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-primary" onClick={() => setIsReportModalOpen(false)}>Fermer</button>
             </div>
           </div>
         </div>

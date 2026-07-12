@@ -29,6 +29,30 @@ export async function GET(request) {
       params.push(storeId);
     }
 
+    // Filtre par niveau de stock (rupture vs disponible)
+    const stockFilter = searchParams.get('stockFilter') || 'all';
+    if (stockFilter === 'empty') {
+      whereConditions.push(`
+        COALESCE((
+          SELECT SUM(quantity) 
+          FROM inventory i 
+          WHERE i.articleId = a.id
+          ${storeId ? 'AND i.storeId = ?' : ''}
+        ), 0) = 0
+      `);
+      if (storeId) params.push(storeId);
+    } else if (stockFilter === 'available') {
+      whereConditions.push(`
+        COALESCE((
+          SELECT SUM(quantity) 
+          FROM inventory i 
+          WHERE i.articleId = a.id
+          ${storeId ? 'AND i.storeId = ?' : ''}
+        ), 0) >= 1
+      `);
+      if (storeId) params.push(storeId);
+    }
+
     // Exclure les articles sans prix (ex: 0 FCFA) si demandé (utile pour la création de ventes)
     if (searchParams.get('excludeZeroPrice') === 'true') {
       whereConditions.push('a.price > 0');
