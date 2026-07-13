@@ -11,10 +11,76 @@ import {
 import { exportToExcel } from '../../utils/excelExport';
 
 export default function ReportingVendeurs() {
-  const [period, setPeriod] = useState('month');
+  const [period, setPeriod] = useState('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [timeUnit, setTimeUnit] = useState('day');
+
+  const getPeriodDates = (p) => {
+    const today = new Date();
+    const formatDate = (date) => {
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    };
+
+    switch (p) {
+      case 'today':
+        return { start: formatDate(today), end: formatDate(today) };
+      case 'week': {
+        const day = today.getDay();
+        const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+        const monday = new Date(today.setDate(diff));
+        const sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+        return { start: formatDate(monday), end: formatDate(sunday) };
+      }
+      case 'month': {
+        const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+        const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        return { start: formatDate(firstDay), end: formatDate(lastDay) };
+      }
+      case 'year': {
+        const firstDay = new Date(today.getFullYear(), 0, 1);
+        const lastDay = new Date(today.getFullYear(), 11, 31);
+        return { start: formatDate(firstDay), end: formatDate(lastDay) };
+      }
+      default:
+        return { start: '', end: '' };
+    }
+  };
+
+  // Pre-populate date fields for initial period
+  useEffect(() => {
+    if (period === 'month' && !startDate && !endDate) {
+      const { start, end } = getPeriodDates('month');
+      setStartDate(start);
+      setEndDate(end);
+    }
+  }, []);
+
+  const handlePeriodChange = (newPeriod) => {
+    setPeriod(newPeriod);
+    if (newPeriod !== 'custom' && newPeriod !== 'all') {
+      const { start, end } = getPeriodDates(newPeriod);
+      setStartDate(start);
+      setEndDate(end);
+    } else if (newPeriod === 'all') {
+      setStartDate('');
+      setEndDate('');
+    }
+  };
+
+  const handleStartDateChange = (val) => {
+    setStartDate(val);
+    setPeriod('custom');
+  };
+
+  const handleEndDateChange = (val) => {
+    setEndDate(val);
+    setPeriod('custom');
+  };
   
   const [data, setData] = useState([]);
   const [summary, setSummary] = useState({ globalSales: 0, globalRevenue: 0 });
@@ -130,31 +196,39 @@ export default function ReportingVendeurs() {
           <label className="form-label">Période</label>
           <select 
             value={period} 
-            onChange={(e) => setPeriod(e.target.value)}
+            onChange={(e) => handlePeriodChange(e.target.value)}
             className="form-control"
             style={{ width: '200px' }}
           >
             <option value="today">Aujourd'hui</option>
             <option value="week">Cette semaine</option>
-            <option value="month">Ce mois</option>
+            <option value="month">1 mois</option>
             <option value="year">Cette année</option>
             <option value="custom">Personnalisée</option>
             <option value="all">Tout</option>
           </select>
         </div>
 
-        {period === 'custom' && (
-          <>
-            <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label">Du</label>
-              <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="form-control" style={{ width: '160px' }} />
-            </div>
-            <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label">Au</label>
-              <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="form-control" style={{ width: '160px' }} />
-            </div>
-          </>
-        )}
+        <div className="form-group" style={{ margin: 0 }}>
+          <label className="form-label">Du</label>
+          <input 
+            type="date" 
+            value={startDate} 
+            onChange={e => handleStartDateChange(e.target.value)} 
+            className="form-control" 
+            style={{ width: '160px' }} 
+          />
+        </div>
+        <div className="form-group" style={{ margin: 0 }}>
+          <label className="form-label">Au</label>
+          <input 
+            type="date" 
+            value={endDate} 
+            onChange={e => handleEndDateChange(e.target.value)} 
+            className="form-control" 
+            style={{ width: '160px' }} 
+          />
+        </div>
       </div>
 
       {/* KPIs */}
