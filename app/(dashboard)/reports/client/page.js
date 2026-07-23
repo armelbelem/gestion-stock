@@ -23,6 +23,8 @@ export default function ClientReportPage() {
   const [alertModal, setAlertModal] = useState({ open: false, type: 'info', title: '', message: '', onConfirm: null });
   const [printHistory, setPrintHistory] = useState([]);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [settlementHistory, setSettlementHistory] = useState([]);
+  const [isSettlementHistoryModalOpen, setIsSettlementHistoryModalOpen] = useState(false);
   const pathname = usePathname();
 
   const formatPrice = (val) => {
@@ -66,7 +68,18 @@ export default function ClientReportPage() {
       } catch(e) { console.error('Error loading history:', e); }
     };
     loadHistory();
+
+    loadSettlementHistory();
   }, []);
+
+  const loadSettlementHistory = async () => {
+    try {
+      const h = await storage.get('settlement-history-bilan');
+      if (h && Array.isArray(h)) {
+        setSettlementHistory(h);
+      }
+    } catch(e) { console.error('Error loading settlement history:', e); }
+  };
 
 
   const loadSettings = async () => {
@@ -214,6 +227,19 @@ export default function ClientReportPage() {
     }
   };
 
+  const deleteSettlementHistory = async (id) => {
+    if (!window.confirm("Voulez-vous vraiment supprimer cette trace de règlement ?")) return;
+    try {
+      await fetch(`/api/settlement-history-bilan/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${sessionStorage.getItem('token')}` }
+      });
+      setSettlementHistory(prev => prev.filter(h => h.id !== id));
+    } catch (e) {
+      console.error('Error deleting settlement history', e);
+    }
+  };
+
   const handleExport = () => {
     if (!data) return;
     const headers = [
@@ -274,6 +300,7 @@ export default function ClientReportPage() {
               message: `La période a été réglée avec succès. Total encaissé : ${res.totalSettled.toLocaleString()} FCFA.`
             });
             generateReport();
+            loadSettlementHistory();
           } else {
             setAlertModal({
               open: true,
@@ -676,6 +703,9 @@ export default function ClientReportPage() {
               <button className="btn btn-secondary" onClick={() => setIsHistoryModalOpen(true)}>
                 <Clock size={18} /> Historique Impressions
               </button>
+              <button className="btn btn-secondary" onClick={() => setIsSettlementHistoryModalOpen(true)}>
+                <Clock size={18} /> Historique Règlements
+              </button>
               <button className="btn btn-success" onClick={handleSettle} disabled={loading}>
                 <Coins size={18} /> Régler la période
               </button>
@@ -967,6 +997,59 @@ export default function ClientReportPage() {
                               <X size={14} />
                             </button>
                           </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL HISTORIQUE REGLEMENTS */}
+      {isSettlementHistoryModalOpen && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '850px', width: '90%' }}>
+            <div className="modal-header">
+              <h3>Historique des règlements de bilan</h3>
+              <button className="modal-close" onClick={() => setIsSettlementHistoryModalOpen(false)}><X size={20} /></button>
+            </div>
+            <div className="modal-body custom-scrollbar" style={{ padding: '1.5rem', maxHeight: '70vh', overflowY: 'auto' }}>
+              {settlementHistory.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                  Aucun historique de règlement n'a été trouvé.
+                </div>
+              ) : (
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Date de règlement</th>
+                      <th>Client</th>
+                      <th>Période couverte</th>
+                      <th style={{ textAlign: 'right' }}>Montant Réglé</th>
+                      <th>Effectué par</th>
+                      <th style={{ width: '80px', textAlign: 'center' }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {settlementHistory.map(item => (
+                      <tr key={item.id}>
+                        <td>{new Date(item.created_at).toLocaleString()}</td>
+                        <td style={{ fontWeight: 600 }}>{item.client_name}</td>
+                        <td>Du {new Date(item.start_date).toLocaleDateString()} au {new Date(item.end_date).toLocaleDateString()}</td>
+                        <td style={{ textAlign: 'right', fontWeight: 'bold', color: 'var(--success)' }}>{formatPrice(item.total_settled)} FCFA</td>
+                        <td>{item.username || 'N/A'}</td>
+                        <td style={{ textAlign: 'center' }}>
+                          <button 
+                            className="btn btn-sm"
+                            style={{ color: '#ef4444', border: '1px solid #ef4444', backgroundColor: 'transparent', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '4px' }}
+                            onClick={() => deleteSettlementHistory(item.id)}
+                            title="Supprimer la trace"
+                          >
+                            <X size={14} />
+                          </button>
                         </td>
                       </tr>
                     ))}

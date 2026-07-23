@@ -16,26 +16,31 @@ export default function PaymentsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
   
+  const [stores, setStores] = useState([]);
+  
   const [payModal, setPayModal] = useState({ open: false, sale: null, amount: '', notes: '' });
   const [alertModal, setAlertModal] = useState({ open: false, type: 'info', title: '', message: '', onConfirm: null });
 
   useEffect(() => {
-    if (activeTab === 'history') loadPayments();
-    else loadOutstandingSales();
+    loadData();
   }, [activeTab]);
 
-  const loadPayments = async () => {
+  const loadData = async () => {
     setLoading(true);
-    try { setPayments(await storage.get('payments')); }
-    catch (err) { console.error(err); }
-    finally { setLoading(false); }
-  };
-
-  const loadOutstandingSales = async () => {
-    setLoading(true);
-    try { setOutstandingSales(await storage.get('sales?pending=true')); }
-    catch (err) { console.error(err); }
-    finally { setLoading(false); }
+    try {
+      const [pData, sData, storesData] = await Promise.all([
+        storage.get('payments'),
+        storage.get('sales?pending=true'),
+        storage.get('stores')
+      ]);
+      setPayments(pData || []);
+      setOutstandingSales(sData || []);
+      setStores(storesData || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAddPayment = async (e) => {
@@ -53,7 +58,7 @@ export default function PaymentsPage() {
           await storage.create(`sales/${payModal.sale.id}/payments`, { amount, notes: payModal.notes });
           setPayModal({ open: false, sale: null, amount: '', notes: '' });
           setAlertModal({ open: true, type: 'success', title: 'Succès', message: 'Paiement enregistré !' });
-          loadOutstandingSales();
+          loadData();
         } catch (err) { setAlertModal({ open: true, type: 'error', title: 'Erreur', message: err.message }); }
       }
     });
@@ -62,9 +67,89 @@ export default function PaymentsPage() {
   const filteredHistory = payments.filter(p => p.saleRef?.toLowerCase().includes(searchTerm.toLowerCase()) || p.clientName?.toLowerCase().includes(searchTerm.toLowerCase()));
   const filteredOutstanding = outstandingSales.filter(s => s.status !== 'Annulée' && s.clientName?.toLowerCase().includes(searchTerm.toLowerCase()));
 
+  // Calculs statistiques
+  const totalPaid = payments.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
+  const totalUnpaid = outstandingSales
+    .filter(s => s.status !== 'Annulée')
+    .reduce((acc, s) => acc + ((Number(s.totalAmount) || 0) - (Number(s.amountPaid) || 0)), 0);
+
+  const paidByStore = {};
+  payments.forEach(p => {
+    const sId = p.storeId || 'global';
+    paidByStore[sId] = (paidByStore[sId] || 0) + (Number(p.amount) || 0);
+  });
+
+  const unpaidByStore = {};
+  outstandingSales
+    .filter(s => s.status !== 'Annulée')
+    .forEach(s => {
+      const sId = s.storeId || 'global';
+      unpaidByStore[sId] = (unpaidByStore[sId] || 0) + ((Number(s.totalAmount) || 0) - (Number(s.amountPaid) || 0));
+    });
+
+  const getStoreName = (storeId) => {
+    if (storeId === 'global' || !storeId) return 'Global / Autre';
+    const store = stores.find(s => String(s.id) === String(storeId));
+    return store ? store.name : `Magasin #${storeId}`;
+  };
+
+  const formatPrice = (val) => {
+    if (val === undefined || val === null) return '0';
+    return Number(val).toLocaleString('fr-FR');
+  };
+
   return (
     <div className="page">
       <div className="page-header"><div><h1>Règlements</h1><p>Suivi des encaissements et dettes</p></div></div>
+
+      {/* Cards de statistiques */}
+      <div className="dashboard-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', marginBottom: '1.5rem', gap: '1rem' }}>
+        {/* Card Réglés */}
+        <div className="stat-card stat-card-premium bg-gradient-green">
+          <div className="stat-icon-bg"><DollarSign size={48} /></div>
+          <div className="stat-label">Total des Encaissements</div>
+          <div className="stat-value">{formatPrice(totalPaid)} <span style={{ fontSize: '1rem', fontWeight: 'normal' }}>FCFA</span></div>
+          
+          <div style={{ marginTop: '0.75rem', fontSize: '0.85rem', zIndex: 2 }}>
+            <div style={{ fontWeight: 600, borderBottom: '1px solid rgba(255,255,255,0.2)', paddingBottom: '4px', marginBottom: '4px' }}>Par Magasin :</div>
+            {Object.keys(paidByStore).length === 0 ? (
+              <div style={{ opacity: 0.8 }}>Aucun encaissement</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '100px', overflowY: 'auto' }}>
+                {Object.entries(paidByStore).map(([sId, amt]) => (
+                  <div key={sId} style={{ display: 'flex', justifyContent: 'space-between', opacity: 0.9 }}>
+                    <span>{getStoreName(sId)} :</span>
+                    <span style={{ fontWeight: 700 }}>{formatPrice(amt)} FCFA</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Card Impayés */}
+        <div className="stat-card stat-card-premium bg-gradient-red">
+          <div className="stat-icon-bg"><ListFilter size={48} /></div>
+          <div className="stat-label">Total des Impayés</div>
+          <div className="stat-value">{formatPrice(totalUnpaid)} <span style={{ fontSize: '1rem', fontWeight: 'normal' }}>FCFA</span></div>
+          
+          <div style={{ marginTop: '0.75rem', fontSize: '0.85rem', zIndex: 2 }}>
+            <div style={{ fontWeight: 600, borderBottom: '1px solid rgba(255,255,255,0.2)', paddingBottom: '4px', marginBottom: '4px' }}>Par Magasin :</div>
+            {Object.keys(unpaidByStore).length === 0 ? (
+              <div style={{ opacity: 0.8 }}>Aucun impayé</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '100px', overflowY: 'auto' }}>
+                {Object.entries(unpaidByStore).map(([sId, amt]) => (
+                  <div key={sId} style={{ display: 'flex', justifyContent: 'space-between', opacity: 0.9 }}>
+                    <span>{getStoreName(sId)} :</span>
+                    <span style={{ fontWeight: 700 }}>{formatPrice(amt)} FCFA</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
 
       <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)' }}>
         <button className={`btn ${activeTab === 'history' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('history')}><History size={18} /> Historique</button>

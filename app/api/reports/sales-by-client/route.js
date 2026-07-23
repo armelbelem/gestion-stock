@@ -108,6 +108,21 @@ export async function POST(request) {
 
     const connection = await db.getConnection();
     try {
+      // S'assurer de la présence de la table d'historique
+      await connection.query(`
+        CREATE TABLE IF NOT EXISTS bilan_settlement_history (
+          id VARCHAR(50) PRIMARY KEY,
+          client_id VARCHAR(255) NOT NULL,
+          client_name VARCHAR(255) NOT NULL,
+          start_date VARCHAR(10) NOT NULL,
+          end_date VARCHAR(10) NOT NULL,
+          total_settled DECIMAL(15, 2) NOT NULL,
+          user_id VARCHAR(255),
+          username VARCHAR(255),
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
       await connection.beginTransaction();
       
       const startParam = startDate + 'T00:00:00';
@@ -118,10 +133,11 @@ export async function POST(request) {
          FROM sales 
          WHERE clientId = ? AND date >= ? AND date <= ? AND status IN ('en_attente', 'partiel')
          ${storeId ? 'AND storeId = ?' : ''}`,
-        storeId ? [clientId, startParam, endParam, storeId] : [clientId, startParam, endParam]
+         storeId ? [clientId, startParam, endParam, storeId] : [clientId, startParam, endParam]
       );
 
       if (sales.length === 0) {
+        await connection.commit();
         return NextResponse.json({ message: "Aucune vente à régler pour cette période." });
       }
 
@@ -140,6 +156,17 @@ export async function POST(request) {
           totalSettled += remaining;
         }
       }
+
+      // Récupérer le nom du client pour le log
+      const [clientRows] = await connection.query('SELECT name FROM clients WHERE id = ?', [clientId]);
+      const clientName = clientRows[0]?.name || `Client #${clientId}`;
+
+      // Insérer la trace du règlement de période
+      await connection.query(
+        `INSERT INTO bilan_settlement_history (id, client_id, client_name, start_date, end_date, total_settled, user_id, username) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [uuidv4(), clientId, clientName, startDate, endDate, totalSettled, auth.user.id, auth.user.username || auth.user.name || 'Système']
+      );
 
       await logAction(auth.user.id, storeId || auth.user.storeId, 'Réglement période client', { clientId, startDate, endDate, totalSettled });
       await connection.commit();
