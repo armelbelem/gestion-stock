@@ -556,7 +556,7 @@ export default function ClientReportPage() {
           {printData?.periodText || `PÉRIODE : DU ${startDate} AU ${endDate}`}
         </div>
 
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '30px', fontSize: '5.5px' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '30px', fontSize: '4.8px' }}>
           <thead>
             <tr style={{ backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
               {printData?.hideColNo !== true && (
