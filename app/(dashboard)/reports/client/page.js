@@ -23,6 +23,7 @@ export default function ClientReportPage() {
   const [alertModal, setAlertModal] = useState({ open: false, type: 'info', title: '', message: '', onConfirm: null });
   const [printHistory, setPrintHistory] = useState([]);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [historySearchQuery, setHistorySearchQuery] = useState('');
   const [settlementHistory, setSettlementHistory] = useState([]);
   const [isSettlementHistoryModalOpen, setIsSettlementHistoryModalOpen] = useState(false);
   const pathname = usePathname();
@@ -103,7 +104,32 @@ export default function ClientReportPage() {
     }
   };
 
-  const handlePrintClick = () => {
+  const getClientInitials = (name) => {
+    if (!name) return 'SPEC';
+    const words = name.trim().split(/[\s-_]+/);
+    if (words.length > 1) {
+      return words.map(w => w[0]).join('').toUpperCase();
+    }
+    return name.substring(0, 3).toUpperCase();
+  };
+
+  const handlePrintClick = async () => {
+    const printId = Date.now().toString();
+    let defaultInvoiceNumber = '';
+    let previewNumPart = '';
+    try {
+      const seqRes = await fetch(`/api/sequence?type=NSA-EDV&preview=true&orderId=${printId}`);
+      if (seqRes.ok) {
+        const seqData = await seqRes.json();
+        if (seqData.documentNumber) {
+          previewNumPart = seqData.documentNumber.replace('NSA-EDV-', '');
+          defaultInvoiceNumber = `FACTURE NSA-EDV :                  ${previewNumPart}`;
+        }
+      }
+    } catch (e) {
+      console.error('Error fetching preview sequence:', e);
+    }
+
     const defaultCompany = `${settings?.companyName || 'NS AUTO'} ${selectedClient?.clientCode ? `/ Code client : ${selectedClient.clientCode}` : ''}\n` +
       [
         settings?.address,
@@ -123,14 +149,17 @@ export default function ClientReportPage() {
         selectedClient?.nif ? `IFU : ${selectedClient.nif}` : ''
       ].filter(Boolean).join('\n');
 
-    const defaultPeriod = `DU ${new Date(startDate).toLocaleDateString()} AU ${new Date(endDate).toLocaleDateString()}`;
+    const defaultPeriod = `PÉRIODE : DU ${startDate} AU ${endDate}`;
     const tvaBase = (data.summary.totalGrossAmount || 0) - (data.summary.totalDiscount || 0);
     const tvaRate = tvaBase > 0 && data.summary.totalTva > 0
       ? data.summary.totalTva / tvaBase
       : 0;
 
     setPrintData({
-      title: `BILAN DE CONSOMMATION : ${selectedClient?.name}`,
+      id: printId,
+      invoicePrefix: previewNumPart ? 'FACTURE NSA-EDV :' : '',
+      invoiceNumber: previewNumPart,
+      title: defaultInvoiceNumber || `BILAN DE CONSOMMATION : ${selectedClient?.name}`,
       companyDetails: defaultCompany,
       clientDetails: defaultClient,
       periodText: defaultPeriod,
@@ -138,15 +167,19 @@ export default function ClientReportPage() {
       city: settings?.city || 'Ouagadougou',
       supervisorName: settings?.supervisorName || 'Guy Roland TONDE',
       supervisorTitle: settings?.supervisorTitle || 'SUPERVISEUR',
-      notes: '',
-      notesTitle: 'Notes / Conditions Particulières',
+      notes: 'par chèque libellé au nom de NS AUTO\nVirement bancaire BF139 01001 001193300182 - 78 à IB BANK',
+      notesTitle: 'Mode de règlement',
+      sectionTitle: 'FOURNITURE DE PIECES DE RECHANGE',
+      customSite: getClientInitials(selectedClient?.name),
+      hideColNo: false,
+      hideColSite: false,
       colHeaders: {
-        code: 'CODE',
-        barcode: 'RÉFÉRENCE',
-        name: 'DÉSIGNATION ARTICLE',
-        unitPrice: 'P.U (FCFA)',
-        qty: 'QTÉ',
-        total: 'TOTAL (FCFA)'
+        code: 'Code',
+        barcode: 'Ref. CFAO',
+        name: 'Article',
+        unitPrice: 'Prix HTVA F. CFA',
+        qty: 'Qté',
+        total: 'Total HTVA F. CFA'
       },
       items: JSON.parse(JSON.stringify(data.items)),
       summary: JSON.parse(JSON.stringify(data.summary)),
@@ -165,7 +198,7 @@ export default function ClientReportPage() {
   };
 
   const addPrintItem = () => {
-    const newItems = [...printData.items, { code: '', barcode: '', name: '', unitPrice: 0, totalQuantity: 1, totalAmount: 0 }];
+    const newItems = [...printData.items, { code: '', barcode: '', name: '', unitPrice: 0, totalQuantity: 0, totalAmount: 0 }];
     recalculatePrintSummary(newItems);
   };
 
@@ -185,23 +218,64 @@ export default function ClientReportPage() {
     });
   };
 
-    const executePrint = async () => {
+  const executePrint = async () => {
+    const hasInvalidItem = printData.items?.some(item => 
+      (Number(item.totalQuantity) === 0 || !item.totalQuantity) && 
+      (Number(item.unitPrice) === 0 || !item.unitPrice)
+    );
+    if (hasInvalidItem) {
+      setAlertModal({
+        open: true,
+        type: 'error',
+        title: 'Validation de l\'impression',
+        message: 'L\'impression n\'est pas autorisée car une ou plusieurs lignes ont une Quantité et un Prix Unitaire à 0. Veuillez corriger ou supprimer ces lignes.'
+      });
+      return;
+    }
+
     setIsPrintModalOpen(false);
     
+    let finalNumber = printData.invoiceNumber;
+    try {
+      const seqRes = await fetch(`/api/sequence?type=NSA-EDV&orderId=${printData.id || Date.now().toString()}`);
+      if (seqRes.ok) {
+        const seqData = await seqRes.json();
+        if (seqData.documentNumber) {
+          finalNumber = seqData.documentNumber.replace('NSA-EDV-', '');
+        }
+      }
+    } catch (e) {
+      console.error('Error finalising sequence:', e);
+    }
+
+    const updatedPrintData = {
+      ...printData,
+      invoiceNumber: finalNumber,
+      title: printData.invoicePrefix !== undefined ? `${printData.invoicePrefix}                  ${finalNumber}` : (printData.title || `BILAN DE CONSOMMATION : ${selectedClient?.name}`)
+    };
+
+    setPrintData(updatedPrintData);
+
     try {
       const historyRecord = {
-        id: Date.now().toString(),
+        id: printData.id || Date.now().toString(),
         clientId: selectedClientId,
         clientName: selectedClient?.name,
         period: printData.periodText,
         totalAmount: printData.summary.totalAmount,
-        printData: printData
+        printData: updatedPrintData
       };
       
       const res = await storage.create('print-history-bilan', historyRecord);
       if (res.success) {
         const newHistoryRecord = { ...historyRecord, date: new Date().toISOString() };
-        setPrintHistory(prev => [newHistoryRecord, ...prev]);
+        setPrintHistory(prev => {
+          const exists = prev.some(h => h.id === historyRecord.id);
+          if (exists) {
+            return prev.map(h => h.id === historyRecord.id ? newHistoryRecord : h);
+          }
+          return [newHistoryRecord, ...prev];
+        });
       }
     } catch(e) {
       console.error('Failed to save history to DB:', e);
@@ -375,7 +449,7 @@ export default function ClientReportPage() {
 
   const selectedClient = clients.find(c => c.id === selectedClientId);
 
-  if (isPrinting && data) {
+  if (isPrinting && printData) {
     const stamp = settings?.stampImage || partners.find(p => p.stamp_image)?.stamp_image;
     const sig = settings?.signatureImage || partners.find(p => p.signature_image)?.signature_image;
 
@@ -399,11 +473,10 @@ export default function ClientReportPage() {
           @media print {
             .receipt-print-only { 
               width: 21cm !important; 
-              min-height: 29.7cm !important; 
+              min-height: auto !important; 
               padding: 0 !important; 
               margin: 0 !important; 
               position: relative !important;
-              top: -60px !important;
             }
             .receipt-print-only table { border-collapse: collapse !important; width: 100% !important; }
             .receipt-print-only th, .receipt-print-only td { border: 1.5pt solid black !important; -webkit-print-color-adjust: exact !important; }
@@ -426,7 +499,7 @@ export default function ClientReportPage() {
             /* Règles pour la pagination */
             table { page-break-inside: auto; }
             tr { page-break-inside: avoid; page-break-after: auto; }
-            thead { display: table-header-group; }
+            thead { display: table-row-group !important; }
             tfoot { display: table-footer-group; }
             .avoid-page-break { page-break-inside: avoid; break-inside: avoid; }
           }
@@ -451,7 +524,9 @@ export default function ClientReportPage() {
         {/* Titre central */}
         <div style={{ border: '2px solid black', padding: '10px', textAlign: 'center', marginBottom: '15px', backgroundColor: '#f9f9f9' }}>
           <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 'bold', textTransform: 'uppercase' }}>
-            {printData?.title || `BILAN DE CONSOMMATION : ${selectedClient?.name}`}
+            {printData?.invoicePrefix !== undefined 
+              ? `${printData.invoicePrefix}                  ${printData.invoiceNumber || ''}` 
+              : (printData?.title || `BILAN DE CONSOMMATION : ${selectedClient?.name}`)}
           </h2>
         </div>
 
@@ -478,132 +553,249 @@ export default function ClientReportPage() {
 
         {/* Bandeau Période */}
         <div style={{ backgroundColor: '#e0e0e0', border: '1px solid black', borderBottom: 'none', padding: '5px', textAlign: 'center', fontWeight: 'bold', fontSize: '9px' }}>
-          PÉRIODE : {printData?.periodText || `DU ${new Date(startDate).toLocaleDateString()} AU ${new Date(endDate).toLocaleDateString()}`}
+          {printData?.periodText || `PÉRIODE : DU ${startDate} AU ${endDate}`}
         </div>
 
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '30px', fontSize: '8px' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '30px', fontSize: '5.5px' }}>
           <thead>
-            <tr style={{ backgroundColor: '#f0f0f0', borderBottom: '2px solid #000' }}>
-              {printData?.hideColCode !== true && <th style={{ textAlign: 'left', padding: '4px', border: '1px solid #000' }}>{printData?.colHeaders?.code || 'CODE'}</th>}
-              {printData?.hideColBarcode !== true && <th style={{ textAlign: 'left', padding: '4px', border: '1px solid #000' }}>{printData?.colHeaders?.barcode || 'RÉFÉRENCE'}</th>}
-              {printData?.hideColName !== true && <th style={{ textAlign: 'left', padding: '4px', border: '1px solid #000' }}>{printData?.colHeaders?.name || 'DÉSIGNATION ARTICLE'}</th>}
-              {printData?.hideColUnitPrice !== true && <th style={{ textAlign: 'right', padding: '4px', border: '1px solid #000' }}>{printData?.colHeaders?.unitPrice || 'P.U (FCFA)'}</th>}
-              {printData?.hideColQty !== true && <th style={{ textAlign: 'center', padding: '4px', border: '1px solid #000' }}>{printData?.colHeaders?.qty || 'QTÉ'}</th>}
-              {printData?.hideColTotal !== true && <th style={{ textAlign: 'right', padding: '4px', border: '1px solid #000' }}>{printData?.colHeaders?.total || 'TOTAL (FCFA)'}</th>}
+            <tr style={{ backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+              {printData?.hideColNo !== true && (
+                <th rowSpan="3" style={{ border: '1.5pt solid #000', padding: '4px', fontWeight: 'bold', textAlign: 'center', width: '30px' }}>
+                  {printData?.colHeaders?.no || 'N°'}
+                </th>
+              )}
+              {(() => {
+                const numDesignationCols = [
+                  printData?.hideColCode !== true,
+                  printData?.hideColSite !== true,
+                  printData?.hideColName !== true,
+                  printData?.hideColBarcode !== true
+                ].filter(Boolean).length;
+                return numDesignationCols > 0 && (
+                  <th colSpan={numDesignationCols} style={{ border: '1.5pt solid #000', padding: '4px', fontWeight: 'bold', textAlign: 'center' }}>
+                    DESIGNATION
+                  </th>
+                );
+              })()}
+              {printData?.hideColQty !== true && (
+                <th style={{ border: '1.5pt solid #000', padding: '4px', fontWeight: 'bold', textAlign: 'center', width: '50px' }}>
+                  {printData?.colHeaders?.qty || 'Qté'}
+                </th>
+              )}
+              {printData?.hideColUnitPrice !== true && (
+                <th style={{ border: '1.5pt solid #000', padding: '4px', fontWeight: 'bold', textAlign: 'center', width: '90px' }}>
+                  {printData?.colHeaders?.unitPrice || 'Prix HTVA F. CFA'}
+                </th>
+              )}
+              {printData?.hideColTotal !== true && (
+                <th style={{ border: '1.5pt solid #000', padding: '4px', fontWeight: 'bold', textAlign: 'center', width: '105px' }}>
+                  {printData?.colHeaders?.total || 'Total HTVA F. CFA'}
+                </th>
+              )}
+            </tr>
+            <tr>
+              {(() => {
+                const numDesignationCols = [
+                  printData?.hideColCode !== true,
+                  printData?.hideColSite !== true,
+                  printData?.hideColName !== true,
+                  printData?.hideColBarcode !== true
+                ].filter(Boolean).length;
+                return numDesignationCols > 0 && (
+                  <th colSpan={numDesignationCols} style={{ border: '1.5pt solid #000', padding: '4px', fontWeight: 'bold', textAlign: 'left', backgroundColor: '#fff' }}>
+                    {printData?.sectionTitle || 'FOURNITURE DE PIECES DE RECHANGE'}
+                  </th>
+                );
+              })()}
+              {printData?.hideColQty !== true && <th style={{ border: '1.5pt solid #000', backgroundColor: '#fff' }}></th>}
+              {printData?.hideColUnitPrice !== true && <th style={{ border: '1.5pt solid #000', backgroundColor: '#fff' }}></th>}
+              {printData?.hideColTotal !== true && <th style={{ border: '1.5pt solid #000', backgroundColor: '#fff' }}></th>}
+            </tr>
+            <tr style={{ backgroundColor: '#e5e7eb', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+              {printData?.hideColCode !== true && (
+                <th style={{ border: '1.5pt solid #000', padding: '4px', fontWeight: 'bold', textAlign: 'center', width: '80px' }}>
+                  {printData?.colHeaders?.code || 'Code'}
+                </th>
+              )}
+              {printData?.hideColSite !== true && (
+                <th style={{ border: '1.5pt solid #000', padding: '4px', fontWeight: 'bold', textAlign: 'center', width: '60px' }}>
+                  {printData?.colHeaders?.site || 'Site'}
+                </th>
+              )}
+              {printData?.hideColName !== true && (
+                <th style={{ border: '1.5pt solid #000', padding: '4px', fontWeight: 'bold', textAlign: 'left' }}>
+                  {printData?.colHeaders?.name || 'Article'}
+                </th>
+              )}
+              {printData?.hideColBarcode !== true && (
+                <th style={{ border: '1.5pt solid #000', padding: '4px', fontWeight: 'bold', textAlign: 'center', width: '90px' }}>
+                  {printData?.colHeaders?.barcode || 'Ref. CFAO'}
+                </th>
+              )}
+              {printData?.hideColQty !== true && <th style={{ border: '1.5pt solid #000' }}></th>}
+              {printData?.hideColUnitPrice !== true && <th style={{ border: '1.5pt solid #000' }}></th>}
+              {printData?.hideColTotal !== true && <th style={{ border: '1.5pt solid #000' }}></th>}
             </tr>
           </thead>
           <tbody>
             {(() => {
-              // Calcul du colspan pour les totaux
-              const numLeftCols = [printData?.hideColCode !== true, printData?.hideColBarcode !== true, printData?.hideColName !== true, printData?.hideColUnitPrice !== true].filter(Boolean).length;
+              const hasNo = printData?.hideColNo !== true;
+              const hasCode = printData?.hideColCode !== true;
+              const hasSite = printData?.hideColSite !== true;
+              const hasName = printData?.hideColName !== true;
+              const hasBarcode = printData?.hideColBarcode !== true;
               const hasQty = printData?.hideColQty !== true;
+              const hasPrice = printData?.hideColUnitPrice !== true;
               const hasTotal = printData?.hideColTotal !== true;
-              
+
+              const numLeftCols = [hasNo, hasCode, hasSite, hasName, hasBarcode].filter(Boolean).length;
+              const totalCols = [hasNo, hasCode, hasSite, hasName, hasBarcode, hasQty, hasPrice, hasTotal].filter(Boolean).length;
+
               return (
                 <React.Fragment>
                   {printData?.items?.map((item, idx) => (
                     <tr key={idx}>
-                      {printData?.hideColCode !== true && <td style={{ padding: '4px', border: '1px solid #000' }}>{item.code || '-'}</td>}
-                      {printData?.hideColBarcode !== true && <td style={{ padding: '4px', border: '1px solid #000' }}>{item.barcode || '-'}</td>}
-                      {printData?.hideColName !== true && <td style={{ padding: '4px', border: '1px solid #000' }}>{item.name}</td>}
-                      {printData?.hideColUnitPrice !== true && <td style={{ padding: '4px', border: '1px solid #000', textAlign: 'right' }}>{formatPrice(item.unitPrice)}</td>}
-                      {printData?.hideColQty !== true && <td style={{ textAlign: 'center', padding: '4px', border: '1px solid #000' }}>{item.totalQuantity}</td>}
-                      {printData?.hideColTotal !== true && <td style={{ textAlign: 'right', padding: '4px', border: '1px solid #000', fontWeight: 'bold' }}>{formatPrice(item.totalAmount)}</td>}
+                      {hasNo && (
+                        <td style={{ border: '1.5pt solid #000', padding: '4px', textAlign: 'center' }}>
+                          {idx + 1}
+                        </td>
+                      )}
+                      {hasCode && (
+                        <td style={{ border: '1.5pt solid #000', padding: '4px', textAlign: 'center' }}>
+                          {item.code || '-'}
+                        </td>
+                      )}
+                      {hasSite && (
+                        <td style={{ border: '1.5pt solid #000', padding: '4px', textAlign: 'center' }}>
+                          {printData.customSite || ''}
+                        </td>
+                      )}
+                      {hasName && (
+                        <td style={{ border: '1.5pt solid #000', padding: '4px', fontWeight: 'bold' }}>
+                          {item.name}
+                        </td>
+                      )}
+                      {hasBarcode && (
+                        <td style={{ border: '1.5pt solid #000', padding: '4px', textAlign: 'center' }}>
+                          {item.barcode || '-'}
+                        </td>
+                      )}
+                      {hasQty && (
+                        <td style={{ border: '1.5pt solid #000', padding: '4px', textAlign: 'center' }}>
+                          {item.totalQuantity}
+                        </td>
+                      )}
+                      {hasPrice && (
+                        <td style={{ border: '1.5pt solid #000', padding: '4px', textAlign: 'right' }}>
+                          {formatPrice(item.unitPrice)}
+                        </td>
+                      )}
+                      {hasTotal && (
+                        <td style={{ border: '1.5pt solid #000', padding: '4px', textAlign: 'right', fontWeight: 'bold' }}>
+                          {formatPrice(item.totalAmount)}
+                        </td>
+                      )}
                     </tr>
                   ))}
                   
                   {/* Totaux */}
-                  <tr style={{ backgroundColor: '#f0f0f0', fontWeight: 'bold' }}>
-                    {numLeftCols > 0 && <td colSpan={numLeftCols} style={{ textAlign: 'right', padding: '4px', border: '1px solid #000' }}>TOTAL BRUT</td>}
-                    {hasQty && <td style={{ textAlign: 'center', padding: '4px', border: '1px solid #000' }}>{printData?.summary?.totalQuantity}</td>}
-                    {hasTotal && <td style={{ textAlign: 'right', padding: '4px', border: '1px solid #000' }}>{formatPrice(printData?.summary?.totalGrossAmount)} FCFA</td>}
+                  <tr style={{ fontWeight: 'bold' }}>
+                    <td colSpan={totalCols - (hasTotal ? 1 : 0)} style={{ border: '1.5pt solid #000', padding: '4px', textAlign: 'right' }}>MONTANT HTVA</td>
+                    {hasTotal && <td style={{ border: '1.5pt solid #000', padding: '4px', textAlign: 'right' }}>{formatPrice(printData?.summary?.totalGrossAmount)}</td>}
                   </tr>
                   
                   {printData?.summary?.totalDiscount > 0 && (
                     <tr style={{ fontWeight: 'bold' }}>
-                      <td colSpan={numLeftCols + (hasQty ? 1 : 0)} style={{ textAlign: 'right', padding: '4px', border: '1px solid #000' }}>TOTAL REMISES</td>
-                      {hasTotal && <td style={{ textAlign: 'right', padding: '4px', border: '1px solid #000' }}>-{formatPrice(printData?.summary?.totalDiscount)} FCFA</td>}
+                      <td colSpan={totalCols - (hasTotal ? 1 : 0)} style={{ border: '1.5pt solid #000', padding: '4px', textAlign: 'right' }}>TOTAL REMISES</td>
+                      {hasTotal && <td style={{ border: '1.5pt solid #000', padding: '4px', textAlign: 'right' }}>-{formatPrice(printData?.summary?.totalDiscount)}</td>}
                     </tr>
                   )}
                   
                   {printData?.summary?.totalTva > 0 && (() => {
                     const base = (printData?.summary?.totalGrossAmount || 0) - (printData?.summary?.totalDiscount || 0);
-                    const pct = base > 0 ? Math.round((printData.summary.totalTva / base) * 100) : 0;
+                    const pct = base > 0 ? (printData.summary.totalTva / base) * 100 : 0;
+                    const pctString = pct.toFixed(2);
                     return (
                       <tr style={{ fontWeight: 'bold' }}>
-                        <td colSpan={numLeftCols + (hasQty ? 1 : 0)} style={{ textAlign: 'right', padding: '4px', border: '1px solid #000' }}>MONTANT TVA ({pct}%)</td>
-                        {hasTotal && <td style={{ textAlign: 'right', padding: '4px', border: '1px solid #000' }}>{formatPrice(printData.summary.totalTva)} FCFA</td>}
+                        <td colSpan={totalCols - (hasTotal ? 1 : 0)} style={{ border: '1.5pt solid #000', padding: '4px', textAlign: 'right' }}>MONTANT TVA {pctString}%</td>
+                        {hasTotal && <td style={{ border: '1.5pt solid #000', padding: '4px', textAlign: 'right' }}>{formatPrice(printData.summary.totalTva)}</td>}
                       </tr>
                     );
                   })()}
                   
-                  <tr style={{ backgroundColor: '#e0e0e0', fontWeight: 'bold' }}>
-                    <td colSpan={numLeftCols + (hasQty ? 1 : 0)} style={{ textAlign: 'right', padding: '4px', border: '1px solid #000' }}>TOTAL NET À RÉGLER</td>
-                    {hasTotal && <td style={{ textAlign: 'right', padding: '4px', border: '1px solid #000', fontSize: '14px' }}>{formatPrice(printData?.summary?.totalAmount)} FCFA</td>}
+                  <tr style={{ backgroundColor: '#e5e7eb', fontWeight: 'bold', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
+                    <td colSpan={totalCols - (hasTotal ? 1 : 0)} style={{ border: '1.5pt solid #000', padding: '4px', textAlign: 'right' }}>TOTAL NET A PAYER</td>
+                    {hasTotal && <td style={{ border: '1.5pt solid #000', padding: '4px', textAlign: 'right', fontSize: '12px' }}>{formatPrice(printData?.summary?.totalAmount)}</td>}
                   </tr>
-                  {printData?.notes && (
-                    <tr className="no-print-border">
-                      <td colSpan={numLeftCols + (hasQty ? 1 : 0) + (hasTotal ? 1 : 0)} className="no-print-border" style={{ border: 'none', padding: '10px 0 0 0', textAlign: 'left', fontWeight: 'normal' }}>
-                        <div style={{ padding: '0' }}>
-                          <p style={{ margin: 0, fontSize: '12px', fontWeight: 'bold', color: '#666', textTransform: 'uppercase', marginBottom: '4px' }}>{printData.notesTitle || 'Notes / Conditions Particulières'} :</p>
-                          <p style={{ margin: 0, fontSize: '13px', whiteSpace: 'pre-wrap', color: '#333' }}>{printData.notes}</p>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
+
                 </React.Fragment>
               );
             })()}
           </tbody>
           <tfoot>
             <tr>
-              <td colSpan="6" className="no-print-border" style={{ border: 'none', height: '100px' }}></td>
+              <td colSpan={8} className="no-print-border" style={{ height: '95px', border: 'none', backgroundColor: 'transparent' }}></td>
             </tr>
           </tfoot>
         </table>
 
-        <div className="avoid-page-break" style={{ paddingTop: '20px', paddingBottom: '20px' }}>
-          <div style={{ marginTop: '20px', fontSize: '11px' }}>
-            <p style={{ margin: '0 0 5px 0' }}>Arrêtée la présente facture à la somme de :</p>
-            <p style={{ margin: 0, fontWeight: 'bold', fontSize: '12px', marginLeft: '40px' }}>
+        <div className="avoid-page-break" style={{ paddingTop: '0px', paddingBottom: '10px' }}>
+          <div style={{ marginTop: '5px', fontSize: '12px' }}>
+            <p style={{ margin: '0 0 3px 0' }}>Arrêtée la présente facture à la somme de :</p>
+            <p style={{ margin: 0, fontWeight: 'bold', fontSize: '13px' }}>
               {numberToWords(Math.trunc(printData?.summary?.totalAmount || 0))} ( {formatPrice(printData?.summary?.totalAmount)} Francs CFA TTC )
             </p>
           </div>
 
-          <div style={{ display: 'flex', marginLeft: 'auto', marginRight: '0', width: 'fit-content', alignItems: 'flex-end', gap: '10px', marginTop: '20px' }}>
-            {/* Cachet Area */}
-            {stamp && (
-              <div style={{ width: '150px', height: '110px', marginBottom: '10px', marginRight: '-30px', zIndex: 1 }}>
-                <img src={stamp} alt="Cachet" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-              </div>
-            )}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: '35px', width: '100%' }}>
+            {/* Left Side: Mode de règlement */}
+            <div style={{ maxWidth: '65%', fontSize: '10.5px', lineHeight: '1.5' }}>
+              {printData?.notes && (
+                <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-start' }}>
+                  <span style={{ fontSize: '9.5px', whiteSpace: 'nowrap' }}>{printData.notesTitle || 'Mode de règlement'} :</span>
+                  <pre style={{ margin: 0, padding: 0, border: 'none', background: 'none', fontFamily: 'inherit', fontSize: '10.5px', whiteSpace: 'pre-wrap', color: '#000', lineHeight: '1.5' }}>
+                    {printData.notes}
+                  </pre>
+                </div>
+              )}
+            </div>
 
-            {/* Signature Area */}
-            <div style={{ textAlign: 'right', minWidth: '250px' }}>
-              <p style={{ fontStyle: 'italic', fontSize: '13px', marginBottom: '5px' }}>Fait à {printData?.city || settings?.city || 'Ouagadougou'} le {new Date(printData?.date || new Date()).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
+            {/* Right Side: Stamp & Signature */}
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: '10px', marginLeft: 'auto' }}>
+              {/* Cachet Area */}
+              {stamp && (
+                <div style={{ width: '150px', height: '110px', marginBottom: '10px', marginRight: '-30px', zIndex: 1 }}>
+                  <img src={stamp} alt="Cachet" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                </div>
+              )}
 
-              <div style={{ position: 'relative', marginTop: '10px', height: '100px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                {sig && (
-                  <img
-                    src={sig}
-                    alt="Signature"
-                    style={{
-                      maxHeight: '80px',
-                      maxWidth: '200px',
-                      objectFit: 'contain',
-                      marginBottom: '-20px',
-                      zIndex: 1
-                    }}
-                  />
-                )}
+              {/* Signature Area */}
+              <div style={{ textAlign: 'right', minWidth: '250px' }}>
+                <p style={{ fontStyle: 'italic', fontSize: '13px', marginBottom: '5px' }}>Fait à {printData?.city || settings?.city || 'Ouagadougou'} le {new Date(printData?.date || new Date()).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
 
-                <div style={{ marginTop: sig ? '0' : '50px', zIndex: 2 }}>
-                  <p style={{ fontWeight: 'bold', textDecoration: 'underline', fontSize: '15px', margin: 0 }}>
-                    {printData?.supervisorName || settings?.supervisorName || 'Guy Roland TONDE'}
-                  </p>
-                  <p style={{ margin: 0, fontSize: '12px' }}>
-                    {printData?.supervisorTitle || settings?.supervisorTitle || 'SUPERVISEUR'}
-                  </p>
+                <div style={{ position: 'relative', marginTop: '10px', height: '100px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                  {sig && (
+                    <img
+                      src={sig}
+                      alt="Signature"
+                      style={{
+                        maxHeight: '80px',
+                        maxWidth: '200px',
+                        objectFit: 'contain',
+                        marginBottom: '-20px',
+                        zIndex: 1
+                      }}
+                    />
+                  )}
+
+                  <div style={{ marginTop: sig ? '0' : '50px', zIndex: 2 }}>
+                    <p style={{ fontWeight: 'bold', textDecoration: 'underline', fontSize: '15px', margin: 0 }}>
+                      {printData?.supervisorName || settings?.supervisorName || 'Guy Roland TONDE'}
+                    </p>
+                    <p style={{ margin: 0, fontSize: '12px' }}>
+                      {printData?.supervisorTitle || settings?.supervisorTitle || 'SUPERVISEUR'}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -635,10 +827,18 @@ export default function ClientReportPage() {
 
   return (
     <div className="page">
-      <div className="page-header">
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h1>Bilan de Vente par Client</h1>
           <p>Générez un récapitulatif détaillé des produits vendus</p>
+        </div>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '6px', border: '1px solid var(--border)', backgroundColor: '#fff', cursor: 'pointer' }} onClick={() => setIsHistoryModalOpen(true)}>
+            <Clock size={16} /> Historique Factures
+          </button>
+          <button className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: '6px', border: '1px solid var(--border)', backgroundColor: '#fff', cursor: 'pointer' }} onClick={() => setIsSettlementHistoryModalOpen(true)}>
+            <Coins size={16} /> Historique Règlements
+          </button>
         </div>
       </div>
 
@@ -701,7 +901,7 @@ export default function ClientReportPage() {
                 <Printer size={18} /> Imprimer / PDF
               </button>
               <button className="btn btn-secondary" onClick={() => setIsHistoryModalOpen(true)}>
-                <Clock size={18} /> Historique Impressions
+                <Clock size={18} /> Historique Factures
               </button>
               <button className="btn btn-secondary" onClick={() => setIsSettlementHistoryModalOpen(true)}>
                 <Clock size={18} /> Historique Règlements
@@ -781,13 +981,28 @@ export default function ClientReportPage() {
               <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                 <div className="form-group">
                   <label className="form-label" style={{ fontWeight: 'bold', fontSize: '0.85rem' }}>Titre du document</label>
-                  <input 
-                    type="text" 
-                    className="form-control" 
-                    value={printData.title || ''} 
-                    onChange={e => setPrintData({...printData, title: e.target.value})} 
-                    style={{ fontWeight: 'bold', color: 'var(--primary)' }}
-                  />
+                  {printData.invoicePrefix !== undefined ? (
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      <input 
+                        type="text" 
+                        className="form-control" 
+                        value={printData.invoicePrefix || ''} 
+                        onChange={e => setPrintData({...printData, invoicePrefix: e.target.value})} 
+                        style={{ fontWeight: 'bold', color: 'var(--primary)', flex: 1 }}
+                      />
+                      <span style={{ fontWeight: 'bold', fontSize: '1rem', color: 'var(--primary)', whiteSpace: 'nowrap', backgroundColor: '#f0f4f8', padding: '0.5rem 0.75rem', borderRadius: '4px', border: '1px solid #d0e0f0' }}>
+                        {printData.invoiceNumber || ''}
+                      </span>
+                    </div>
+                  ) : (
+                    <input 
+                      type="text" 
+                      className="form-control" 
+                      value={printData.title || ''} 
+                      onChange={e => setPrintData({...printData, title: e.target.value})} 
+                      style={{ fontWeight: 'bold', color: 'var(--primary)' }}
+                    />
+                  )}
                 </div>
                 <div className="form-group">
                   <label className="form-label" style={{ fontWeight: 'bold', fontSize: '0.85rem', color: 'var(--primary)' }}>Période (Bandeau gris)</label>
@@ -842,6 +1057,16 @@ export default function ClientReportPage() {
                   <input type="text" className="form-control" value={printData.supervisorTitle || ''} onChange={e => setPrintData({...printData, supervisorTitle: e.target.value})} />
                 </div>
               </div>
+              <div className="grid-2" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div className="form-group">
+                  <label className="form-label" style={{ fontWeight: 'bold', fontSize: '0.85rem' }}>Titre Section (ex: FOURNITURE DE PIECES DE RECHANGE)</label>
+                  <input type="text" className="form-control" value={printData.sectionTitle || ''} onChange={e => setPrintData({...printData, sectionTitle: e.target.value})} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label" style={{ fontWeight: 'bold', fontSize: '0.85rem' }}>Code Site (ex: HGO)</label>
+                  <input type="text" className="form-control" value={printData.customSite || ''} onChange={e => setPrintData({...printData, customSite: e.target.value})} />
+                </div>
+              </div>
               <div className="form-group" style={{ marginBottom: '1rem' }}>
                 <input 
                   type="text" 
@@ -864,12 +1089,14 @@ export default function ClientReportPage() {
                 <label className="form-label" style={{ fontWeight: 'bold', fontSize: '0.85rem', color: 'var(--primary)' }}>Personnalisation des Noms de Colonnes</label>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
                   {[
-                    { col: 'code', hide: 'hideColCode', label: 'Code', defaultLabel: 'CODE' },
-                    { col: 'barcode', hide: 'hideColBarcode', label: 'Référence', defaultLabel: 'RÉFÉRENCE' },
-                    { col: 'name', hide: 'hideColName', label: 'Désignation', defaultLabel: 'DÉSIGNATION ARTICLE' },
-                    { col: 'unitPrice', hide: 'hideColUnitPrice', label: 'Prix Unitaire', defaultLabel: 'P.U (FCFA)' },
-                    { col: 'qty', hide: 'hideColQty', label: 'Quantité', defaultLabel: 'QTÉ' },
-                    { col: 'total', hide: 'hideColTotal', label: 'Total', defaultLabel: 'TOTAL (FCFA)' }
+                    { col: 'no', hide: 'hideColNo', label: 'N°', defaultLabel: 'N°' },
+                    { col: 'code', hide: 'hideColCode', label: 'Code', defaultLabel: 'Code' },
+                    { col: 'site', hide: 'hideColSite', label: 'Site', defaultLabel: 'Site' },
+                    { col: 'name', hide: 'hideColName', label: 'Article', defaultLabel: 'Article' },
+                    { col: 'barcode', hide: 'hideColBarcode', label: 'Ref. CFAO', defaultLabel: 'Ref. CFAO' },
+                    { col: 'qty', hide: 'hideColQty', label: 'Quantité', defaultLabel: 'Qté' },
+                    { col: 'unitPrice', hide: 'hideColUnitPrice', label: 'Prix Unitaire', defaultLabel: 'Prix HTVA F. CFA' },
+                    { col: 'total', hide: 'hideColTotal', label: 'Total', defaultLabel: 'Total HTVA F. CFA' }
                   ].map(c => (
                     <div key={c.col}>
                       <label style={{ fontSize: '0.75rem', color: '#666', display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
@@ -946,62 +1173,109 @@ export default function ClientReportPage() {
         <div className="modal-overlay">
           <div className="modal-content" style={{ maxWidth: '850px', width: '90%' }}>
             <div className="modal-header">
-              <h3>Historique des impressions de bilan</h3>
+              <h3>Historique des factures de bilan</h3>
               <button className="modal-close" onClick={() => setIsHistoryModalOpen(false)}><X size={20} /></button>
             </div>
             <div className="modal-body custom-scrollbar" style={{ padding: '1.5rem', maxHeight: '70vh', overflowY: 'auto' }}>
+              <div style={{ marginBottom: '1rem' }}>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Rechercher par N° Facture, Client, Période..."
+                  value={historySearchQuery}
+                  onChange={e => setHistorySearchQuery(e.target.value)}
+                  style={{ width: '100%', padding: '8px' }}
+                />
+              </div>
               {printHistory.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
                   Aucun historique d'impression n'a été trouvé.
                 </div>
               ) : (
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Date d'impression</th>
-                      <th>Client</th>
-                      <th>Période couverte</th>
-                      <th style={{ textAlign: 'right' }}>Montant Total</th>
-                      <th style={{ width: '160px' }}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {printHistory.map(historyItem => (
-                      <tr key={historyItem.id}>
-                        <td>{new Date(historyItem.date).toLocaleString()}</td>
-                        <td style={{ fontWeight: 600 }}>{historyItem.clientName}</td>
-                        <td>{historyItem.period}</td>
-                        <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{formatPrice(historyItem.totalAmount)} FCFA</td>
-                        <td>
-                          <div style={{ display: 'flex', gap: '0.5rem' }}>
-                            <button 
-                              className="btn btn-sm btn-outline-primary"
-                              style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
-                              onClick={() => {
-                                if (historyItem.clientId) {
-                                  setSelectedClientId(historyItem.clientId);
-                                }
-                                setPrintData(historyItem.printData);
-                                setIsHistoryModalOpen(false);
-                                setIsPrintModalOpen(true);
-                              }}
-                            >
-                              <Printer size={14} /> Éditer
-                            </button>
-                            <button 
-                              className="btn btn-sm"
-                              style={{ color: '#ef4444', border: '1px solid #ef4444', backgroundColor: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                              onClick={() => deletePrintHistory(historyItem.id)}
-                              title="Supprimer"
-                            >
-                              <X size={14} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                (() => {
+                  const filteredHistory = printHistory.filter(item => {
+                    const query = historySearchQuery.toLowerCase().trim();
+                    if (!query) return true;
+                    const title = (item.printData?.title || '').toLowerCase();
+                    const client = (item.clientName || '').toLowerCase();
+                    const period = (item.period || '').toLowerCase();
+                    return title.includes(query) || client.includes(query) || period.includes(query);
+                  });
+
+                  if (filteredHistory.length === 0) {
+                    return (
+                      <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                        Aucun historique ne correspond à votre recherche.
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <table className="table">
+                      <thead>
+                        <tr>
+                          <th>Date d'impression</th>
+                          <th>N° Facture</th>
+                          <th>Client</th>
+                          <th>Période couverte</th>
+                          <th style={{ textAlign: 'right' }}>Montant Total</th>
+                          <th style={{ width: '160px' }}>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredHistory.map(historyItem => {
+                          const title = historyItem.printData?.title || '';
+                          let invoiceNo = '-';
+                          if (title.includes('FACTURE NSA-EDV')) {
+                            invoiceNo = title.replace(/\s+/g, ' ').replace('FACTURE NSA-EDV :', '').trim();
+                          }
+                          return (
+                            <tr key={historyItem.id}>
+                              <td>{new Date(historyItem.date).toLocaleString()}</td>
+                              <td style={{ fontWeight: 'bold', color: 'var(--primary)' }}>{invoiceNo}</td>
+                              <td style={{ fontWeight: 600 }}>{historyItem.clientName}</td>
+                              <td>{historyItem.period}</td>
+                              <td style={{ textAlign: 'right', fontWeight: 'bold' }}>{formatPrice(historyItem.totalAmount)} FCFA</td>
+                              <td>
+                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                  <button 
+                                    className="btn btn-sm btn-outline-primary"
+                                    style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+                                    onClick={() => {
+                                      if (historyItem.clientId) {
+                                        setSelectedClientId(historyItem.clientId);
+                                      }
+                                      const loadedData = historyItem.printData || {};
+                                      setPrintData({
+                                        ...loadedData,
+                                        sectionTitle: loadedData.sectionTitle || 'FOURNITURE DE PIECES DE RECHANGE',
+                                        customSite: loadedData.customSite || getClientInitials(loadedData.clientName || historyItem.clientName || selectedClient?.name),
+                                        hideColNo: loadedData.hideColNo !== undefined ? loadedData.hideColNo : false,
+                                        hideColSite: loadedData.hideColSite !== undefined ? loadedData.hideColSite : false,
+                                      });
+                                      setIsHistoryModalOpen(false);
+                                      setIsPrintModalOpen(true);
+                                    }}
+                                  >
+                                    <Printer size={14} /> Éditer
+                                  </button>
+                                  <button 
+                                    className="btn btn-sm"
+                                    style={{ color: '#ef4444', border: '1px solid #ef4444', backgroundColor: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                    onClick={() => deletePrintHistory(historyItem.id)}
+                                    title="Supprimer"
+                                  >
+                                    <X size={14} />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  );
+                })()
               )}
             </div>
           </div>

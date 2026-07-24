@@ -23,7 +23,9 @@ export async function POST(request) {
 
   try {
     await db.query(
-      `INSERT INTO bilan_client_history (id, client_id, client_name, period, total_amount, print_data) VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO bilan_client_history (id, client_id, client_name, period, total_amount, print_data) 
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE client_id = VALUES(client_id), client_name = VALUES(client_name), period = VALUES(period), total_amount = VALUES(total_amount), print_data = VALUES(print_data)`,
       [
         id || Date.now().toString(),
         clientId,

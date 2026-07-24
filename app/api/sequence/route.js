@@ -7,8 +7,8 @@ export async function GET(request) {
   const orderId = searchParams.get('orderId');
   const preview = searchParams.get('preview') === 'true';
 
-  if (!type || (type !== 'BC' && type !== 'BL')) {
-    return NextResponse.json({ error: 'Type invalide. Doit être BC ou BL.' }, { status: 400 });
+  if (!type || (type !== 'BC' && type !== 'BL' && type !== 'NSA-EDV')) {
+    return NextResponse.json({ error: 'Type invalide. Doit être BC, BL ou NSA-EDV.' }, { status: 400 });
   }
 
   try {
