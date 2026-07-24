@@ -65,12 +65,12 @@ export default function PaymentsPage() {
   };
 
   const filteredHistory = payments.filter(p => p.saleRef?.toLowerCase().includes(searchTerm.toLowerCase()) || p.clientName?.toLowerCase().includes(searchTerm.toLowerCase()));
-  const filteredOutstanding = outstandingSales.filter(s => s.status !== 'Annulée' && s.clientName?.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filteredOutstanding = outstandingSales.filter(s => s.status?.toLowerCase() !== 'annulée' && s.clientName?.toLowerCase().includes(searchTerm.toLowerCase()));
 
   // Calculs statistiques
   const totalPaid = payments.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
   const totalUnpaid = outstandingSales
-    .filter(s => s.status !== 'Annulée')
+    .filter(s => s.status?.toLowerCase() !== 'annulée')
     .reduce((acc, s) => acc + ((Number(s.totalAmount) || 0) - (Number(s.amountPaid) || 0)), 0);
 
   const paidByStore = {};
@@ -81,7 +81,7 @@ export default function PaymentsPage() {
 
   const unpaidByStore = {};
   outstandingSales
-    .filter(s => s.status !== 'Annulée')
+    .filter(s => s.status?.toLowerCase() !== 'annulée')
     .forEach(s => {
       const sId = s.storeId || 'global';
       unpaidByStore[sId] = (unpaidByStore[sId] || 0) + ((Number(s.totalAmount) || 0) - (Number(s.amountPaid) || 0));
