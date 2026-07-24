@@ -476,7 +476,7 @@ export default function ClientReportPage() {
               min-height: auto !important; 
               padding: 0 !important; 
               margin: 0 !important; 
-              position: relative !important;
+              position: static !important;
             }
             .receipt-print-only table { border-collapse: collapse !important; width: 100% !important; }
             .receipt-print-only th, .receipt-print-only td { border: 1.5pt solid black !important; -webkit-print-color-adjust: exact !important; }
